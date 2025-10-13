@@ -64,7 +64,7 @@ const KnowledgeBasePage = () => {
 
   const fetchFiles = async () => {
     try {
-      const response = await fetch(`${API_URL}/knowledge-base/files')
+      const response = await fetch(`${API_URL}/knowledge-base/files`)
       const data = await response.json()
       
       if (data.success) {
@@ -179,7 +179,7 @@ const KnowledgeBasePage = () => {
         const formData = new FormData()
         formData.append('file', file)
 
-        const response = await fetch(`${API_URL}/knowledge-base/upload', {
+        const response = await fetch(`${API_URL}/knowledge-base/upload`, {
           method: 'POST',
           body: formData
         })

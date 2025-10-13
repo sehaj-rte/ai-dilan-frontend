@@ -56,7 +56,7 @@ const DocumentSelector: React.FC<DocumentSelectorProps> = ({
   const fetchDocuments = async () => {
     try {
       setLoading(true)
-      const response = await fetch(`${API_URL}/knowledge-base/documents/selection')
+      const response = await fetch(`${API_URL}/knowledge-base/documents/selection`)
       const data = await response.json()
       
       if (data.success) {
