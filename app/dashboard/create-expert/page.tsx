@@ -1,4 +1,5 @@
 'use client'
+import { API_URL } from '@/lib/config'
 
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
@@ -94,7 +95,7 @@ const CreateExpertPage = () => {
     setLoadingFiles(true)
     setFilesError(null)
     try {
-      const response = await fetch('http://localhost:8000/knowledge-base/files')
+      const response = await fetch(`${API_URL}/knowledge-base/files`)
       const data = await response.json()
       
       if (data.success) {
@@ -114,7 +115,7 @@ const CreateExpertPage = () => {
   const fetchVoices = async () => {
     setLoadingVoices(true)
     try {
-      const response = await fetch('http://localhost:8000/voice/elevenlabs-voices')
+      const response = await fetch(`${API_URL}/voice/elevenlabs-voices`)
       const data = await response.json()
       
       if (data.success) {
@@ -264,7 +265,7 @@ const CreateExpertPage = () => {
       })
       
       // Send to backend
-      const response = await fetch('http://localhost:8000/experts/', {
+      const response = await fetch(`${API_URL}/experts/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

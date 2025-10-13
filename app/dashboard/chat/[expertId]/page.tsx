@@ -7,6 +7,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import VoiceControls from '@/components/chat/VoiceControls'
 import { ToastContainer, useToast } from '@/components/ui/toast'
+import { API_URL } from '@/lib/config'
 import { 
   ArrowLeft, 
   Send, 
@@ -66,7 +67,7 @@ const ChatPage = () => {
     
     const match = s3Url.match(/https:\/\/ai-dilan\.s3\.[^/]+\.amazonaws\.com\/(.+)/)
     if (match) {
-      return `http://localhost:8000/images/avatar/full/${match[1]}`
+      return `${API_URL}/images/avatar/full/${match[1]}`
     }
     return s3Url
   }
@@ -74,7 +75,7 @@ const ChatPage = () => {
   const fetchExpert = async () => {
     try {
       setIsLoading(true)
-      const response = await fetch(`http://localhost:8000/experts/${expertId}`)
+      const response = await fetch(`${API_URL}/experts/${expertId}`)
       const data = await response.json()
       
       if (data.success && data.expert) {
@@ -97,7 +98,7 @@ const ChatPage = () => {
 
   const fetchChatHistory = async () => {
     try {
-      const response = await fetch(`http://localhost:8000/chat/${expertId}/history?user_id=anonymous`)
+      const response = await fetch(`${API_URL}/chat/${expertId}/history?user_id=anonymous`)
       const data = await response.json()
       
       if (data.success && data.messages) {
@@ -168,7 +169,7 @@ const ChatPage = () => {
 
     try {
       // Send message to backend API
-      const response = await fetch(`http://localhost:8000/chat/${expertId}`, {
+      const response = await fetch(`${API_URL}/chat/${expertId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

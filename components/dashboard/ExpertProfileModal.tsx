@@ -1,4 +1,5 @@
 'use client'
+import { API_URL } from '@/lib/config'
 
 import React, { useState, useEffect } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
@@ -54,7 +55,7 @@ const ExpertProfileModal: React.FC<ExpertProfileModalProps> = ({ expert, isOpen,
     
     const match = s3Url.match(/https:\/\/ai-dilan\.s3\.[^/]+\.amazonaws\.com\/(.+)/)
     if (match) {
-      return `http://localhost:8000/images/avatar/full/${match[1]}`
+      return `${API_URL}/images/avatar/full/${match[1]}`
     }
     return s3Url
   }

@@ -1,4 +1,5 @@
 'use client'
+import { API_URL } from '@/lib/config'
 
 import React, { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -55,7 +56,7 @@ const DocumentSelector: React.FC<DocumentSelectorProps> = ({
   const fetchDocuments = async () => {
     try {
       setLoading(true)
-      const response = await fetch('http://localhost:8000/knowledge-base/documents/selection')
+      const response = await fetch(`${API_URL}/knowledge-base/documents/selection`)
       const data = await response.json()
       
       if (data.success) {
