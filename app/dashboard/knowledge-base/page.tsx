@@ -1,4 +1,5 @@
 'use client'
+import { API_URL } from '@/lib/config'
 
 import React, { useState, useEffect } from 'react'
 import DashboardLayout from '@/components/dashboard/DashboardLayout'
@@ -63,7 +64,7 @@ const KnowledgeBasePage = () => {
 
   const fetchFiles = async () => {
     try {
-      const response = await fetch('http://localhost:8000/knowledge-base/files')
+      const response = await fetch(`${API_URL}/knowledge-base/files')
       const data = await response.json()
       
       if (data.success) {
@@ -178,7 +179,7 @@ const KnowledgeBasePage = () => {
         const formData = new FormData()
         formData.append('file', file)
 
-        const response = await fetch('http://localhost:8000/knowledge-base/upload', {
+        const response = await fetch(`${API_URL}/knowledge-base/upload', {
           method: 'POST',
           body: formData
         })
@@ -218,7 +219,7 @@ const KnowledgeBasePage = () => {
     if (!confirm('Are you sure you want to delete this file?')) return
 
     try {
-      const response = await fetch(`http://localhost:8000/knowledge-base/files/${fileId}`, {
+      const response = await fetch(`${API_URL}/knowledge-base/files/${fileId}`, {
         method: 'DELETE'
       })
 

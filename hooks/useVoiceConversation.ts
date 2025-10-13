@@ -1,4 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
+import { API_URL } from '@/lib/config'
 import { Conversation } from '@elevenlabs/client'
 
 export interface VoiceMessage {
@@ -50,7 +51,7 @@ export const useVoiceConversation = (options: UseVoiceConversationOptions) => {
   
   const getSignedUrl = useCallback(async (): Promise<string> => {
     try {
-      const response = await fetch(`http://localhost:8000/conversation/signed-url/${expertId}`)
+      const response = await fetch(`${API_URL}/conversation/signed-url/${expertId}`)
       const data = await response.json()
       
       if (!data.success) {

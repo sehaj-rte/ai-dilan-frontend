@@ -8,6 +8,7 @@ import ExpertProfileModal from '@/components/dashboard/ExpertProfileModal'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { useAppSelector } from '@/store/hooks'
+import { API_URL } from '@/lib/config'
 import { 
   Brain, 
   MessageSquare, 
@@ -119,10 +120,10 @@ const DashboardPage = () => {
     
     // Convert S3 URL to proxy URL
     // From: https://ai-dilan.s3.us-east-1.amazonaws.com/expert-avatars/filename.png
-    // To: http://localhost:8000/images/avatar/full/expert-avatars/filename.png
+    // To: {API_URL}/images/avatar/full/expert-avatars/filename.png
     const match = s3Url.match(/https:\/\/ai-dilan\.s3\.[^/]+\.amazonaws\.com\/(.+)/)
     if (match) {
-      return `http://localhost:8000/images/avatar/full/${match[1]}`
+      return `${API_URL}/images/avatar/full/${match[1]}`
     }
     return s3Url
   }
@@ -130,7 +131,7 @@ const DashboardPage = () => {
   const fetchExperts = async () => {
     try {
       setLoadingExperts(true)
-      const response = await fetch('http://localhost:8000/experts/')
+      const response = await fetch(`${API_URL}/experts/`)
       const data = await response.json()
       
       if (data.success && data.experts) {
@@ -163,7 +164,7 @@ const DashboardPage = () => {
       // Fetch progress for each expert
       const progressPromises = expertsToCheck.map(async (expert) => {
         try {
-          const response = await fetch(`http://localhost:8000/api/experts/${expert.id}/progress`)
+          const response = await fetch(`${API_URL}/api/experts/${expert.id}/progress`)
           const data = await response.json()
           
           if (data.success && data.progress) {
@@ -202,7 +203,7 @@ const DashboardPage = () => {
   const handleDeleteExpert = async (expertId: string) => {
     try {
       setDeletingExpert(expertId)
-      const response = await fetch(`http://localhost:8000/experts/${expertId}`, {
+      const response = await fetch(`${API_URL}/experts/${expertId}`, {
         method: 'DELETE',
       })
       const data = await response.json()
