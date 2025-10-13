@@ -29,7 +29,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 
-const ELEVENLABS_API_KEY = "4b757c743f73858a0b19a8947b7742c3c2acbacc947374329ae264bb61d02c2d"
+const ELEVENLABS_API_KEY = "sk_7e6d4210c5184763b1623ec5558c557cc182ab91ca8960a2"
 
 interface Voice {
   id: string
@@ -61,6 +61,7 @@ const CreateExpertPage = () => {
     name: '',
     description: '',
     systemPrompt: '',
+    firstMessage: '',
     selectedVoice: '',
     avatar: null as File | null,
     avatarBase64: '' as string,
@@ -251,6 +252,7 @@ const CreateExpertPage = () => {
         name: formData.name.trim(),
         description: formData.description.trim() || null,
         system_prompt: formData.systemPrompt.trim(),
+        first_message: formData.firstMessage.trim() || null,
         voice_id: formData.selectedVoice,
         avatar_base64: formData.avatarBase64 || null,
         selected_files: formData.selectedFiles
@@ -296,6 +298,7 @@ const CreateExpertPage = () => {
           name: '',
           description: '',
           systemPrompt: '',
+          firstMessage: '',
           selectedVoice: '',
           avatar: null,
           avatarBase64: '',
@@ -382,6 +385,34 @@ const CreateExpertPage = () => {
                 </CardContent>
               </Card>
 
+              {/* First Message */}
+              <Card className="shadow-sm hover:shadow-md transition-shadow duration-200">
+                <CardHeader className="bg-gradient-to-r from-orange-50 to-amber-50 border-b border-orange-100">
+                  <CardTitle className="flex items-center text-lg">
+                    <Play className="h-5 w-5 mr-2 text-orange-600" />
+                    First Message
+                  </CardTitle>
+                  <CardDescription className="text-orange-700">
+                    The initial greeting message your expert will send to users
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="p-6">
+                  <textarea
+                    value={formData.firstMessage}
+                    onChange={(e) => setFormData(prev => ({ ...prev, firstMessage: e.target.value }))}
+                    rows={3}
+                    className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200 text-gray-900 placeholder-gray-500 hover:border-gray-300 resize-none"
+                    placeholder="Hello! I'm your expert assistant. How can I help you today?"
+                  />
+                  <div className="mt-3 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+                    <p className="text-sm text-orange-800 font-medium mb-1">💬 Tip:</p>
+                    <p className="text-xs text-orange-700">
+                      This message will be the first thing users see when they start a conversation. Make it welcoming and informative.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+
               {/* System Prompt */}
               <Card className="shadow-sm hover:shadow-md transition-shadow duration-200">
                 <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 border-b border-green-100">
@@ -409,6 +440,8 @@ const CreateExpertPage = () => {
                   </div>
                 </CardContent>
               </Card>
+
+
 
               {/* Voice Selection */}
               <Card className="shadow-sm hover:shadow-md transition-shadow duration-200">
@@ -718,71 +751,37 @@ const CreateExpertPage = () => {
                   {/* Selected Files Summary */}
                   {formData.selectedFiles.length > 0 && (
                     <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                      <p className="text-sm text-blue-800 font-medium mb-1">
+                      <p className="text-sm font-medium text-blue-800 mb-1">
                         Selected Files ({formData.selectedFiles.length})
                       </p>
-                      <div className="flex flex-wrap gap-1">
-                        {formData.selectedFiles.map((fileId) => {
-                          const file = knowledgeBaseFiles.find((f: KnowledgeBaseFile) => f.id === fileId)
-                          return file ? (
-                            <span
-                              key={fileId}
-                              className="inline-flex items-center px-2 py-1 rounded text-xs bg-blue-100 text-blue-800"
-                            >
-                              {file.name}
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation()
-                                  handleFileSelection(fileId)
-                                }}
-                                className="ml-1 text-blue-600 hover:text-blue-800"
-                              >
-                                ×
-                              </button>
-                            </span>
-                          ) : null
-                        })}
-                      </div>
+                      <p className="text-xs text-blue-600">
+                        These files will be available to your expert for answering questions.
+                      </p>
                     </div>
                   )}
-                  
-                  <div className="mt-6 pt-4 border-t border-indigo-200">
-                    <Button type="button" variant="outline" size="sm" className="w-full bg-indigo-50 border-indigo-200 text-indigo-700 hover:bg-indigo-100 hover:border-indigo-300">
-                      <Upload className="h-4 w-4 mr-2" />
-                      Add More Files
-                    </Button>
-                  </div>
                 </CardContent>
               </Card>
-            </div>
-          </div>
 
-          {/* Submit Button */}
-          <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
-            <div className="flex flex-col sm:flex-row justify-end space-y-3 sm:space-y-0 sm:space-x-4">
-              <Link href="/dashboard">
-                <Button type="button" variant="outline" className="w-full sm:w-auto">
-                  Cancel
+              {/* Submit Button */}
+              <div className="flex justify-end">
+                <Button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-3 rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Creating Expert...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4 mr-2" />
+                      Create Expert
+                    </>
+                  )}
                 </Button>
-              </Link>
-              <Button 
-                type="submit" 
-                disabled={isSubmitting}
-                className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isSubmitting ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Creating Expert...
-                  </>
-                ) : (
-                  <>
-                    <Save className="h-4 w-4 mr-2" />
-                    Create Expert
-                  </>
-                )}
-              </Button>
+              </div>
             </div>
           </div>
         </form>
@@ -792,61 +791,47 @@ const CreateExpertPage = () => {
       <Dialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-green-600">
-              <CheckCircle className="h-5 w-5" />
+            <DialogTitle className="flex items-center text-green-600">
+              <CheckCircle className="h-5 w-5 mr-2" />
               Expert Created Successfully!
             </DialogTitle>
             <DialogDescription>
-              Your AI expert has been created and is ready to use.
+              Your expert "{successData?.expertName}" has been created and is ready to use.
             </DialogDescription>
           </DialogHeader>
-          
-          {successData && (
-            <div className="space-y-4">
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                <h4 className="font-semibold text-green-800 mb-2">Expert Details</h4>
-                <div className="space-y-2 text-sm">
-                  <div>
-                    <span className="font-medium text-green-700">Name:</span>{' '}
-                    <span className="text-green-800">{successData.expertName}</span>
-                  </div>
-                  <div>
-                    <span className="font-medium text-green-700">ElevenLabs Agent ID:</span>{' '}
-                    <div className="flex items-center gap-2 mt-1">
-                      <code className="bg-green-100 px-2 py-1 rounded text-xs text-green-800 font-mono">
-                        {successData.agentId}
-                      </code>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => navigator.clipboard.writeText(successData.agentId)}
-                        className="h-6 px-2 text-xs"
-                      >
-                        <Copy className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  </div>
-                  {successData.avatarUploaded && (
-                    <div className="flex items-center gap-2 text-green-700">
-                      <CheckCircle className="h-4 w-4" />
-                      <span className="text-sm">Avatar uploaded to AWS S3</span>
-                    </div>
-                  )}
+          <div className="space-y-4">
+            <div className="p-4 bg-gray-50 rounded-lg">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-gray-700">Agent ID:</span>
+                <div className="flex items-center space-x-2">
+                  <code className="text-xs bg-white px-2 py-1 rounded border">
+                    {successData?.agentId}
+                  </code>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      if (successData?.agentId) {
+                        navigator.clipboard.writeText(successData.agentId)
+                      }
+                    }}
+                  >
+                    <Copy className="h-3 w-3" />
+                  </Button>
                 </div>
               </div>
             </div>
-          )}
-
-          <DialogFooter className="flex gap-2">
+            {successData?.avatarUploaded && (
+              <p className="text-sm text-green-600">✓ Avatar uploaded successfully</p>
+            )}
+          </div>
+          <DialogFooter>
             <Button
-              variant="outline"
-              onClick={() => setShowSuccessDialog(false)}
-            >
-              Create Another
-            </Button>
-            <Button 
-              className="bg-green-600 hover:bg-green-700"
-              onClick={() => router.push('/dashboard')}
+              onClick={() => {
+                setShowSuccessDialog(false)
+                router.push('/dashboard')
+              }}
+              className="w-full"
             >
               Go to Dashboard
             </Button>
