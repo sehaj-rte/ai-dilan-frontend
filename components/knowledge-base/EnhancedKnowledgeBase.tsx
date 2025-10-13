@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
+import { API_URL } from '@/lib/config'
 import DocumentContentViewer from './DocumentContentViewer'
 import { 
   Upload, 
@@ -81,7 +82,7 @@ const EnhancedKnowledgeBase = () => {
 
   const fetchFiles = async () => {
     try {
-      const response = await fetch('http://localhost:8000/knowledge-base/files')
+      const response = await fetch(`${API_URL}/knowledge-base/files`)
       const data = await response.json()
       
       if (data.success) {
@@ -129,7 +130,7 @@ const EnhancedKnowledgeBase = () => {
 
         progressTimersRef.current[fileId] = progressTimer
 
-        const response = await fetch('http://localhost:8000/knowledge-base/upload', {
+        const response = await fetch(`${API_URL}/knowledge-base/upload`, {
           method: 'POST',
           body: formData,
         })
@@ -224,7 +225,7 @@ const EnhancedKnowledgeBase = () => {
 
   const handleDeleteFile = async (fileId: string) => {
     try {
-      const response = await fetch(`http://localhost:8000/knowledge-base/files/${fileId}`, {
+      const response = await fetch(`${API_URL}/knowledge-base/files/${fileId}`, {
         method: 'DELETE',
       })
 

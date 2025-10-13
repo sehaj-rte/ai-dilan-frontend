@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
+import { API_URL } from '@/lib/config'
 import { 
   FileText, 
   File,
@@ -71,7 +72,7 @@ const DocumentContentViewer: React.FC<DocumentContentViewerProps> = ({
       setLoading(true)
       setError(null)
       
-      const response = await fetch(`http://localhost:8000/knowledge-base/documents/${documentId}/details`)
+      const response = await fetch(`${API_URL}/knowledge-base/documents/${documentId}/details`)
       const data = await response.json()
       
       if (data.success) {
