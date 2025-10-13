@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import DashboardLayout from '@/components/dashboard/DashboardLayout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -41,15 +42,21 @@ interface Voice {
   category: string
 }
 
-interface DemoFile {
+interface KnowledgeBaseFile {
   id: string
   name: string
   type: string
-  size: string
-  uploadDate: string
+  size: number
+  document_type: string | null
+  processing_status: string
+  created_at: string
+  word_count: number | null
+  description: string | null
+  tags: string[]
 }
 
 const CreateExpertPage = () => {
+  const router = useRouter()
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -72,41 +79,36 @@ const CreateExpertPage = () => {
     avatarUploaded: boolean
   } | null>(null)
 
-  // Demo files - you mentioned you'll provide real files later
-  const demoFiles: DemoFile[] = [
-    {
-      id: '1',
-      name: 'knowledge_base.pdf',
-      type: 'PDF',
-      size: '2.4 MB',
-      uploadDate: '2024-01-15'
-    },
-    {
-      id: '2',
-      name: 'training_data.docx',
-      type: 'DOCX',
-      size: '1.8 MB',
-      uploadDate: '2024-01-14'
-    },
-    {
-      id: '3',
-      name: 'expert_guidelines.txt',
-      type: 'TXT',
-      size: '156 KB',
-      uploadDate: '2024-01-13'
-    },
-    {
-      id: '4',
-      name: 'conversation_examples.json',
-      type: 'JSON',
-      size: '892 KB',
-      uploadDate: '2024-01-12'
-    }
-  ]
+  // Knowledge base files state
+  const [knowledgeBaseFiles, setKnowledgeBaseFiles] = useState<KnowledgeBaseFile[]>([])
+  const [loadingFiles, setLoadingFiles] = useState(false)
+  const [filesError, setFilesError] = useState<string | null>(null)
 
   useEffect(() => {
     fetchVoices()
+    fetchKnowledgeBaseFiles()
   }, [])
+
+  const fetchKnowledgeBaseFiles = async () => {
+    setLoadingFiles(true)
+    setFilesError(null)
+    try {
+      const response = await fetch('http://localhost:8000/knowledge-base/files')
+      const data = await response.json()
+      
+      if (data.success) {
+        setKnowledgeBaseFiles(data.files || [])
+      } else {
+        setFilesError(data.error || 'Failed to load files')
+        console.error('Failed to fetch knowledge base files:', data.error)
+      }
+    } catch (error) {
+      setFilesError('Network error: Could not connect to server')
+      console.error('Error fetching knowledge base files:', error)
+    } finally {
+      setLoadingFiles(false)
+    }
+  }
 
   const fetchVoices = async () => {
     setLoadingVoices(true)
@@ -201,11 +203,25 @@ const CreateExpertPage = () => {
   }
 
   const handleSelectAllFiles = () => {
-    const allFileIds = demoFiles.map(file => file.id)
+    const allFileIds = knowledgeBaseFiles.map((file: KnowledgeBaseFile) => file.id)
     setFormData(prev => ({
       ...prev,
       selectedFiles: prev.selectedFiles.length === allFileIds.length ? [] : allFileIds
     }))
+  }
+
+  // Helper function to format file size
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return '0 Bytes'
+    const k = 1024
+    const sizes = ['Bytes', 'KB', 'MB', 'GB']
+    const i = Math.floor(Math.log(bytes) / Math.log(k))
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+  }
+
+  // Helper function to format date
+  const formatDate = (dateString: string): string => {
+    return new Date(dateString).toLocaleDateString()
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -259,6 +275,9 @@ const CreateExpertPage = () => {
       if (response.ok && result.success) {
         console.log('Expert created successfully:', result)
         
+        // Store expert ID for redirect
+        const expertId = result.expert?.id
+        
         // Set success data and show dialog
         setSuccessData({
           expertName: formData.name,
@@ -266,6 +285,11 @@ const CreateExpertPage = () => {
           avatarUploaded: !!result.expert?.avatar_url
         })
         setShowSuccessDialog(true)
+        
+        // Automatically redirect to dashboard after 2 seconds
+        setTimeout(() => {
+          router.push(`/dashboard?new_expert=${expertId}`)
+        }, 2000)
         
         // Reset form
         setFormData({
@@ -560,7 +584,7 @@ const CreateExpertPage = () => {
                       Training Files
                     </div>
                     <div className="text-sm text-indigo-600 bg-indigo-100 px-2 py-1 rounded-full">
-                      {formData.selectedFiles.length} of {demoFiles.length} selected
+                      {formData.selectedFiles.length} of {knowledgeBaseFiles.length} selected
                     </div>
                   </CardTitle>
                   <CardDescription className="text-indigo-700">
@@ -577,64 +601,119 @@ const CreateExpertPage = () => {
                       onClick={handleSelectAllFiles}
                       className="text-xs"
                     >
-                      {formData.selectedFiles.length === demoFiles.length ? 'Deselect All' : 'Select All'}
+                      {formData.selectedFiles.length === knowledgeBaseFiles.length ? 'Deselect All' : 'Select All'}
                     </Button>
                   </div>
 
-                  <div className="space-y-3">
-                    {demoFiles.map((file) => (
-                      <div
-                        key={file.id}
-                        className={`flex items-center justify-between p-3 rounded-lg border-2 transition-all cursor-pointer ${
-                          formData.selectedFiles.includes(file.id)
-                            ? 'bg-blue-50 border-blue-200'
-                            : 'bg-gray-50 border-gray-200 hover:border-gray-300'
-                        }`}
-                        onClick={() => handleFileSelection(file.id)}
+                  {/* Loading State */}
+                  {loadingFiles ? (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                      <span className="ml-2 text-gray-600">Loading files...</span>
+                    </div>
+                  ) : filesError ? (
+                    <div className="text-center py-8">
+                      <p className="text-red-600 mb-4">{filesError}</p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={fetchKnowledgeBaseFiles}
                       >
-                        <div className="flex items-center space-x-3">
-                          {/* Checkbox */}
-                          <div className="flex items-center">
-                            <input
-                              type="checkbox"
-                              checked={formData.selectedFiles.includes(file.id)}
-                              onChange={() => handleFileSelection(file.id)}
-                              className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                              onClick={(e) => e.stopPropagation()}
-                            />
-                          </div>
-                          
-                          {/* File Icon */}
-                          <div className={`w-8 h-8 rounded flex items-center justify-center ${
+                        Retry
+                      </Button>
+                    </div>
+                  ) : knowledgeBaseFiles.length === 0 ? (
+                    <div className="text-center py-8">
+                      <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-600 mb-4">No files uploaded yet</p>
+                      <p className="text-sm text-gray-500 mb-4">
+                        Upload files to your knowledge base to train your expert
+                      </p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => window.open('/dashboard/knowledge-base', '_blank')}
+                      >
+                        Go to Knowledge Base
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {knowledgeBaseFiles.map((file: KnowledgeBaseFile) => (
+                        <div
+                          key={file.id}
+                          className={`flex items-center justify-between p-3 rounded-lg border-2 transition-all cursor-pointer ${
                             formData.selectedFiles.includes(file.id)
-                              ? 'bg-blue-100'
-                              : 'bg-gray-100'
-                          }`}>
-                            <FileText className={`h-4 w-4 ${
+                              ? 'bg-blue-50 border-blue-200'
+                              : 'bg-gray-50 border-gray-200 hover:border-gray-300'
+                          }`}
+                          onClick={() => handleFileSelection(file.id)}
+                        >
+                          <div className="flex items-center space-x-3">
+                            {/* Checkbox */}
+                            <div className="flex items-center">
+                              <input
+                                type="checkbox"
+                                checked={formData.selectedFiles.includes(file.id)}
+                                onChange={() => handleFileSelection(file.id)}
+                                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                            </div>
+                            
+                            {/* File Icon */}
+                            <div className={`w-8 h-8 rounded flex items-center justify-center ${
                               formData.selectedFiles.includes(file.id)
-                                ? 'text-blue-600'
-                                : 'text-gray-600'
-                            }`} />
+                                ? 'bg-blue-100'
+                                : 'bg-gray-100'
+                            }`}>
+                              <FileText className={`h-4 w-4 ${
+                                formData.selectedFiles.includes(file.id)
+                                  ? 'text-blue-600'
+                                  : 'text-gray-600'
+                              }`} />
+                            </div>
+                            
+                            {/* File Info */}
+                            <div>
+                              <p className={`text-sm font-medium ${
+                                formData.selectedFiles.includes(file.id)
+                                  ? 'text-blue-900'
+                                  : 'text-gray-900'
+                              }`}>
+                                {file.name}
+                              </p>
+                              <div className="flex items-center space-x-2 text-xs text-gray-500">
+                                <span>{file.document_type || file.type}</span>
+                                <span>•</span>
+                                <span>{formatFileSize(file.size)}</span>
+                                {file.word_count && (
+                                  <>
+                                    <span>•</span>
+                                    <span>{file.word_count} words</span>
+                                  </>
+                                )}
+                                <span className={`px-2 py-1 rounded text-xs ${
+                                  file.processing_status === 'completed' 
+                                    ? 'bg-green-100 text-green-800'
+                                    : file.processing_status === 'pending'
+                                    ? 'bg-yellow-100 text-yellow-800'
+                                    : 'bg-red-100 text-red-800'
+                                }`}>
+                                  {file.processing_status}
+                                </span>
+                              </div>
+                            </div>
                           </div>
                           
-                          {/* File Info */}
-                          <div>
-                            <p className={`text-sm font-medium ${
-                              formData.selectedFiles.includes(file.id)
-                                ? 'text-blue-900'
-                                : 'text-gray-900'
-                            }`}>
-                              {file.name}
-                            </p>
-                            <p className="text-xs text-gray-500">{file.type} • {file.size}</p>
-                          </div>
+                          {/* Upload Date */}
+                          <span className="text-xs text-gray-400">{formatDate(file.created_at)}</span>
                         </div>
-                        
-                        {/* Upload Date */}
-                        <span className="text-xs text-gray-400">{file.uploadDate}</span>
-                      </div>
-                    ))}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                   
                   {/* Selected Files Summary */}
                   {formData.selectedFiles.length > 0 && (
@@ -644,7 +723,7 @@ const CreateExpertPage = () => {
                       </p>
                       <div className="flex flex-wrap gap-1">
                         {formData.selectedFiles.map((fileId) => {
-                          const file = demoFiles.find(f => f.id === fileId)
+                          const file = knowledgeBaseFiles.find((f: KnowledgeBaseFile) => f.id === fileId)
                           return file ? (
                             <span
                               key={fileId}
@@ -765,11 +844,12 @@ const CreateExpertPage = () => {
             >
               Create Another
             </Button>
-            <Link href="/dashboard">
-              <Button className="bg-green-600 hover:bg-green-700">
-                Go to Dashboard
-              </Button>
-            </Link>
+            <Button 
+              className="bg-green-600 hover:bg-green-700"
+              onClick={() => router.push('/dashboard')}
+            >
+              Go to Dashboard
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

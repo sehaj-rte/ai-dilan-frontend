@@ -23,11 +23,33 @@ import {
 interface UploadedFile {
   id: string
   name: string
+  original_name: string
   size: number
   type: string
   url: string
-  uploadDate: string
-  status: 'uploading' | 'completed' | 'error'
+  created_at: string
+  updated_at: string
+  
+  // Enhanced metadata
+  description?: string
+  tags: string[]
+  document_type?: string
+  language?: string
+  word_count?: number
+  page_count?: number
+  
+  // Processing info
+  processing_status: 'pending' | 'processing' | 'completed' | 'failed'
+  processing_error?: string
+  
+  // Content metadata
+  extracted_text_preview?: string
+  has_images: boolean
+  has_tables: boolean
+  
+  // Legacy compatibility
+  uploadDate?: string
+  status?: 'uploading' | 'completed' | 'error'
 }
 
 const KnowledgeBasePage = () => {
@@ -56,18 +78,42 @@ const KnowledgeBasePage = () => {
         {
           id: '1',
           name: 'AI_Research_Paper.pdf',
+          original_name: 'AI_Research_Paper.pdf',
           size: 2457600,
           type: 'application/pdf',
           url: 'https://ai-dilan.s3.amazonaws.com/files/AI_Research_Paper.pdf',
+          created_at: '2024-01-15T10:30:00Z',
+          updated_at: '2024-01-15T10:30:00Z',
+          tags: ['AI', 'Research', 'Machine Learning'],
+          document_type: 'pdf',
+          language: 'en',
+          word_count: 5420,
+          page_count: 12,
+          processing_status: 'completed',
+          extracted_text_preview: 'This research paper explores the latest developments in artificial intelligence...',
+          has_images: true,
+          has_tables: false,
           uploadDate: '2024-01-15T10:30:00Z',
           status: 'completed'
         },
         {
           id: '2',
           name: 'Training_Dataset.csv',
+          original_name: 'Training_Dataset.csv',
           size: 1048576,
           type: 'text/csv',
           url: 'https://ai-dilan.s3.amazonaws.com/files/Training_Dataset.csv',
+          created_at: '2024-01-14T14:20:00Z',
+          updated_at: '2024-01-14T14:20:00Z',
+          tags: ['Dataset', 'Training', 'CSV'],
+          document_type: 'csv',
+          language: 'en',
+          word_count: 2150,
+          page_count: 1,
+          processing_status: 'completed',
+          extracted_text_preview: 'Name, Age, Category, Score\nJohn Doe, 25, A, 95\nJane Smith, 30, B, 87...',
+          has_images: false,
+          has_tables: true,
           uploadDate: '2024-01-14T14:20:00Z',
           status: 'completed'
         }
@@ -112,9 +158,16 @@ const KnowledgeBasePage = () => {
       const newFile: UploadedFile = {
         id: tempId,
         name: file.name,
+        original_name: file.name,
         size: file.size,
         type: file.type,
         url: '',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        tags: [],
+        processing_status: 'processing',
+        has_images: false,
+        has_tables: false,
         uploadDate: new Date().toISOString(),
         status: 'uploading'
       }
@@ -301,25 +354,25 @@ const KnowledgeBasePage = () => {
                         {/* Status Icon */}
                         <div className="relative">
                           <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                            file.status === 'completed' ? 'bg-green-100' :
-                            file.status === 'error' ? 'bg-red-100' : 'bg-blue-100'
+                            file.processing_status === 'completed' ? 'bg-green-100' :
+                            file.processing_status === 'failed' ? 'bg-red-100' : 'bg-blue-100'
                           }`}>
                             <FileIcon className={`h-5 w-5 ${
-                              file.status === 'completed' ? 'text-green-600' :
-                              file.status === 'error' ? 'text-red-600' : 'text-blue-600'
+                              file.processing_status === 'completed' ? 'text-green-600' :
+                              file.processing_status === 'failed' ? 'text-red-600' : 'text-blue-600'
                             }`} />
                           </div>
-                          {file.status === 'uploading' && (
+                          {(file.processing_status === 'processing' || file.status === 'uploading') && (
                             <div className="absolute -top-1 -right-1">
                               <Clock className="h-4 w-4 text-blue-500 animate-spin" />
                             </div>
                           )}
-                          {file.status === 'completed' && (
+                          {file.processing_status === 'completed' && (
                             <div className="absolute -top-1 -right-1">
                               <CheckCircle className="h-4 w-4 text-green-500" />
                             </div>
                           )}
-                          {file.status === 'error' && (
+                          {file.processing_status === 'failed' && (
                             <div className="absolute -top-1 -right-1">
                               <AlertCircle className="h-4 w-4 text-red-500" />
                             </div>
@@ -327,25 +380,66 @@ const KnowledgeBasePage = () => {
                         </div>
 
                         {/* File Info */}
-                        <div>
-                          <p className="font-medium text-gray-900">{file.name}</p>
-                          <div className="flex items-center space-x-4 text-sm text-gray-500">
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-2">
+                            <p className="font-medium text-gray-900">{file.name}</p>
+                            {file.document_type && (
+                              <span className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">
+                                {file.document_type.toUpperCase()}
+                              </span>
+                            )}
+                          </div>
+                          
+                          <div className="flex items-center space-x-4 text-sm text-gray-500 mt-1">
                             <span>{formatFileSize(file.size)}</span>
-                            <span>•</span>
-                            <span>{formatDate(file.uploadDate)}</span>
-                            {file.status === 'error' && (
+                            {file.word_count && (
                               <>
                                 <span>•</span>
-                                <span className="text-red-500">Upload failed</span>
+                                <span>{file.word_count.toLocaleString()} words</span>
+                              </>
+                            )}
+                            {file.page_count && file.page_count > 1 && (
+                              <>
+                                <span>•</span>
+                                <span>{file.page_count} pages</span>
+                              </>
+                            )}
+                            <span>•</span>
+                            <span>{formatDate(file.uploadDate || file.created_at)}</span>
+                            {file.processing_status === 'failed' && (
+                              <>
+                                <span>•</span>
+                                <span className="text-red-500">Processing failed</span>
                               </>
                             )}
                           </div>
+                          
+                          {/* Tags */}
+                          {file.tags && file.tags.length > 0 && (
+                            <div className="flex items-center space-x-1 mt-2">
+                              {file.tags.slice(0, 3).map((tag, index) => (
+                                <span key={index} className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded">
+                                  {tag}
+                                </span>
+                              ))}
+                              {file.tags.length > 3 && (
+                                <span className="text-xs text-gray-500">+{file.tags.length - 3} more</span>
+                              )}
+                            </div>
+                          )}
+                          
+                          {/* Preview */}
+                          {file.extracted_text_preview && (
+                            <p className="text-xs text-gray-500 mt-2 line-clamp-2">
+                              {file.extracted_text_preview}
+                            </p>
+                          )}
                         </div>
                       </div>
 
                       {/* Actions */}
                       <div className="flex items-center space-x-2">
-                        {file.status === 'completed' && (
+                        {file.processing_status === 'completed' && (
                           <>
                             <Button
                               variant="outline"

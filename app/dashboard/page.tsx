@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import DashboardLayout from '@/components/dashboard/DashboardLayout'
 import ExpertProfileModal from '@/components/dashboard/ExpertProfileModal'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -18,7 +19,9 @@ import {
   Clock,
   User,
   Settings,
-  Play
+  Play,
+  Trash2,
+  AlertTriangle
 } from 'lucide-react'
 
 interface Expert {
@@ -31,16 +34,85 @@ interface Expert {
   created_at: string
 }
 
+interface ProcessingProgress {
+  id: string
+  expert_id: string
+  agent_id: string
+  stage: string
+  status: string
+  queue_position: number | null
+  task_id: string | null
+  current_file: string | null
+  current_file_index: number
+  total_files: number
+  current_batch: number
+  total_batches: number
+  current_chunk: number
+  total_chunks: number
+  processed_files: number
+  failed_files: number
+  progress_percentage: number
+  details: any
+  error_message: string | null
+  started_at: string
+  updated_at: string
+  completed_at: string | null
+}
+
 const DashboardPage = () => {
   const { user } = useAppSelector((state) => state.auth)
+  const searchParams = useSearchParams()
   const [experts, setExperts] = useState<Expert[]>([])
   const [loadingExperts, setLoadingExperts] = useState(true)
   const [selectedExpert, setSelectedExpert] = useState<Expert | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [deletingExpert, setDeletingExpert] = useState<string | null>(null)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null)
+  const [expertProgress, setExpertProgress] = useState<Record<string, ProcessingProgress>>({})
+  const [newExpertId, setNewExpertId] = useState<string | null>(null)
 
   useEffect(() => {
+    // Check if we're redirected from expert creation
+    const newExpert = searchParams.get('new_expert')
+    if (newExpert) {
+      setNewExpertId(newExpert)
+      console.log('New expert created:', newExpert)
+    }
+    
     fetchExperts()
   }, [])
+  
+  // Watch for new expert and fetch its progress immediately
+  useEffect(() => {
+    if (newExpertId && experts.length > 0) {
+      console.log('Fetching progress for new expert:', newExpertId)
+      // Force immediate progress fetch for the new expert
+      fetchProgressForExperts()
+    }
+  }, [newExpertId, experts.length])
+  
+  useEffect(() => {
+    // Only start polling if we have experts
+    if (experts.length === 0) return
+    
+    // Initial fetch
+    fetchProgressForExperts()
+    
+    // Poll for progress updates every 2 seconds
+    const progressInterval = setInterval(() => {
+      fetchProgressForExperts()
+    }, 2000)
+    
+    return () => clearInterval(progressInterval)
+  }, [experts.length, newExpertId]) // Also depend on newExpertId to restart polling
+  
+  // Stop polling when there are no active progress records
+  useEffect(() => {
+    if (Object.keys(expertProgress).length === 0 && experts.length > 0) {
+      // No active progress, we can reduce polling frequency or stop
+      // For now, we'll keep polling but the backend will return empty results
+    }
+  }, [expertProgress])
 
   const convertS3UrlToProxy = (s3Url: string): string => {
     if (!s3Url) return s3Url
@@ -68,6 +140,9 @@ const DashboardPage = () => {
           avatar_url: expert.avatar_url ? convertS3UrlToProxy(expert.avatar_url) : null
         }))
         setExperts(expertsWithProxyUrls)
+        
+        // Fetch progress for all experts
+        fetchProgressForExperts(expertsWithProxyUrls)
       } else {
         console.error('Failed to fetch experts:', data.error)
         setExperts([])
@@ -77,6 +152,77 @@ const DashboardPage = () => {
       setExperts([])
     } finally {
       setLoadingExperts(false)
+    }
+  }
+  
+  const fetchProgressForExperts = async (expertsList?: Expert[]) => {
+    const expertsToCheck = expertsList || experts
+    if (expertsToCheck.length === 0) return
+    
+    try {
+      // Fetch progress for each expert
+      const progressPromises = expertsToCheck.map(async (expert) => {
+        try {
+          const response = await fetch(`http://localhost:8000/api/experts/${expert.id}/progress`)
+          const data = await response.json()
+          
+          if (data.success && data.progress) {
+            return { expertId: expert.id, progress: data.progress }
+          }
+          return null
+        } catch (error) {
+          return null
+        }
+      })
+      
+      const results = await Promise.all(progressPromises)
+      const progressMap: Record<string, ProcessingProgress> = {}
+      
+      results.forEach((result) => {
+        if (result && result.progress) {
+          // Only update if status is not completed to avoid unnecessary re-renders
+          if (result.progress.status !== 'completed') {
+            progressMap[result.expertId] = result.progress
+          }
+        }
+      })
+      
+      // Only update state if there are active progress records
+      if (Object.keys(progressMap).length > 0) {
+        setExpertProgress(progressMap)
+      } else {
+        // Clear progress if all are completed
+        setExpertProgress({})
+      }
+    } catch (error) {
+      console.error('Error fetching progress:', error)
+    }
+  }
+
+  const handleDeleteExpert = async (expertId: string) => {
+    try {
+      setDeletingExpert(expertId)
+      const response = await fetch(`http://localhost:8000/experts/${expertId}`, {
+        method: 'DELETE',
+      })
+      const data = await response.json()
+      
+      if (data.success) {
+        // Remove the expert from the list
+        setExperts(experts.filter(expert => expert.id !== expertId))
+        setShowDeleteConfirm(null)
+        // You could show a success toast here
+        console.log('Expert deleted successfully:', data.message)
+      } else {
+        console.error('Failed to delete expert:', data.error)
+        // You could show an error toast here
+        alert('Failed to delete expert: ' + data.error)
+      }
+    } catch (error) {
+      console.error('Error deleting expert:', error)
+      alert('Error deleting expert. Please try again.')
+    } finally {
+      setDeletingExpert(null)
     }
   }
 
@@ -339,6 +485,59 @@ const DashboardPage = () => {
                             </div>
                           </div>
                           
+                          {/* Processing Progress */}
+                          {expertProgress[expert.id] && expertProgress[expert.id].status !== 'completed' && (
+                            <div className="mt-3 space-y-2">
+                              <div className="flex items-center justify-between text-xs">
+                                <span className="font-medium text-blue-600">
+                                  {expertProgress[expert.id].stage === 'queued' && `Queued (Position ${expertProgress[expert.id].queue_position || '?'})`}
+                                  {expertProgress[expert.id].stage === 'file_processing' && 'Processing files...'}
+                                  {expertProgress[expert.id].stage === 'text_extraction' && 'Extracting text...'}
+                                  {expertProgress[expert.id].stage === 'embedding' && 'Generating embeddings...'}
+                                  {expertProgress[expert.id].stage === 'pinecone_storage' && 'Storing in database...'}
+                                  {expertProgress[expert.id].stage === 'complete' && 'Complete!'}
+                                  {expertProgress[expert.id].stage === 'failed' && 'Failed'}
+                                </span>
+                                <span className="text-gray-600">
+                                  {expertProgress[expert.id].stage === 'queued' ? 'Waiting...' : `${Math.round(expertProgress[expert.id].progress_percentage)}%`}
+                                </span>
+                              </div>
+                              
+                              {/* Progress Bar */}
+                              <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                                {expertProgress[expert.id].stage === 'queued' ? (
+                                  <div className="bg-gradient-to-r from-blue-400 to-purple-400 h-full w-full animate-pulse" />
+                                ) : (
+                                  <div 
+                                    className="bg-gradient-to-r from-blue-500 to-purple-500 h-full transition-all duration-300 ease-out"
+                                    style={{ width: `${expertProgress[expert.id].progress_percentage}%` }}
+                                  />
+                                )}
+                              </div>
+                              
+                              {/* Progress Details */}
+                              {expertProgress[expert.id].stage === 'embedding' && (
+                                <div className="text-xs text-gray-500">
+                                  File {expertProgress[expert.id].current_file_index + 1}/{expertProgress[expert.id].total_files} • 
+                                  Batch {expertProgress[expert.id].current_batch}/{expertProgress[expert.id].total_batches} • 
+                                  Chunk {expertProgress[expert.id].current_chunk}/{expertProgress[expert.id].total_chunks}
+                                </div>
+                              )}
+                              
+                              {expertProgress[expert.id].details?.filename && (
+                                <div className="text-xs text-gray-500 truncate">
+                                  📄 {expertProgress[expert.id].details.filename}
+                                </div>
+                              )}
+                              
+                              {expertProgress[expert.id].status === 'failed' && expertProgress[expert.id].error_message && (
+                                <div className="text-xs text-red-600 mt-1">
+                                  ⚠️ {expertProgress[expert.id].error_message}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          
                           {/* Action Buttons */}
                           <div className="flex space-x-2 mt-4">
                             <Button 
@@ -349,14 +548,64 @@ const DashboardPage = () => {
                                 setSelectedExpert(expert)
                                 setIsModalOpen(true)
                               }}
+                              disabled={expertProgress[expert.id] && expertProgress[expert.id].status !== 'completed'}
                             >
                               <Play className="h-3 w-3 mr-1" />
-                              Chat
+                              {expertProgress[expert.id] && expertProgress[expert.id].status !== 'completed' ? 'Processing...' : 'Chat'}
                             </Button>
                             <Button variant="outline" size="sm">
                               <Settings className="h-3 w-3" />
                             </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                              onClick={() => setShowDeleteConfirm(expert.id)}
+                              disabled={deletingExpert === expert.id}
+                            >
+                              {deletingExpert === expert.id ? (
+                                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-red-600"></div>
+                              ) : (
+                                <Trash2 className="h-3 w-3" />
+                              )}
+                            </Button>
                           </div>
+                          
+                          {/* Delete Confirmation */}
+                          {showDeleteConfirm === expert.id && (
+                            <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
+                              <div className="flex items-start space-x-2">
+                                <AlertTriangle className="h-4 w-4 text-red-600 mt-0.5 flex-shrink-0" />
+                                <div className="flex-1">
+                                  <p className="text-sm text-red-800 font-medium mb-2">
+                                    Delete "{expert.name}"?
+                                  </p>
+                                  <p className="text-xs text-red-700 mb-3">
+                                    This will permanently delete the expert, ElevenLabs agent, and all associated data. This action cannot be undone.
+                                  </p>
+                                  <div className="flex space-x-2">
+                                    <Button 
+                                      size="sm" 
+                                      variant="destructive"
+                                      onClick={() => handleDeleteExpert(expert.id)}
+                                      disabled={deletingExpert === expert.id}
+                                      className="text-xs px-3 py-1"
+                                    >
+                                      {deletingExpert === expert.id ? 'Deleting...' : 'Delete'}
+                                    </Button>
+                                    <Button 
+                                      size="sm" 
+                                      variant="outline"
+                                      onClick={() => setShowDeleteConfirm(null)}
+                                      className="text-xs px-3 py-1"
+                                    >
+                                      Cancel
+                                    </Button>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </CardContent>
@@ -377,6 +626,62 @@ const DashboardPage = () => {
           setSelectedExpert(null)
         }}
       />
+      
+      {/* Global Delete Confirmation Overlay */}
+      {showDeleteConfirm && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4"
+          onClick={() => setShowDeleteConfirm(null)}
+        >
+          <div 
+            className="bg-white rounded-lg p-6 max-w-md w-full"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-start space-x-3">
+              <AlertTriangle className="h-6 w-6 text-red-600 flex-shrink-0 mt-1" />
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  Delete Expert
+                </h3>
+                <p className="text-sm text-gray-600 mb-4">
+                  Are you sure you want to delete this expert? This will permanently remove:
+                </p>
+                <ul className="text-sm text-gray-600 mb-6 space-y-1">
+                  <li>• The expert profile and settings</li>
+                  <li>• ElevenLabs voice agent</li>
+                  <li>• Knowledge base tools</li>
+                  <li>• All associated data</li>
+                </ul>
+                <p className="text-sm text-red-600 font-medium mb-6">
+                  This action cannot be undone.
+                </p>
+                <div className="flex space-x-3">
+                  <Button 
+                    variant="destructive"
+                    onClick={() => {
+                      const expertToDelete = experts.find(e => e.id === showDeleteConfirm)
+                      if (expertToDelete) {
+                        handleDeleteExpert(expertToDelete.id)
+                      }
+                    }}
+                    disabled={deletingExpert !== null}
+                    className="flex-1"
+                  >
+                    {deletingExpert ? 'Deleting...' : 'Delete Expert'}
+                  </Button>
+                  <Button 
+                    variant="outline"
+                    onClick={() => setShowDeleteConfirm(null)}
+                    className="flex-1"
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </DashboardLayout>
   )
 }
