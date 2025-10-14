@@ -456,12 +456,6 @@ const CreateExpertPage = () => {
                     className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200 text-gray-900 placeholder-gray-500 hover:border-gray-300 resize-none"
                     placeholder="Hello! I'm your expert assistant. How can I help you today?"
                   />
-                  <div className="mt-3 p-3 bg-orange-50 border border-orange-200 rounded-lg">
-                    <p className="text-sm text-orange-800 font-medium mb-1">💬 Tip:</p>
-                    <p className="text-xs text-orange-700">
-                      This message will be the first thing users see when they start a conversation. Make it welcoming and informative.
-                    </p>
-                  </div>
                 </CardContent>
               </Card>
 
@@ -484,12 +478,6 @@ const CreateExpertPage = () => {
                     className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200 text-gray-900 placeholder-gray-500 hover:border-gray-300 resize-none font-mono text-sm"
                     placeholder="You are an expert in... Your role is to... You should respond in a... When users ask about..."
                   />
-                  <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-                    <p className="text-sm text-green-800 font-medium mb-1">💡 Pro Tip:</p>
-                    <p className="text-xs text-green-700">
-                      Be specific about your expert's knowledge domain, communication style, and response format. Include examples of how they should handle different types of questions.
-                    </p>
-                  </div>
                 </CardContent>
               </Card>
 
@@ -503,7 +491,7 @@ const CreateExpertPage = () => {
                     Voice Selection
                   </CardTitle>
                   <CardDescription className="text-purple-700">
-                    Choose a voice for your expert from ElevenLabs
+                    Choose a voice for your expert
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6 p-6">

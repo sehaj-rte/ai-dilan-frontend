@@ -179,7 +179,7 @@ const YouTubeTranscriber: React.FC<YouTubeTranscriberProps> = ({ onTranscription
             <div className="text-xs text-gray-500 space-y-1">
               <p>⬇️ Downloading audio from YouTube...</p>
               <p>✂️ Splitting into chunks if needed...</p>
-              <p>🎙️ Transcribing with ElevenLabs AI...</p>
+              <p>🎙️ Transcribing with AI...</p>
               <p>💾 Saving to knowledge base...</p>
             </div>
           </div>
@@ -264,7 +264,7 @@ const YouTubeTranscriber: React.FC<YouTubeTranscriberProps> = ({ onTranscription
             <li>Paste any YouTube video URL</li>
             <li>Audio is automatically extracted from the video</li>
             <li>Long videos are split into 10-minute chunks</li>
-            <li>Each chunk is transcribed using ElevenLabs AI</li>
+            <li>Each chunk is transcribed using advanced AI</li>
             <li>All transcriptions are combined and saved to your knowledge base</li>
           </ul>
           <p className="mt-2 text-yellow-700">

@@ -216,7 +216,7 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({ onTranscriptionComplete }
           Speech to Text
         </CardTitle>
         {/* <CardDescription>
-          Record audio and transcribe it using ElevenLabs AI. The transcription will be saved to your knowledge base.
+          Record audio and transcribe it using AI. The transcription will be saved to your knowledge base.
         </CardDescription> */}
       </CardHeader>
       <CardContent className="space-y-4">
@@ -340,7 +340,7 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({ onTranscriptionComplete }
         {isTranscribing && (
           <div className="space-y-2">
             <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-600">Transcribing audio with ElevenLabs AI...</span>
+              <span className="text-gray-600">Transcribing audio...</span>
             </div>
             <Progress value={undefined} className="h-2" />
           </div>
@@ -388,7 +388,7 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({ onTranscriptionComplete }
             <li>Speak clearly and at a moderate pace for best results</li>
             <li>Maximum recording length: 10 minutes</li>
             <li>Supported formats: WebM, MP3, WAV, OGG, M4A</li>
-            <li>Transcriptions are powered by ElevenLabs AI</li>
+            <li>Transcriptions are powered by advanced AI</li>
           </ul>
         </div> */}
       </CardContent>
