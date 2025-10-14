@@ -9,7 +9,7 @@ const VoiceStudioPage = () => {
     <DashboardLayout>
       <ComingSoonPage 
         title="Voice Studio" 
-        description="Create and manage voice profiles for your experts" 
+        description="Create and manage voice profiles for your digital avatars" 
       />
     </DashboardLayout>
   )

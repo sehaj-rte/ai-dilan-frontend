@@ -1,41 +1,31 @@
 'use client'
 
 import React, { useState, useEffect, useRef } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
-import { Progress } from '@/components/ui/progress'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
+import { Badge } from '@/components/ui/badge'
 import { API_URL } from '@/lib/config'
 import { fetchWithAuth, getAuthHeaders, getAuthHeadersForFormData } from '@/lib/api-client'
 import DocumentContentViewer from './DocumentContentViewer'
-import AudioRecorder from './AudioRecorder'
-import YouTubeTranscriber from './YouTubeTranscriber'
-import FolderSelector from './FolderSelector'
+import AddContentModal from './AddContentModal'
+import FolderSidebar from './FolderSidebar'
 import { 
   Upload, 
   FileText, 
   Trash2,
   Download,
   Eye,
-  BookOpen,
   File,
   Image as ImageIcon,
   FileVideo,
   FileAudio,
-  AlertCircle,
-  CheckCircle,
-  Clock,
-  X,
   Plus,
-  Folder,
-  Mic,
-  Youtube,
-  ChevronDown,
-  ChevronRight,
-  Loader2
+  Search,
+  Filter,
+  Menu,
+  Loader2,
+  MoreVertical,
+  BookOpen
 } from 'lucide-react'
 
 interface UploadedFile {
@@ -47,7 +37,7 @@ interface UploadedFile {
   url: string
   created_at: string
   updated_at: string
-  folder?: string  // Added folder field
+  folder?: string
   
   // Enhanced metadata
   description?: string
@@ -78,21 +68,128 @@ interface UploadProgress {
 
 const EnhancedKnowledgeBase = () => {
   const [files, setFiles] = useState<UploadedFile[]>([])
-  const [uploading, setUploading] = useState(false)
-  const [dragActive, setDragActive] = useState(false)
+  const [filteredFiles, setFilteredFiles] = useState<UploadedFile[]>([])
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null)
-  const [uploadProgress, setUploadProgress] = useState<UploadProgress>({})
   const [selectedFolder, setSelectedFolder] = useState<string>('Uncategorized')
-  const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false)
-  const [newFolderName, setNewFolderName] = useState('')
-  const [isCreatingFolder, setIsCreatingFolder] = useState(false)
-  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(['Uncategorized']))
+  const [selectedFolderFilter, setSelectedFolderFilter] = useState<string | null>(null)
   const [isLoadingFiles, setIsLoadingFiles] = useState(false)
   const [deletingFileId, setDeletingFileId] = useState<string | null>(null)
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([])
-  const [customFileName, setCustomFileName] = useState('')
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [isAddContentModalOpen, setIsAddContentModalOpen] = useState(false)
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState<UploadProgress>({})
+  const [folderRefreshTrigger, setFolderRefreshTrigger] = useState(0)
+  const [successCount, setSuccessCount] = useState(0)
+  const [errorCount, setErrorCount] = useState(0)
   const progressTimersRef = useRef<{ [key: string]: NodeJS.Timeout }>({})
+  
+  // Toast notification state
+  const [toast, setToast] = useState<{
+    message: string
+    type: 'success' | 'error' | 'info'
+    show: boolean
+  }>({ message: '', type: 'info', show: false })
+
+  // Toast notification function
+  const showToast = (message: string, type: 'success' | 'error' | 'info' = 'info') => {
+    setToast({ message, type, show: true })
+    setTimeout(() => {
+      setToast(prev => ({ ...prev, show: false }))
+    }, 4000)
+  }
+  
+  // Add confirmation dialog state
+  const [deleteConfirm, setDeleteConfirm] = useState<{
+    fileId: string | null
+    fileName: string
+    show: boolean
+  }>({ fileId: null, fileName: '', show: false })
+  
+  // Show delete confirmation
+  const confirmDelete = (fileId: string, fileName: string) => {
+    setDeleteConfirm({ fileId, fileName, show: true })
+  }
+  
+  // Handle confirmed deletion
+  const handleConfirmedDelete = async () => {
+    if (!deleteConfirm.fileId) return
+    
+    setDeletingFileId(deleteConfirm.fileId)
+    try {
+      const response = await fetchWithAuth(`${API_URL}/knowledge-base/files/${deleteConfirm.fileId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      })
+
+      const result = await response.json()
+      
+      if (result.success) {
+        setFiles(files.filter(file => file.id !== deleteConfirm.fileId))
+        // Refresh folder counts after deletion
+        setFolderRefreshTrigger(prev => prev + 1)
+        showToast('File deleted successfully', 'success')
+      } else {
+        console.error('Failed to delete file:', result.error)
+        showToast('Failed to delete file: ' + result.error, 'error')
+      }
+    } catch (error) {
+      console.error('Error deleting file:', error)
+      showToast('Failed to delete file. Please try again.', 'error')
+    } finally {
+      setDeletingFileId(null)
+      setDeleteConfirm({ fileId: null, fileName: '', show: false })
+    }
+  }
+
+        {/* Enhanced Upload Summary Toast */}
+        {Object.keys(uploadProgress).length === 0 && successCount > 0 && errorCount >= 0 && (
+          <div className="border-b bg-gradient-to-r from-green-50 to-emerald-50 px-6 py-4">
+            <div className="bg-white rounded-lg border border-green-200 p-4 shadow-sm">
+              <div className="flex items-start space-x-4">
+                <div className="flex-shrink-0">
+                  <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
+                    <svg className="h-5 w-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h3 className="text-sm font-semibold text-green-900">
+                        Upload Complete!
+                      </h3>
+                      <p className="text-sm text-green-700 mt-1">
+                        {successCount} {successCount === 1 ? 'file' : 'files'} successfully uploaded to your knowledge base
+                        {errorCount > 0 && (
+                          <span className="text-red-600 ml-1">
+                            • {errorCount} failed
+                          </span>
+                        )}
+                      </p>
+                      <p className="text-xs text-green-600 mt-1">
+                        Files are now available for your AI experts to search and reference.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setSuccessCount(0)
+                        setErrorCount(0)
+                      }}
+                      className="flex items-center space-x-1 text-green-600 hover:text-green-800 text-xs font-medium px-2 py-1 rounded hover:bg-green-100 transition-colors"
+                    >
+                      <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                      <span>Dismiss</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
   useEffect(() => {
     fetchFiles()
@@ -102,6 +199,39 @@ const EnhancedKnowledgeBase = () => {
       Object.values(progressTimersRef.current).forEach(timer => clearInterval(timer))
     }
   }, [])
+
+  useEffect(() => {
+    // Filter files based on folder and search query
+    let filtered = files
+
+    // Filter by folder
+    if (selectedFolderFilter) {
+      filtered = filtered.filter(file => file.folder === selectedFolderFilter)
+    }
+
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim()
+      filtered = filtered.filter(file => 
+        // Search in filename
+        (file.name || file.original_name).toLowerCase().includes(query) ||
+        // Search in file type
+        file.type.toLowerCase().includes(query) ||
+        // Search in folder name
+        (file.folder || '').toLowerCase().includes(query) ||
+        // Search in extracted text preview
+        (file.extracted_text_preview || '').toLowerCase().includes(query) ||
+        // Search in description
+        (file.description || '').toLowerCase().includes(query) ||
+        // Search in tags
+        file.tags?.some(tag => tag.toLowerCase().includes(query)) ||
+        // Search in document type
+        (file.document_type || '').toLowerCase().includes(query)
+      )
+    }
+
+    setFilteredFiles(filtered)
+  }, [files, selectedFolderFilter, searchQuery])
 
   const fetchFiles = async () => {
     setIsLoadingFiles(true)
@@ -113,6 +243,8 @@ const EnhancedKnowledgeBase = () => {
       
       if (data.success) {
         setFiles(data.files)
+        // Refresh folder counts when files are fetched
+        setFolderRefreshTrigger(prev => prev + 1)
       } else {
         console.error('Failed to fetch files:', data.error)
       }
@@ -123,27 +255,17 @@ const EnhancedKnowledgeBase = () => {
     }
   }
 
-  const handleFileSelection = (files: FileList) => {
-    if (!files || files.length === 0) return
+  const handleFileUpload = async (selectedFiles: File[], folder: string) => {
+    // Reset counters at the start of each upload batch
+    setSuccessCount(0)
+    setErrorCount(0)
+
+    let successCount = 0
+    let errorCount = 0
     
-    const filesArray = Array.from(files)
-    setSelectedFiles(filesArray)
-    // Set first file name as default
-    if (filesArray.length > 0) {
-      setCustomFileName(filesArray[0].name)
-    }
-  }
-
-  const handleFileUpload = async () => {
-    if (selectedFiles.length === 0) return
-
-    setUploading(true)
-
     for (let i = 0; i < selectedFiles.length; i++) {
       const file = selectedFiles[i]
-      // Use custom name for first file, original name for others
-      const fileName = i === 0 && customFileName ? customFileName : file.name
-      const fileId = `temp_${Date.now()}_${i}`
+      const fileId = `${file.name}_${Date.now()}_${i}`
       
       // Initialize progress tracking
       setUploadProgress(prev => ({
@@ -154,8 +276,7 @@ const EnhancedKnowledgeBase = () => {
       try {
         const formData = new FormData()
         formData.append('file', file)
-        formData.append('folder', selectedFolder)
-        formData.append('custom_name', fileName)
+        formData.append('folder', folder)
 
         // Simulate upload progress
         const progressTimer = setInterval(() => {
@@ -186,6 +307,7 @@ const EnhancedKnowledgeBase = () => {
         delete progressTimersRef.current[fileId]
 
         if (result.success) {
+          successCount++
           // Update progress to completed
           setUploadProgress(prev => ({
             ...prev,
@@ -200,14 +322,12 @@ const EnhancedKnowledgeBase = () => {
               return newProgress
             })
           }, 2000)
-
-          // Refresh files list
-          await fetchFiles()
         } else {
+          errorCount++
           // Clear timer and show error
           setUploadProgress(prev => ({
             ...prev,
-            [fileId]: { progress: 0, status: 'error', error: result.error }
+            [fileId]: { progress: 0, status: 'error', error: result.error || 'Upload failed' }
           }))
 
           // Remove error after delay
@@ -218,8 +338,11 @@ const EnhancedKnowledgeBase = () => {
               return newProgress
             })
           }, 5000)
+          
+          console.error(`Upload failed for ${file.name}:`, result.error)
         }
       } catch (error) {
+        errorCount++
         // Clear timer on error
         if (progressTimersRef.current[fileId]) {
           clearInterval(progressTimersRef.current[fileId])
@@ -228,7 +351,7 @@ const EnhancedKnowledgeBase = () => {
 
         setUploadProgress(prev => ({
           ...prev,
-          [fileId]: { progress: 0, status: 'error', error: 'Upload failed' }
+          [fileId]: { progress: 0, status: 'error', error: 'Network error or server unavailable' }
         }))
 
         // Remove error after delay
@@ -240,57 +363,24 @@ const EnhancedKnowledgeBase = () => {
           })
         }, 5000)
 
-        console.error('Upload error:', error)
+        console.error(`Upload error for ${file.name}:`, error)
+      }
+      
+      // Small delay between uploads to avoid overwhelming the server
+      if (i < selectedFiles.length - 1) {
+        await new Promise(resolve => setTimeout(resolve, 100))
       }
     }
-
-    setUploading(false)
-    setSelectedFiles([])
-    setCustomFileName('')
-  }
-
-  const handleDrag = (e: React.DragEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    if (e.type === 'dragenter' || e.type === 'dragover') {
-      setDragActive(true)
-    } else if (e.type === 'dragleave') {
-      setDragActive(false)
-    }
-  }
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    setDragActive(false)
     
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      handleFileSelection(e.dataTransfer.files)
-    }
+    // Refresh files list after all uploads complete
+    await fetchFiles()
+    
+    // Log summary
+    console.log(`Upload complete: ${successCount} succeeded, ${errorCount} failed out of ${selectedFiles.length} files`)
   }
 
   const handleDeleteFile = async (fileId: string) => {
-    setDeletingFileId(fileId)
-    try {
-      const response = await fetchWithAuth(`${API_URL}/knowledge-base/files/${fileId}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders(),
-      })
-
-      const result = await response.json()
-      
-      if (result.success) {
-        setFiles(files.filter(file => file.id !== fileId))
-      } else {
-        console.error('Failed to delete file:', result.error)
-        alert('Failed to delete file: ' + result.error)
-      }
-    } catch (error) {
-      console.error('Error deleting file:', error)
-      alert('Failed to delete file. Please try again.')
-    } finally {
-      setDeletingFileId(null)
-    }
+    confirmDelete(fileId, files.find(file => file.id === fileId)?.name || '')
   }
 
   const getFileIcon = (type: string) => {
@@ -309,434 +399,232 @@ const EnhancedKnowledgeBase = () => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
   }
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return <CheckCircle className="h-4 w-4 text-green-500" />
-      case 'processing':
-        return <Clock className="h-4 w-4 text-blue-500 animate-spin" />
-      case 'failed':
-        return <AlertCircle className="h-4 w-4 text-red-500" />
-      default:
-        return <Clock className="h-4 w-4 text-gray-400" />
-    }
-  }
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return 'bg-green-100 text-green-800'
-      case 'processing':
-        return 'bg-blue-100 text-blue-800'
-      case 'failed':
-        return 'bg-red-100 text-red-800'
-      default:
-        return 'bg-gray-100 text-gray-800'
-    }
-  }
-
-  // Group files by folder
-  const groupedFiles = files.reduce((acc, file) => {
-    const folder = file.folder || 'Uncategorized'
-    if (!acc[folder]) {
-      acc[folder] = []
-    }
-    acc[folder].push(file)
-    return acc
-  }, {} as Record<string, UploadedFile[]>)
-
-  // Sort folders: Uncategorized last, others alphabetically
-  const sortedFolders = Object.keys(groupedFiles).sort((a, b) => {
-    if (a === 'Uncategorized') return 1
-    if (b === 'Uncategorized') return -1
-    return a.localeCompare(b)
-  })
-
-  const toggleFolder = (folderName: string) => {
-    setExpandedFolders(prev => {
-      const newSet = new Set(prev)
-      if (newSet.has(folderName)) {
-        newSet.delete(folderName)
-      } else {
-        newSet.add(folderName)
-      }
-      return newSet
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString)
+    return date.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric', 
+      year: 'numeric' 
     })
   }
 
-  const handleTranscriptionComplete = (result: any) => {
-    // Refresh files list to show the new transcription
-    fetchFiles()
-  }
-
-  const handleCreateFolder = async () => {
-    if (!newFolderName.trim()) return
-    
-    const trimmedName = newFolderName.trim()
-    setIsCreatingFolder(true)
-    
-    try {
-      const response = await fetchWithAuth(`${API_URL}/knowledge-base/folders?folder_name=${encodeURIComponent(trimmedName)}`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-      })
-      
-      const data = await response.json()
-      
-      if (data.success) {
-        // Set the newly created folder as selected
-        setSelectedFolder(trimmedName)
-        setIsCreateFolderOpen(false)
-        setNewFolderName('')
-        console.log('✅ Folder created:', trimmedName)
-      } else {
-        console.error('Failed to create folder:', data.error)
-        alert(data.error || 'Failed to create folder')
-      }
-    } catch (error) {
-      console.error('Error creating folder:', error)
-      alert('Failed to create folder. Please try again.')
-    } finally {
-      setIsCreatingFolder(false)
-    }
-  }
-
   return (
-    <div className="space-y-4 md:space-y-6 px-2 md:px-0">
-      {/* Header with Create Folder Button */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h2 className="text-xl md:text-2xl font-bold flex items-center">
-            <BookOpen className="h-5 w-5 md:h-6 md:w-6 mr-2" />
-            Knowledge Base
-          </h2>
-          <p className="text-sm md:text-base text-gray-600 mt-1">Upload and manage documents for your AI assistant</p>
-        </div>
-        <Dialog open={isCreateFolderOpen} onOpenChange={setIsCreateFolderOpen}>
-          <DialogTrigger asChild>
-            <Button onClick={() => setIsCreateFolderOpen(true)} className="flex items-center w-full sm:w-auto">
-              <Plus className="h-4 w-4 mr-2" />
-              Create Folder
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Create New Folder</DialogTitle>
-              <DialogDescription>
-                Enter a name for your new folder to organize your files.
-              </DialogDescription>
-            </DialogHeader>
-            <Input
-              placeholder="e.g., Medical, Research, Educational"
-              value={newFolderName}
-              onChange={(e) => setNewFolderName(e.target.value)}
-              onKeyPress={(e) => {
-                if (e.key === 'Enter' && newFolderName.trim() && !isCreatingFolder) {
-                  handleCreateFolder()
-                }
-              }}
-              disabled={isCreatingFolder}
+    <div className="flex h-[calc(100vh-200px)] bg-gray-50">
+      {/* Mobile Sidebar Overlay */}
+      {isMobileSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+          onClick={() => setIsMobileSidebarOpen(false)}
+        >
+          <div className="w-64 h-full" onClick={(e) => e.stopPropagation()}>
+            <FolderSidebar
+              selectedFolder={selectedFolderFilter}
+              onFolderSelect={setSelectedFolderFilter}
+              isCollapsed={false}
+              onToggleCollapse={() => {}}
+              isMobile={true}
+              onMobileClose={() => setIsMobileSidebarOpen(false)}
+              refreshTrigger={folderRefreshTrigger}
             />
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setIsCreateFolderOpen(false)} disabled={isCreatingFolder}>
-                Cancel
-              </Button>
-              <Button
-                onClick={handleCreateFolder}
-                disabled={!newFolderName.trim() || isCreatingFolder}
-              >
-                {isCreatingFolder ? 'Creating...' : 'Create'}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+          </div>
+        </div>
+      )}
+
+      {/* Desktop Sidebar */}
+      <div className="hidden lg:block">
+        <FolderSidebar
+          selectedFolder={selectedFolderFilter}
+          onFolderSelect={setSelectedFolderFilter}
+          isCollapsed={isSidebarCollapsed}
+          onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+          refreshTrigger={folderRefreshTrigger}
+        />
       </div>
 
-      {/* Tabbed Interface */}
-      <Tabs defaultValue="upload" className="w-full">
-        <TabsList className="grid w-full grid-cols-3 h-auto">
-          <TabsTrigger value="upload" className="flex items-center justify-center py-3">
-            <Upload className="h-4 w-4 mr-1 md:mr-2" />
-            <span className="text-xs md:text-sm">Upload</span>
-          </TabsTrigger>
-          <TabsTrigger value="speech" className="flex items-center justify-center py-3">
-            <Mic className="h-4 w-4 mr-1 md:mr-2" />
-            <span className="text-xs md:text-sm">Speech</span>
-          </TabsTrigger>
-          <TabsTrigger value="youtube" className="flex items-center justify-center py-3">
-            <Youtube className="h-4 w-4 mr-1 md:mr-2" />
-            <span className="text-xs md:text-sm">YouTube</span>
-          </TabsTrigger>
-        </TabsList>
-
-        {/* Tab 1: Upload Documents */}
-        <TabsContent value="upload" className="space-y-4">
-          <Card>
-            <CardHeader className="px-4 md:px-6">
-              <CardTitle className="text-lg md:text-xl">Upload Files</CardTitle>
-              <CardDescription className="text-xs md:text-sm">
-                Supported formats: PDF, DOCX, TXT, Images, Audio, Video
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4 px-4 md:px-6">
-              {/* Folder Selector */}
-              <div className="space-y-2">
-                <label className="text-xs md:text-sm font-medium">Save to Folder</label>
-                <FolderSelector value={selectedFolder} onChange={setSelectedFolder} />
-              </div>
-
-              {/* File Name Input */}
-              {selectedFiles.length > 0 && (
-                <div className="space-y-2">
-                  <label className="text-xs md:text-sm font-medium">
-                    File Name {selectedFiles.length > 1 && `(${selectedFiles.length} files selected)`}
-                  </label>
-                  <div className="flex gap-2">
-                    <Input
-                      value={customFileName}
-                      onChange={(e) => setCustomFileName(e.target.value)}
-                      placeholder="Enter file name"
-                      className="flex-1"
-                    />
-                    <Button
-                      onClick={handleFileUpload}
-                      disabled={uploading || !customFileName}
-                    >
-                      {uploading ? 'Uploading...' : 'Upload'}
-                    </Button>
-                  </div>
-                  {selectedFiles.length > 1 && (
-                    <p className="text-xs text-gray-500">
-                      Custom name will apply to the first file. Other files will keep their original names.
-                    </p>
-                  )}
-                </div>
-              )}
-
-              {/* Upload Area */}
-              <div
-                className={`border-2 border-dashed rounded-lg p-4 md:p-8 text-center transition-colors ${
-                  dragActive 
-                    ? 'border-blue-500 bg-blue-50' 
-                    : 'border-gray-300 hover:border-gray-400'
-                }`}
-                onDragEnter={handleDrag}
-                onDragLeave={handleDrag}
-                onDragOver={handleDrag}
-                onDrop={handleDrop}
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col bg-white overflow-hidden">
+        {/* Header */}
+        <div className="border-b bg-white px-4 py-4 space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="lg:hidden"
+                onClick={() => setIsMobileSidebarOpen(true)}
               >
-                <Upload className="h-8 w-8 md:h-12 md:w-12 text-gray-400 mx-auto mb-2 md:mb-4" />
-                <p className="text-sm md:text-lg font-medium text-gray-700 mb-2">Upload Documents</p>
-                <p className="text-gray-600 mb-4">
-                  Drag and drop files here, or click to select files
+                <Menu className="h-5 w-5" />
+              </Button>
+              <div>
+                <h2 className="text-xl font-bold flex items-center">
+                  <BookOpen className="h-5 w-5 mr-2" />
+                  Content
+                </h2>
+                <p className="text-sm text-gray-500">
+                  {filteredFiles.length} {filteredFiles.length === 1 ? 'file' : 'files'}
+                  {selectedFolderFilter && ` in ${selectedFolderFilter}`}
                 </p>
-                <Button 
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploading}
-                  className="w-full sm:w-auto"
-                >
-                  <Upload className="h-4 w-4 mr-2" />
-                  Select Files
-                </Button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  multiple
-                  className="hidden"
-                  onChange={(e) => e.target.files && handleFileSelection(e.target.files)}
-                  accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.gif,.mp3,.wav,.mp4,.avi"
-                />
               </div>
-
-              {/* Upload Progress */}
-              {Object.entries(uploadProgress).length > 0 && (
-                <div className="space-y-2">
-                  {Object.entries(uploadProgress).map(([fileId, progress]) => (
-                    <div key={fileId} className="flex items-center space-x-3 p-3 md:p-4 bg-gray-50 rounded-lg">
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-sm font-medium">
-                            {progress.status === 'uploading' ? 'Uploading...' : 
-                             progress.status === 'processing' ? 'Processing...' :
-                             progress.status === 'completed' ? 'Completed!' : 'Error'}
-                          </span>
-                          <span className="text-sm text-gray-500">{progress.progress}%</span>
-                        </div>
-                        <Progress value={progress.progress} className="h-2" />
-                        {progress.error && (
-                          <p className="text-sm text-red-600 mt-1">{progress.error}</p>
-                        )}
-                      </div>
-                      {progress.status === 'completed' && (
-                        <CheckCircle className="h-5 w-5 text-green-500" />
-                      )}
-                      {progress.status === 'error' && (
-                        <AlertCircle className="h-5 w-5 text-red-500" />
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        {/* Tab 2: Speech to Text */}
-        <TabsContent value="speech">
-          <AudioRecorder onTranscriptionComplete={handleTranscriptionComplete} />
-        </TabsContent>
-
-        {/* Tab 3: YouTube */}
-        <TabsContent value="youtube">
-          <YouTubeTranscriber onTranscriptionComplete={handleTranscriptionComplete} />
-        </TabsContent>
-      </Tabs>
-
-      {/* Files List */}
-      <Card>
-        <CardHeader className="px-4 md:px-6">
-          <CardTitle className="text-lg md:text-xl">Uploaded Documents ({files.length})</CardTitle>
-          <CardDescription className="text-xs md:text-sm">
-            Manage your knowledge base documents
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="px-2 md:px-6">
-          {isLoadingFiles ? (
-            <div className="text-center py-6 md:py-8">
-              <Loader2 className="h-10 w-10 md:h-12 md:w-12 mx-auto mb-2 text-blue-500 animate-spin" />
-              <p className="text-sm md:text-base text-gray-600">Loading files...</p>
             </div>
-          ) : files.length === 0 ? (
-            <div className="text-center py-6 md:py-8 text-gray-500">
-              <FileText className="h-10 w-10 md:h-12 md:w-12 mx-auto mb-2 text-gray-300" />
-              <p className="text-sm md:text-base">No documents uploaded yet</p>
-              <p className="text-xs md:text-sm">Upload your first document to get started</p>
+            {selectedFolderFilter && (
+              <Button 
+                onClick={() => setIsAddContentModalOpen(true)}
+                className="bg-black hover:bg-gray-800 text-white"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Add Content
+              </Button>
+            )}
+          </div>
+
+          {/* Search and Filters */}
+          <div className="flex items-center space-x-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input
+                type="text"
+                placeholder="Search..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            <Button variant="outline" size="sm">
+              <Filter className="h-4 w-4 mr-2" />
+              Edit Filters
+            </Button>
+          </div>
+        </div>
+
+
+      {/* Files Table */}
+        <div className="flex-1 overflow-y-auto">
+          {isLoadingFiles ? (
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center">
+                <Loader2 className="h-12 w-12 mx-auto mb-4 text-blue-500 animate-spin" />
+                <p className="text-gray-600">Loading files...</p>
+              </div>
+            </div>
+          ) : filteredFiles.length === 0 ? (
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center">
+                <FileText className="h-16 w-16 mx-auto mb-4 text-gray-300" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  {searchQuery ? 'No files found' : 'No documents yet'}
+                </h3>
+                <p className="text-gray-500 text-sm mb-6">
+                  {searchQuery 
+                    ? 'Try adjusting your search query' 
+                    : 'Upload your first document to get started'}
+                </p>
+                {!searchQuery && selectedFolderFilter && (
+                  <Button onClick={() => setIsAddContentModalOpen(true)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Content
+                  </Button>
+                )}
+              </div>
             </div>
           ) : (
-            <div className="space-y-4">
-              {sortedFolders.map((folderName) => {
-                const folderFiles = groupedFiles[folderName]
-                const isExpanded = expandedFolders.has(folderName)
+            <div className="divide-y">
+              {/* Table Header */}
+              <div className="grid grid-cols-12 gap-4 px-6 py-3 bg-gray-50 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <div className="col-span-5">Content</div>
+                <div className="col-span-2">Uploaded</div>
+                <div className="col-span-2">Actions</div>
+              </div>
+
+              {/* Table Rows */}
+              {filteredFiles.map((file) => {
+                const FileIcon = getFileIcon(file.type)
                 
                 return (
-                  <div key={folderName} className="border rounded-lg">
-                    {/* Folder Header */}
-                    <button
-                      onClick={() => toggleFolder(folderName)}
-                      className="w-full flex items-center justify-between p-3 md:p-4 hover:bg-gray-50 transition-colors"
-                    >
-                      <div className="flex items-center space-x-2 md:space-x-3">
-                        {isExpanded ? (
-                          <ChevronDown className="h-5 w-5 text-gray-500" />
+                  <div 
+                    key={file.id} 
+                    className="grid grid-cols-12 gap-4 px-6 py-4 hover:bg-gray-50 transition-colors items-center"
+                  >
+                    {/* File Info */}
+                    <div className="col-span-5 flex items-center space-x-3 min-w-0">
+                      <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
+                        <FileIcon className="h-5 w-5 text-blue-600" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <h4 className="text-sm font-medium text-gray-900 truncate">
+                          {file.name || file.original_name}
+                        </h4>
+                        <div className="flex items-center space-x-2 text-xs text-gray-500">
+                          <span>{formatFileSize(file.size)}</span>
+                          {file.word_count && (
+                            <>
+                              <span>•</span>
+                              <span>{file.word_count.toLocaleString()} words</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Upload Date */}
+                    <div className="col-span-2">
+                      <span className="text-sm text-gray-600">
+                        {formatDate(file.created_at)}
+                      </span>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="col-span-2 flex items-center space-x-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setSelectedDocumentId(file.id)}
+                        className="text-gray-600 hover:text-gray-900"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => window.open(file.url, '_blank')}
+                        className="text-gray-600 hover:text-gray-900"
+                      >
+                        <Download className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleDeleteFile(file.id)}
+                        disabled={deletingFileId === file.id}
+                        className="text-red-600 hover:text-red-700"
+                      >
+                        {deletingFileId === file.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
-                          <ChevronRight className="h-5 w-5 text-gray-500" />
+                          <Trash2 className="h-4 w-4" />
                         )}
-                        <Folder className="h-4 w-4 md:h-5 md:w-5 text-blue-500" />
-                        <span className="text-sm md:text-base font-medium text-gray-900">{folderName}</span>
-                        <Badge variant="secondary" className="ml-1 md:ml-2 text-xs">
-                          {folderFiles.length} {folderFiles.length === 1 ? 'file' : 'files'}
-                        </Badge>
-                      </div>
-                    </button>
-                    
-                    {/* Folder Files */}
-                    {isExpanded && (
-                      <div className="border-t">
-                        {folderFiles.map((file) => {
-                          const FileIcon = getFileIcon(file.type)
-                          
-                          return (
-                            <div key={file.id} className="flex items-center space-x-2 md:space-x-4 p-3 md:p-4 border-b last:border-b-0 hover:bg-gray-50">
-                              <div className="w-8 h-8 md:w-10 md:h-10 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0">
-                                <FileIcon className="h-5 w-5 text-blue-600" />
-                              </div>
-                              
-                              <div className="flex-1 min-w-0">
-                                {/* File Name */}
-                                <h4 className="text-sm md:text-base font-medium text-gray-900 truncate mb-1">
-                                  {file.name || file.original_name}
-                                </h4>
-                                
-                                <div className="flex flex-wrap items-center gap-2 md:gap-4 text-xs md:text-sm text-gray-500">
-                                  <span>{formatFileSize(file.size)}</span>
-                                  {file.word_count && (
-                                    <>
-                                      <span>•</span>
-                                      <span>{file.word_count.toLocaleString()} words</span>
-                                    </>
-                                  )}
-                                  {file.page_count && (
-                                    <>
-                                      <span>•</span>
-                                      <span>{file.page_count} pages</span>
-                                    </>
-                                  )}
-                                </div>
-                                
-                                {file.extracted_text_preview && (
-                                  <p className="text-xs md:text-sm text-gray-500 mb-3 md:mb-4 line-clamp-2">
-                                    {file.extracted_text_preview}
-                                  </p>
-                                )}
-                              </div>
-                              
-                              <div className="flex space-x-1 md:space-x-2 flex-shrink-0">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => setSelectedDocumentId(file.id)}
-                                  className="hidden sm:flex"
-                                >
-                                  <Eye className="h-4 w-4 mr-2" />
-                                  Content
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => setSelectedDocumentId(file.id)}
-                                  className="sm:hidden p-2"
-                                >
-                                  <Eye className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => window.open(file.url, '_blank')}
-                                  className="p-2"
-                                >
-                                  <Download className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() => handleDeleteFile(file.id)}
-                                  disabled={deletingFileId === file.id}
-                                  className="text-red-600 hover:text-red-700 p-2"
-                                >
-                                  {deletingFileId === file.id ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                  ) : (
-                                    <Trash2 className="h-4 w-4" />
-                                  )}
-                                </Button>
-                              </div>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    )}
+                      </Button>
+                    </div>
                   </div>
                 )
               })}
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
+
+      {/* Add Content Modal */}
+      <AddContentModal
+        isOpen={isAddContentModalOpen}
+        onClose={() => setIsAddContentModalOpen(false)}
+        onFileUpload={handleFileUpload}
+        onTranscriptionComplete={fetchFiles}
+        selectedFolder={selectedFolderFilter || 'Uncategorized'}
+        setSelectedFolder={setSelectedFolder}
+      />
 
       {/* Document Content Viewer Modal */}
       {selectedDocumentId && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 md:p-4 z-50">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="max-w-4xl w-full max-h-[90vh] overflow-y-auto">
             <DocumentContentViewer
               documentId={selectedDocumentId}
@@ -745,8 +633,163 @@ const EnhancedKnowledgeBase = () => {
           </div>
         </div>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      {deleteConfirm.show && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="max-w-md w-full bg-white rounded-lg shadow-lg">
+            <div className="p-6">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                Delete File
+              </h3>
+              <p className="text-sm text-gray-600 mb-4">
+                Are you sure you want to delete "{deleteConfirm.fileName}"? This action cannot be undone.
+              </p>
+              <div className="flex items-center justify-end space-x-3">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setDeleteConfirm({ fileId: null, fileName: '', show: false })}
+                  className="text-gray-600 hover:text-gray-900"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={handleConfirmedDelete}
+                  disabled={deletingFileId !== null}
+                  className="bg-red-500 hover:bg-red-600 text-white"
+                >
+                  {deletingFileId ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Deleting...
+                    </>
+                  ) : (
+                    'Delete'
+                  )}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Floating Upload Progress Notifications */}
+      {Object.keys(uploadProgress).length > 0 && (
+        <div className="fixed top-4 right-4 z-40 w-80 max-w-sm">
+          <div className="bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden">
+            <div className="bg-gradient-to-r from-blue-500 to-blue-600 px-4 py-3">
+              <h3 className="text-sm font-semibold text-white flex items-center">
+                <Upload className="h-4 w-4 mr-2" />
+                Uploading Files
+              </h3>
+            </div>
+            <div className="max-h-96 overflow-y-auto">
+              {Object.entries(uploadProgress).map(([fileId, progress]) => {
+                const fileName = fileId.split('_')[0]
+                const fileExtension = fileName.split('.').pop()?.toLowerCase() || ''
+                
+                // Get appropriate file icon
+                const getFileIcon = () => {
+                  if (['pdf'].includes(fileExtension)) return <FileText className="h-4 w-4 text-red-500" />
+                  if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(fileExtension)) return <ImageIcon className="h-4 w-4 text-green-500" />
+                  if (['mp4', 'avi', 'mov', 'webm'].includes(fileExtension)) return <FileVideo className="h-4 w-4 text-purple-500" />
+                  if (['mp3', 'wav', 'ogg', 'm4a'].includes(fileExtension)) return <FileAudio className="h-4 w-4 text-orange-500" />
+                  return <File className="h-4 w-4 text-gray-500" />
+                }
+                
+                return (
+                  <div key={fileId} className="p-3 border-b border-gray-100 last:border-b-0">
+                    <div className="flex items-center space-x-3">
+                      {/* File Icon */}
+                      <div className="flex-shrink-0">
+                        {getFileIcon()}
+                      </div>
+                      
+                      {/* File Info and Progress */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between mb-1">
+                          <p className="text-sm font-medium text-gray-900 truncate" title={fileName}>
+                            {fileName.length > 20 ? `${fileName.substring(0, 20)}...` : fileName}
+                          </p>
+                          
+                          {/* Status */}
+                          <div className="flex items-center space-x-1 ml-2">
+                            {progress.status === 'uploading' && (
+                              <>
+                                <Loader2 className="h-3 w-3 text-blue-500 animate-spin" />
+                                <span className="text-xs font-medium text-blue-600">
+                                  {progress.progress}%
+                                </span>
+                              </>
+                            )}
+                            {progress.status === 'completed' && (
+                              <div className="h-4 w-4 rounded-full bg-green-100 flex items-center justify-center">
+                                <svg className="h-3 w-3 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                              </div>
+                            )}
+                            {progress.status === 'error' && (
+                              <div className="h-4 w-4 rounded-full bg-red-100 flex items-center justify-center">
+                                <svg className="h-3 w-3 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        
+                        {/* Progress Bar */}
+                        {progress.status === 'uploading' && (
+                          <div className="w-full bg-gray-200 rounded-full h-1.5">
+                            <div 
+                              className="bg-gradient-to-r from-blue-500 to-blue-600 h-1.5 rounded-full transition-all duration-300 ease-out"
+                              style={{ width: `${progress.progress}%` }}
+                            />
+                          </div>
+                        )}
+                        
+                        {/* Error Message */}
+                        {progress.status === 'error' && progress.error && (
+                          <p className="text-xs text-red-600 mt-1 truncate" title={progress.error}>
+                            {progress.error}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Toast Notification */}
+      {toast.show && (
+        <div className={`fixed bottom-4 ${Object.keys(uploadProgress).length > 0 ? 'right-96' : 'right-4'} bg-${toast.type === 'success' ? 'green' : toast.type === 'error' ? 'red' : 'blue'}-100 p-4 rounded shadow-md transition-all duration-300`}>
+          <div className="flex items-center space-x-2">
+            <svg className={`h-5 w-5 text-${toast.type === 'success' ? 'green' : toast.type === 'error' ? 'red' : 'blue'}-600`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              {toast.type === 'success' && (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              )}
+              {toast.type === 'error' && (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              )}
+              {toast.type === 'info' && (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              )}
+            </svg>
+            <p className="text-sm font-medium text-gray-900">{toast.message}</p>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
 
 export default EnhancedKnowledgeBase
+
+     

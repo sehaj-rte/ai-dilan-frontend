@@ -100,10 +100,10 @@ const DashboardPage = () => {
     // Initial fetch
     fetchProgressForExperts()
     
-    // Poll for progress updates every 2 seconds
+    // Poll for progress updates every 10 seconds (reduced from 2 seconds)
     const progressInterval = setInterval(() => {
       fetchProgressForExperts()
-    }, 2000)
+    }, 10000)
     
     return () => clearInterval(progressInterval)
   }, [experts.length, newExpertId]) // Also depend on newExpertId to restart polling
@@ -235,7 +235,7 @@ const DashboardPage = () => {
 
   const stats = [
     {
-      title: 'AI Experts',
+      title: 'Digital Avatars',
       value: experts.length.toString(),
       description: 'Active digital minds',
       icon: Brain,
@@ -280,7 +280,7 @@ const DashboardPage = () => {
           <Link href="/dashboard/create-expert">
             <Button className="bg-white text-blue-600 hover:bg-blue-50 text-sm sm:text-base">
               <Plus className="mr-2 h-4 w-4" />
-              Create New Expert
+              Create Digital Avatar
             </Button>
           </Link>
         </div>
@@ -384,7 +384,7 @@ const DashboardPage = () => {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
-              <CardTitle>Your AI Experts</CardTitle>
+              <CardTitle>Your Digital Avatars</CardTitle>
               <CardDescription>
                 Manage and monitor your digital minds
               </CardDescription>
@@ -392,7 +392,7 @@ const DashboardPage = () => {
             <Link href="/dashboard/create-expert">
               <Button className="bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700">
                 <Plus className="mr-2 h-4 w-4" />
-                Create Expert
+                Create Digital Avatar
               </Button>
             </Link>
           </CardHeader>
@@ -405,14 +405,14 @@ const DashboardPage = () => {
             ) : experts.length === 0 ? (
               <div className="text-center py-12">
                 <Brain className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-lg font-medium text-gray-900 mb-2">No AI Experts Yet</h3>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">No Digital Avatars Yet</h3>
                 <p className="text-gray-500 text-sm mb-6 max-w-md mx-auto">
-                  Create your first AI expert to start scaling your expertise and connecting with your audience.
+                  Create your first digital avatar to start scaling your expertise and connecting with your audience.
                 </p>
                 <Link href="/dashboard/create-expert">
                   <Button className="bg-gradient-to-r from-blue-600 to-purple-600 text-white hover:from-blue-700 hover:to-purple-700">
                     <Plus className="mr-2 h-4 w-4" />
-                    Create Your First Expert
+                    Create Your First Digital Avatar
                   </Button>
                 </Link>
               </div>
@@ -588,7 +588,7 @@ const DashboardPage = () => {
                                     Delete "{expert.name}"?
                                   </p>
                                   <p className="text-xs text-red-700 mb-3">
-                                    This will permanently delete the expert, ElevenLabs agent, and all associated data. This action cannot be undone.
+                                    This will permanently delete the digital avatar, ElevenLabs agent, and all associated data. This action cannot be undone.
                                   </p>
                                   <div className="flex space-x-2">
                                     <Button 
@@ -648,13 +648,13 @@ const DashboardPage = () => {
               <AlertTriangle className="h-6 w-6 text-red-600 flex-shrink-0 mt-1" />
               <div className="flex-1">
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  Delete Expert
+                  Delete Digital Avatar
                 </h3>
                 <p className="text-sm text-gray-600 mb-4">
-                  Are you sure you want to delete this expert? This will permanently remove:
+                  Are you sure you want to delete this digital avatar? This will permanently remove:
                 </p>
                 <ul className="text-sm text-gray-600 mb-6 space-y-1">
-                  <li>• The expert profile and settings</li>
+                  <li>• The avatar profile and settings</li>
                   <li>• ElevenLabs voice agent</li>
                   <li>• Knowledge base tools</li>
                   <li>• All associated data</li>
@@ -674,7 +674,7 @@ const DashboardPage = () => {
                     disabled={deletingExpert !== null}
                     className="flex-1"
                   >
-                    {deletingExpert ? 'Deleting...' : 'Delete Expert'}
+                    {deletingExpert ? 'Deleting...' : 'Delete Digital Avatar'}
                   </Button>
                   <Button 
                     variant="outline"

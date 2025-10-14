@@ -284,14 +284,14 @@ const CreateExpertPage = () => {
     
     // Validate required fields
     if (!formData.name.trim()) {
-      alert('Please enter an expert name')
+      alert('Please enter a digital avatar name')
       return
     }
     
-    if (!formData.systemPrompt.trim()) {
-      alert('Please enter a system prompt')
-      return
-    }
+    // if (!formData.systemPrompt.trim()) {
+    //   alert('Please enter a system prompt')
+    //   return
+    // }
     
     if (!formData.selectedVoice) {
       alert('Please select a voice')
@@ -381,7 +381,7 @@ const CreateExpertPage = () => {
         </Link>
         <div className="border-l border-gray-300 pl-4 hidden sm:block"></div>
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Create New Expert</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Create Digital Avatar</h1>
           <p className="text-gray-600 mt-1 text-sm sm:text-base">Build your AI-powered digital mind</p>
         </div>
       </div>
@@ -391,7 +391,6 @@ const CreateExpertPage = () => {
   return (
     <DashboardLayout customHeader={customHeader} hideDefaultHeader={true}>
       <div className="space-y-8">
-
         <form onSubmit={handleSubmit} className="space-y-8">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {/* Left Column - Main Form */}
@@ -404,13 +403,13 @@ const CreateExpertPage = () => {
                     Basic Information
                   </CardTitle>
                   <CardDescription className="text-blue-700">
-                    Define your expert's identity and purpose
+                    Give your digital avatar a name and description
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6 p-6">
                   <div>
                     <label className="block text-sm font-semibold text-gray-800 mb-3">
-                      Expert Name *
+                      Avatar Name *
                     </label>
                     <input
                       type="text"
@@ -418,27 +417,29 @@ const CreateExpertPage = () => {
                       value={formData.name}
                       onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                       className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-gray-900 placeholder-gray-500 hover:border-gray-300"
-                      placeholder="e.g., Dr. Sarah Johnson"
+                      placeholder="e.g., Dr. Sarah Johnson, Marketing Expert, Tech Guru"
                     />
+                    <p className="text-xs text-gray-500 mt-2">💡 Choose a memorable name that reflects your avatar's expertise</p>
                   </div>
                   
                   <div>
                     <label className="block text-sm font-semibold text-gray-800 mb-3">
-                      Description
+                      Description (Optional)
                     </label>
                     <textarea
                       value={formData.description}
                       onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                       rows={4}
                       className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 text-gray-900 placeholder-gray-500 hover:border-gray-300 resize-none"
-                      placeholder="Brief description of your expert's expertise and personality..."
+                      placeholder="e.g., A friendly AI assistant specialized in digital marketing with 10+ years of industry knowledge..."
                     />
+                    <p className="text-xs text-gray-500 mt-2">📝 Help users understand what your avatar specializes in</p>
                   </div>
                 </CardContent>
               </Card>
 
               {/* First Message */}
-              <Card className="shadow-sm hover:shadow-md transition-shadow duration-200">
+              {/* <Card className="shadow-sm hover:shadow-md transition-shadow duration-200">
                 <CardHeader className="bg-gradient-to-r from-orange-50 to-amber-50 border-b border-orange-100">
                   <CardTitle className="flex items-center text-lg">
                     <Play className="h-5 w-5 mr-2 text-orange-600" />
@@ -457,10 +458,10 @@ const CreateExpertPage = () => {
                     placeholder="Hello! I'm your expert assistant. How can I help you today?"
                   />
                 </CardContent>
-              </Card>
+              </Card> */}
 
               {/* System Prompt */}
-              <Card className="shadow-sm hover:shadow-md transition-shadow duration-200">
+              {/* <Card className="shadow-sm hover:shadow-md transition-shadow duration-200">
                 <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 border-b border-green-100">
                   <CardTitle className="flex items-center text-lg">
                     <FileText className="h-5 w-5 mr-2 text-green-600" />
@@ -479,7 +480,7 @@ const CreateExpertPage = () => {
                     placeholder="You are an expert in... Your role is to... You should respond in a... When users ask about..."
                   />
                 </CardContent>
-              </Card>
+              </Card> */}
 
 
 
@@ -491,7 +492,7 @@ const CreateExpertPage = () => {
                     Voice Selection
                   </CardTitle>
                   <CardDescription className="text-purple-700">
-                    Choose a voice for your expert
+                    Select the voice personality for your avatar
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6 p-6">
@@ -520,6 +521,7 @@ const CreateExpertPage = () => {
                             </option>
                           ))}
                         </select>
+                        <p className="text-xs text-gray-500 mt-2">🎤 Select a voice that matches your avatar's personality</p>
                       </div>
 
                       {/* Selected Voice Preview */}
@@ -579,104 +581,47 @@ const CreateExpertPage = () => {
                   )}
                 </CardContent>
               </Card>
-            </div>
 
-            {/* Right Column - Avatar & Files */}
-            <div className="space-y-8">
-              {/* Avatar Upload */}
-              <Card className="shadow-sm hover:shadow-md transition-shadow duration-200">
-                <CardHeader className="bg-gradient-to-r from-orange-50 to-amber-50 border-b border-orange-100">
-                  <CardTitle className="flex items-center text-lg">
-                    <ImageIcon className="h-5 w-5 mr-2 text-orange-600" />
-                    Avatar
-                  </CardTitle>
-                  <CardDescription className="text-orange-700">
-                    Upload a profile picture for your expert
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="p-6">
-                  <div className="space-y-6">
-                    {avatarPreview ? (
-                      <div className="relative">
-                        <img
-                          src={avatarPreview}
-                          alt="Avatar preview"
-                          className="w-32 h-32 rounded-full object-cover mx-auto border-4 border-gray-200"
-                        />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setAvatarPreview(null)
-                            setFormData(prev => ({ ...prev, avatar: null, avatarBase64: '' }))
-                          }}
-                          className="absolute top-0 right-0 rounded-full"
-                        >
-                          ×
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="w-32 h-32 rounded-full bg-gradient-to-br from-orange-100 to-amber-100 flex items-center justify-center mx-auto border-2 border-dashed border-orange-300 hover:border-orange-400 transition-colors duration-200">
-                        <Upload className="h-8 w-8 text-orange-500" />
-                      </div>
-                    )}
-                    
-                    <div className="text-center">
-                      <label className="cursor-pointer">
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={handleAvatarUpload}
-                          className="hidden"
-                        />
-                        <Button type="button" variant="outline" size="sm" className="bg-orange-50 border-orange-200 text-orange-700 hover:bg-orange-100 hover:border-orange-300" asChild>
-                          <span>
-                            <Upload className="h-4 w-4 mr-2" />
-                            {avatarPreview ? 'Change Avatar' : 'Upload Avatar'}
-                          </span>
-                        </Button>
-                      </label>
-                    </div>
-                    
-                    <div className="text-center p-2 bg-orange-50 rounded-lg border border-orange-100">
-                      <p className="text-xs text-orange-700 font-medium">
-                        📸 Recommended: 400x400px, JPG or PNG
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Files List */}
+              {/* Knowledge Base */}
               <Card className="shadow-sm hover:shadow-md transition-shadow duration-200">
                 <CardHeader className="bg-gradient-to-r from-indigo-50 to-blue-50 border-b border-indigo-100">
                   <CardTitle className="flex items-center justify-between text-lg">
                     <div className="flex items-center">
                       <FileText className="h-5 w-5 mr-2 text-indigo-600" />
-                      Training Files
+                      Knowledge Base
                     </div>
                     <div className="text-sm text-indigo-600 bg-indigo-100 px-2 py-1 rounded-full">
                       {formData.selectedFiles.length} of {knowledgeBaseFiles.length} selected
                     </div>
                   </CardTitle>
                   <CardDescription className="text-indigo-700">
-                    Select files that will train your expert
+                    Choose files to give your avatar knowledge and context
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="p-6">
+                  {/* Info Box */}
+                  {knowledgeBaseFiles.length > 0 && (
+                    <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <p className="text-xs text-blue-800">
+                        💡 <strong>Tip:</strong> Select files that contain information your avatar should know about. The more relevant content you provide, the smarter your avatar becomes!
+                      </p>
+                    </div>
+                  )}
+                  
                   {/* Select All Button */}
-                  <div className="mb-4 pb-3 border-b border-gray-200">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={handleSelectAllFiles}
-                      className="text-xs"
-                    >
-                      {formData.selectedFiles.length === knowledgeBaseFiles.length ? 'Deselect All' : 'Select All'}
-                    </Button>
-                  </div>
+                  {knowledgeBaseFiles.length > 0 && (
+                    <div className="mb-4 pb-3 border-b border-gray-200">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleSelectAllFiles}
+                        className="text-xs"
+                      >
+                        {formData.selectedFiles.length === knowledgeBaseFiles.length ? 'Deselect All' : 'Select All'}
+                      </Button>
+                    </div>
+                  )}
 
                   {/* Loading State */}
                   {loadingFiles ? (
@@ -701,7 +646,7 @@ const CreateExpertPage = () => {
                       <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                       <p className="text-gray-600 mb-4">No files uploaded yet</p>
                       <p className="text-sm text-gray-500 mb-4">
-                        Upload files to your knowledge base to train your expert
+                        Upload files to your knowledge base to give your avatar knowledge
                       </p>
                       <Button
                         type="button"
@@ -784,21 +729,16 @@ const CreateExpertPage = () => {
                                 formData.selectedFiles.includes(file.id)
                                   ? 'text-blue-900'
                                   : 'text-gray-900'
-                              }`} title={file.name}>
+                              }`}>
                                 {file.name}
                               </p>
-                              <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
-                                <span className="bg-gray-200 px-2 py-1 rounded">
-                                  {file.document_type || file.type}
-                                </span>
+                              <div className="flex items-center space-x-2 text-xs text-gray-500">
                                 <span>{formatFileSize(file.size)}</span>
                                 {file.word_count && (
-                                  <span>{file.word_count} words</span>
-                                )}
-                                {file.processing_status === 'completed' && (
-                                  <span className="px-2 py-1 rounded bg-green-100 text-green-800">
-                                    Ready
-                                  </span>
+                                  <>
+                                    <span>•</span>
+                                    <span>{file.word_count.toLocaleString()} words</span>
+                                  </>
                                 )}
                               </div>
                               <div className="text-xs text-gray-400 mt-1">
@@ -829,28 +769,100 @@ const CreateExpertPage = () => {
                   )}
                 </CardContent>
               </Card>
-
-              {/* Submit Button */}
-              <div className="flex justify-end">
-                <Button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-3 rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                      Creating Expert...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="h-4 w-4 mr-2" />
-                      Create Expert
-                    </>
-                  )}
-                </Button>
-              </div>
             </div>
+
+            {/* Right Column - Avatar */}
+            <div className="space-y-8">
+              {/* Avatar Upload */}
+              <Card className="shadow-sm hover:shadow-md transition-shadow duration-200">
+                <CardHeader className="bg-gradient-to-r from-orange-50 to-amber-50 border-b border-orange-100">
+                  <CardTitle className="flex items-center text-lg">
+                    <ImageIcon className="h-5 w-5 mr-2 text-orange-600" />
+                    Avatar
+                  </CardTitle>
+                  <CardDescription className="text-orange-700">
+                    Upload a profile picture to personalize your avatar
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="p-6">
+                  <div className="space-y-6">
+                    {avatarPreview ? (
+                      <div className="relative">
+                        <img
+                          src={avatarPreview}
+                          alt="Avatar preview"
+                          className="w-32 h-32 rounded-full object-cover mx-auto border-4 border-gray-200"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setAvatarPreview(null)
+                            setFormData(prev => ({ ...prev, avatar: null, avatarBase64: '' }))
+                          }}
+                          className="absolute top-0 right-0 rounded-full"
+                        >
+                          ×
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="w-32 h-32 rounded-full bg-gradient-to-br from-orange-100 to-amber-100 flex items-center justify-center mx-auto border-2 border-dashed border-orange-300 hover:border-orange-400 transition-colors duration-200">
+                        <Upload className="h-8 w-8 text-orange-500" />
+                      </div>
+                    )}
+                    
+                    <div className="text-center">
+                      <label className="cursor-pointer">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleAvatarUpload}
+                          className="hidden"
+                        />
+                        <Button type="button" variant="outline" size="sm" className="bg-orange-50 border-orange-200 text-orange-700 hover:bg-orange-100 hover:border-orange-300" asChild>
+                          <span>
+                            <Upload className="h-4 w-4 mr-2" />
+                            {avatarPreview ? 'Change Avatar' : 'Upload Avatar'}
+                          </span>
+                        </Button>
+                      </label>
+                    </div>
+                    
+                    <div className="text-center p-3 bg-orange-50 rounded-lg border border-orange-100">
+                      <p className="text-xs text-orange-700 font-medium mb-1">
+                        📸 Recommended: 400x400px square image
+                      </p>
+                      <p className="text-xs text-orange-600">
+                        Supported: JPG, PNG, GIF, WebP (Max 10MB)
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+            </div>
+          </div>
+
+          {/* Submit Button - Full Width at Bottom */}
+          <div className="pt-6">
+            <Button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isSubmitting ? (
+                <>
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
+                  Creating Your Digital Avatar...
+                </>
+              ) : (
+                <>
+                  <Save className="h-5 w-5 mr-3" />
+                  Create Digital Avatar
+                </>
+              )}
+            </Button>
           </div>
         </form>
       </div>
@@ -861,10 +873,10 @@ const CreateExpertPage = () => {
           <DialogHeader>
             <DialogTitle className="flex items-center text-green-600">
               <CheckCircle className="h-5 w-5 mr-2" />
-              Expert Created Successfully!
+              Digital Avatar Created Successfully!
             </DialogTitle>
             <DialogDescription>
-              Your expert "{successData?.expertName}" has been created and is ready to use.
+              Your digital avatar "{successData?.expertName}" has been created and is ready to use.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">

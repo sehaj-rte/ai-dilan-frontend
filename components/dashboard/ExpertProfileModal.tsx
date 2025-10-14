@@ -205,7 +205,8 @@ const ExpertProfileModal: React.FC<ExpertProfileModalProps> = ({ expert, isOpen,
                 </span>
               </div>
 
-              {/* Voice Messages - Show when voice chat is active */}
+              {/* Voice Messages - Show when voice chat is active - COMMENTED OUT */}
+              {/*
               {isVoiceChatActive && voiceMessages.length > 0 && (
                 <div className="mb-4 max-h-32 overflow-y-auto bg-white rounded-lg border p-3">
                   <h4 className="text-sm font-medium text-gray-700 mb-2">Conversation:</h4>
@@ -225,6 +226,7 @@ const ExpertProfileModal: React.FC<ExpertProfileModalProps> = ({ expert, isOpen,
                   </div>
                 </div>
               )}
+              */}
 
               {/* Additional Info */}
               <div className="text-xs text-gray-500 space-y-1">

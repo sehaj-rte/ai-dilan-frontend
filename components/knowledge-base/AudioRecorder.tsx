@@ -22,9 +22,11 @@ import { API_URL } from '@/lib/config'
 
 interface AudioRecorderProps {
   onTranscriptionComplete?: (result: any) => void
+  defaultFolder?: string
+  hideFolderSelector?: boolean
 }
 
-const AudioRecorder: React.FC<AudioRecorderProps> = ({ onTranscriptionComplete }) => {
+const AudioRecorder: React.FC<AudioRecorderProps> = ({ onTranscriptionComplete, defaultFolder, hideFolderSelector = false }) => {
   const [isRecording, setIsRecording] = useState(false)
   const [isPaused, setIsPaused] = useState(false)
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null)
@@ -34,7 +36,7 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({ onTranscriptionComplete }
   const [isTranscribing, setIsTranscribing] = useState(false)
   const [transcriptionResult, setTranscriptionResult] = useState<any>(null)
   const [error, setError] = useState<string | null>(null)
-  const [selectedFolder, setSelectedFolder] = useState<string>('Uncategorized')
+  const [selectedFolder, setSelectedFolder] = useState<string>(defaultFolder || 'Uncategorized')
   const [fileName, setFileName] = useState<string>('recording')
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
@@ -213,7 +215,7 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({ onTranscriptionComplete }
       <CardHeader>
         <CardTitle className="flex items-center">
           <Mic className="h-5 w-5 mr-2" />
-          Speech to Text
+          Voice Notes
         </CardTitle>
         {/* <CardDescription>
           Record audio and transcribe it using AI. The transcription will be saved to your knowledge base.
@@ -221,10 +223,12 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({ onTranscriptionComplete }
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Folder Selection */}
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-gray-700">Save to Folder</label>
-          <FolderSelector value={selectedFolder} onChange={setSelectedFolder} />
-        </div>
+        {!hideFolderSelector && (
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-700">Save to Folder</label>
+            <FolderSelector value={selectedFolder} onChange={setSelectedFolder} />
+          </div>
+        )}
 
         {/* File Name Input */}
         <div className="space-y-2">

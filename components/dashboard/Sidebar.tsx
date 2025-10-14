@@ -27,7 +27,7 @@ const sidebarItems = [
     icon: Home
   },
   {
-    title: 'Create Expert',
+    title: 'Create Digital Avatar',
     href: '/dashboard/create-expert',
     icon: Plus
   },

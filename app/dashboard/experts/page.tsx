@@ -8,8 +8,8 @@ const MyExpertsPage = () => {
   return (
     <DashboardLayout>
       <ComingSoonPage 
-        title="My Experts" 
-        description="View and manage your AI experts" 
+        title="My Digital Avatars" 
+        description="View and manage your digital avatars" 
       />
     </DashboardLayout>
   )

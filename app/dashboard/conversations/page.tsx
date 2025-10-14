@@ -9,7 +9,7 @@ const ConversationsPage = () => {
     <DashboardLayout>
       <ComingSoonPage 
         title="Conversations" 
-        description="Manage and view all your expert conversations" 
+        description="Manage and view all your avatar conversations" 
       />
     </DashboardLayout>
   )
