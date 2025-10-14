@@ -1,5 +1,6 @@
 'use client'
 import { API_URL } from '@/lib/config'
+import { getAuthHeaders } from '@/lib/auth-headers'
 
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
@@ -26,11 +27,13 @@ import {
   Volume2,
   Image as ImageIcon,
   CheckCircle,
-  Copy
+  Copy,
+  Folder,
+  ChevronDown,
+  ChevronRight
 } from 'lucide-react'
 import Link from 'next/link'
 
-const ELEVENLABS_API_KEY = "sk_080d5c92d8712bc210e293fec768eb3997309b3052a06574"
 
 interface Voice {
   id: string
@@ -49,6 +52,7 @@ interface KnowledgeBaseFile {
   type: string
   size: number
   document_type: string | null
+  folder?: string
   processing_status: string
   created_at: string
   word_count: number | null
@@ -85,6 +89,7 @@ const CreateExpertPage = () => {
   const [knowledgeBaseFiles, setKnowledgeBaseFiles] = useState<KnowledgeBaseFile[]>([])
   const [loadingFiles, setLoadingFiles] = useState(false)
   const [filesError, setFilesError] = useState<string | null>(null)
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set(['Uncategorized']))
 
   useEffect(() => {
     fetchVoices()
@@ -95,7 +100,9 @@ const CreateExpertPage = () => {
     setLoadingFiles(true)
     setFilesError(null)
     try {
-      const response = await fetch(`${API_URL}/knowledge-base/files`)
+      const response = await fetch(`${API_URL}/knowledge-base/files`, {
+        headers: getAuthHeaders(),
+      })
       const data = await response.json()
       
       if (data.success) {
@@ -105,7 +112,8 @@ const CreateExpertPage = () => {
         console.error('Failed to fetch knowledge base files:', data.error)
       }
     } catch (error) {
-      setFilesError('Network error: Could not connect to server')
+      setFilesError('Failed to load files')
+      console.error('Error fetching knowledge base files:', error)
     } finally {
       setLoadingFiles(false)
     }
@@ -222,8 +230,37 @@ const CreateExpertPage = () => {
     const allFileIds = knowledgeBaseFiles.map((file: KnowledgeBaseFile) => file.id)
     setFormData(prev => ({
       ...prev,
-      selectedFiles: prev.selectedFiles.length === allFileIds.length ? [] : allFileIds
+      selectedFiles: prev.selectedFiles.length === knowledgeBaseFiles.length ? [] : allFileIds
     }))
+  }
+
+  // Group files by folder
+  const groupedFiles = knowledgeBaseFiles.reduce((acc, file) => {
+    const folder = file.folder || 'Uncategorized'
+    if (!acc[folder]) {
+      acc[folder] = []
+    }
+    acc[folder].push(file)
+    return acc
+  }, {} as Record<string, KnowledgeBaseFile[]>)
+
+  // Sort folders: Uncategorized last, others alphabetically
+  const sortedFolders = Object.keys(groupedFiles).sort((a, b) => {
+    if (a === 'Uncategorized') return 1
+    if (b === 'Uncategorized') return -1
+    return a.localeCompare(b)
+  })
+
+  const toggleFolder = (folderName: string) => {
+    setExpandedFolders(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(folderName)) {
+        newSet.delete(folderName)
+      } else {
+        newSet.add(folderName)
+      }
+      return newSet
+    })
   }
 
   // Helper function to format file size
@@ -688,17 +725,46 @@ const CreateExpertPage = () => {
                       </Button>
                     </div>
                   ) : (
-                    <div className="space-y-3 max-h-80 overflow-y-auto">
-                      {knowledgeBaseFiles.map((file: KnowledgeBaseFile) => (
-                        <div
-                          key={file.id}
-                          className={`p-3 rounded-lg border-2 transition-all cursor-pointer ${
-                            formData.selectedFiles.includes(file.id)
-                              ? 'bg-blue-50 border-blue-200'
-                              : 'bg-gray-50 border-gray-200 hover:border-gray-300'
-                          }`}
-                          onClick={() => handleFileSelection(file.id)}
-                        >
+                    <div className="space-y-4 max-h-80 overflow-y-auto">
+                      {sortedFolders.map((folderName) => {
+                        const folderFiles = groupedFiles[folderName]
+                        const isExpanded = expandedFolders.has(folderName)
+                        
+                        return (
+                          <div key={folderName} className="border rounded-lg">
+                            {/* Folder Header */}
+                            <button
+                              type="button"
+                              onClick={() => toggleFolder(folderName)}
+                              className="w-full flex items-center justify-between p-3 hover:bg-gray-50 transition-colors"
+                            >
+                              <div className="flex items-center space-x-2">
+                                {isExpanded ? (
+                                  <ChevronDown className="h-4 w-4 text-gray-500" />
+                                ) : (
+                                  <ChevronRight className="h-4 w-4 text-gray-500" />
+                                )}
+                                <Folder className="h-4 w-4 text-blue-500" />
+                                <span className="font-medium text-gray-900 text-sm">{folderName}</span>
+                                <span className="text-xs text-gray-500">
+                                  ({folderFiles.length} {folderFiles.length === 1 ? 'file' : 'files'})
+                                </span>
+                              </div>
+                            </button>
+                            
+                            {/* Folder Files */}
+                            {isExpanded && (
+                              <div className="border-t">
+                                {folderFiles.map((file: KnowledgeBaseFile) => (
+                                  <div
+                                    key={file.id}
+                                    className={`p-3 border-b last:border-b-0 transition-all cursor-pointer ${
+                                      formData.selectedFiles.includes(file.id)
+                                        ? 'bg-blue-50'
+                                        : 'hover:bg-gray-50'
+                                    }`}
+                                    onClick={() => handleFileSelection(file.id)}
+                                  >
                           <div className="flex items-start space-x-3">
                             {/* Checkbox */}
                             <div className="flex items-center pt-1">
@@ -752,8 +818,13 @@ const CreateExpertPage = () => {
                               </div>
                             </div>
                           </div>
-                        </div>
-                      ))}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
                     </div>
                   )}
                   
