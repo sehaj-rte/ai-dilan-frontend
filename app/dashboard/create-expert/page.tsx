@@ -141,8 +141,8 @@ const CreateExpertPage = () => {
     } catch (error) {
       console.error('Error fetching voices:', error)
       console.error('Full error details:', {
-        message: error.message,
-        stack: error.stack,
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
         apiUrl: `${API_URL}/voice/elevenlabs-voices`
       })
       // Fallback voices
