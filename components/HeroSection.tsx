@@ -2,8 +2,10 @@
 
 import React from 'react'
 import Link from 'next/link'
+import { useAppSelector } from '@/store/hooks'
 
 const HeroSection = () => {
+  const { isAuthenticated } = useAppSelector((state) => state.auth)
   const experts = [
     { name: "Elisa Song", role: "Doctor", image: "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=400&h=400&fit=crop&crop=face" },
     { name: "Sam Feldt", role: "Musician", image: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop&crop=face" },
@@ -43,7 +45,7 @@ const HeroSection = () => {
           {/* CTA Buttons */}
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-16 animate-slide-up" style={{animationDelay: '0.4s'}}>
             <Link 
-              href="#" 
+              href={isAuthenticated ? "/dashboard" : "/auth/register"} 
               className="group relative inline-flex items-center px-8 py-4 text-lg font-semibold text-white bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl hover:from-indigo-700 hover:to-purple-700 transition-all duration-300 transform hover:scale-105 hover:shadow-2xl hover:shadow-purple-500/25"
             >
               <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl blur opacity-75 group-hover:opacity-100 transition duration-300"></span>
@@ -55,7 +57,7 @@ const HeroSection = () => {
               </span>
             </Link>
             <Link 
-              href="#" 
+              href={isAuthenticated ? "/dashboard" : "/auth/register"} 
               className="group inline-flex items-center px-8 py-4 text-lg font-semibold text-gray-700 bg-white/80 backdrop-blur-sm border border-gray-200 rounded-xl hover:bg-white hover:border-gray-300 hover:shadow-xl transition-all duration-300 transform hover:scale-105"
             >
               <svg className="w-5 h-5 mr-2 text-gray-500 group-hover:text-gray-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">

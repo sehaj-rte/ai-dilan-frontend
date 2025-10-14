@@ -370,9 +370,9 @@ const DocumentContentViewer: React.FC<DocumentContentViewerProps> = ({
                 <span>Document processing failed. Please try re-uploading.</span>
               </div>
             ) : (
-              <div className="flex items-center space-x-2 text-gray-600">
-                <Clock className="h-4 w-4" />
-                <span>Document is pending processing</span>
+              <div className="flex items-center space-x-2 text-green-600">
+                <CheckCircle className="h-4 w-4" />
+                <span>Document is ready</span>
               </div>
             )}
           </div>

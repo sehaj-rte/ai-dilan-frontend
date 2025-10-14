@@ -28,10 +28,10 @@ const Header = () => {
           {/* Logo */}
           <div className="flex items-center">
             <Link href="/" className="flex items-center">
-              <div className="w-8 h-8 bg-dilan-black rounded-md flex items-center justify-center mr-2">
+              <div className="w-8 h-8 bg-dilan-black rounded-md flex items-center justify-center mr-3">
                 <span className="text-white font-bold text-sm">D</span>
               </div>
-              <span className="text-xl font-bold text-black ml-1">ilan AI</span>
+              <span className="text-xl font-bold text-black">Dilan AI</span>
             </Link>
           </div>
 

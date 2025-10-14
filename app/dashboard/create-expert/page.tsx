@@ -30,7 +30,7 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 
-const ELEVENLABS_API_KEY = "sk_7e6d4210c5184763b1623ec5558c557cc182ab91ca8960a2"
+const ELEVENLABS_API_KEY = "sk_080d5c92d8712bc210e293fec768eb3997309b3052a06574"
 
 interface Voice {
   id: string
@@ -106,7 +106,6 @@ const CreateExpertPage = () => {
       }
     } catch (error) {
       setFilesError('Network error: Could not connect to server')
-      console.error('Error fetching knowledge base files:', error)
     } finally {
       setLoadingFiles(false)
     }
@@ -115,11 +114,21 @@ const CreateExpertPage = () => {
   const fetchVoices = async () => {
     setLoadingVoices(true)
     try {
+      console.log(`Fetching voices from: ${API_URL}/voice/elevenlabs-voices`)
       const response = await fetch(`${API_URL}/voice/elevenlabs-voices`)
+      
+      console.log(`Voice API response status: ${response.status}`)
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+      
       const data = await response.json()
+      console.log('Voice API response data:', data)
       
       if (data.success) {
         setVoices(data.voices)
+        console.log(`Successfully loaded ${data.voices.length} voices`)
       } else {
         console.error('Failed to fetch voices:', data.error)
         // Fallback to demo voices if API fails
@@ -131,6 +140,11 @@ const CreateExpertPage = () => {
       }
     } catch (error) {
       console.error('Error fetching voices:', error)
+      console.error('Full error details:', {
+        message: error.message,
+        stack: error.stack,
+        apiUrl: `${API_URL}/voice/elevenlabs-voices`
+      })
       // Fallback voices
       setVoices([
         { id: 'demo1', name: 'Sarah', gender: 'female', age: 'young', accent: 'american', description: 'Warm and professional', category: 'premade' },
@@ -141,34 +155,34 @@ const CreateExpertPage = () => {
     }
   }
 
-  const handleAvatarUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
-    if (file) {
-      // Validate file size (max 10MB)
-      if (file.size > 10 * 1024 * 1024) {
-        alert('Image too large. Maximum size is 10MB.')
-        return
-      }
-      
-      // Validate file type
-      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
-      if (!allowedTypes.includes(file.type)) {
-        alert('Unsupported image type. Please use JPEG, PNG, GIF, or WebP.')
-        return
-      }
-      
-      setFormData(prev => ({ ...prev, avatar: file }))
-      
-      // Create preview and base64 data
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        const result = e.target?.result as string
-        setAvatarPreview(result)
-        // Store the base64 data for upload
-        setFormData(prev => ({ ...prev, avatarBase64: result }))
-      }
-      reader.readAsDataURL(file)
+  const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    
+    // Validate file size (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      alert('Image too large. Maximum size is 10MB.')
+      return
     }
+    
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp']
+    if (!allowedTypes.includes(file.type)) {
+      alert('Unsupported image type. Please use JPEG, PNG, GIF, or WebP.')
+      return
+    }
+    
+    setFormData(prev => ({ ...prev, avatar: file }))
+    
+    // Create preview and base64 data
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const result = e.target?.result as string
+      setAvatarPreview(result)
+      // Store the base64 data for upload
+      setFormData(prev => ({ ...prev, avatarBase64: result }))
+    }
+    reader.readAsDataURL(file)
   }
 
   const playVoicePreview = async (voiceId: string, previewUrl?: string) => {
@@ -674,20 +688,20 @@ const CreateExpertPage = () => {
                       </Button>
                     </div>
                   ) : (
-                    <div className="space-y-3">
+                    <div className="space-y-3 max-h-80 overflow-y-auto">
                       {knowledgeBaseFiles.map((file: KnowledgeBaseFile) => (
                         <div
                           key={file.id}
-                          className={`flex items-center justify-between p-3 rounded-lg border-2 transition-all cursor-pointer ${
+                          className={`p-3 rounded-lg border-2 transition-all cursor-pointer ${
                             formData.selectedFiles.includes(file.id)
                               ? 'bg-blue-50 border-blue-200'
                               : 'bg-gray-50 border-gray-200 hover:border-gray-300'
                           }`}
                           onClick={() => handleFileSelection(file.id)}
                         >
-                          <div className="flex items-center space-x-3">
+                          <div className="flex items-start space-x-3">
                             {/* Checkbox */}
-                            <div className="flex items-center">
+                            <div className="flex items-center pt-1">
                               <input
                                 type="checkbox"
                                 checked={formData.selectedFiles.includes(file.id)}
@@ -698,7 +712,7 @@ const CreateExpertPage = () => {
                             </div>
                             
                             {/* File Icon */}
-                            <div className={`w-8 h-8 rounded flex items-center justify-center ${
+                            <div className={`w-8 h-8 rounded flex items-center justify-center flex-shrink-0 ${
                               formData.selectedFiles.includes(file.id)
                                 ? 'bg-blue-100'
                                 : 'bg-gray-100'
@@ -711,39 +725,33 @@ const CreateExpertPage = () => {
                             </div>
                             
                             {/* File Info */}
-                            <div>
-                              <p className={`text-sm font-medium ${
+                            <div className="flex-1 min-w-0">
+                              <p className={`text-sm font-medium mb-1 break-words ${
                                 formData.selectedFiles.includes(file.id)
                                   ? 'text-blue-900'
                                   : 'text-gray-900'
-                              }`}>
+                              }`} title={file.name}>
                                 {file.name}
                               </p>
-                              <div className="flex items-center space-x-2 text-xs text-gray-500">
-                                <span>{file.document_type || file.type}</span>
-                                <span>•</span>
+                              <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
+                                <span className="bg-gray-200 px-2 py-1 rounded">
+                                  {file.document_type || file.type}
+                                </span>
                                 <span>{formatFileSize(file.size)}</span>
                                 {file.word_count && (
-                                  <>
-                                    <span>•</span>
-                                    <span>{file.word_count} words</span>
-                                  </>
+                                  <span>{file.word_count} words</span>
                                 )}
-                                <span className={`px-2 py-1 rounded text-xs ${
-                                  file.processing_status === 'completed' 
-                                    ? 'bg-green-100 text-green-800'
-                                    : file.processing_status === 'pending'
-                                    ? 'bg-yellow-100 text-yellow-800'
-                                    : 'bg-red-100 text-red-800'
-                                }`}>
-                                  {file.processing_status}
-                                </span>
+                                {file.processing_status === 'completed' && (
+                                  <span className="px-2 py-1 rounded bg-green-100 text-green-800">
+                                    Ready
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-xs text-gray-400 mt-1">
+                                Uploaded: {formatDate(file.created_at)}
                               </div>
                             </div>
                           </div>
-                          
-                          {/* Upload Date */}
-                          <span className="text-xs text-gray-400">{formatDate(file.created_at)}</span>
                         </div>
                       ))}
                     </div>

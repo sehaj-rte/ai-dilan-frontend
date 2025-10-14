@@ -2,8 +2,10 @@
 
 import React from 'react'
 import Link from 'next/link'
+import { useAppSelector } from '@/store/hooks'
 
 const CreateDigitalMindSection = () => {
+  const { isAuthenticated } = useAppSelector((state) => state.auth)
   const steps = [
     {
       number: "01",
@@ -38,7 +40,7 @@ const CreateDigitalMindSection = () => {
           </p>
           
           <Link 
-            href="#"
+            href={isAuthenticated ? "/dashboard" : "/auth/register"}
             className="inline-flex items-center px-8 py-4 text-lg font-semibold text-white bg-black rounded-lg hover:bg-gray-800 transition-all duration-300 transform hover:scale-105 shadow-lg"
           >
             Get Started
@@ -79,7 +81,7 @@ const CreateDigitalMindSection = () => {
           </p>
           
           <Link 
-            href="#"
+            href={isAuthenticated ? "/dashboard" : "/auth/register"}
             className="inline-flex items-center px-8 py-4 text-lg font-semibold text-white bg-black rounded-lg hover:bg-gray-800 transition-all duration-300 transform hover:scale-105 shadow-lg"
           >
             Get Started
