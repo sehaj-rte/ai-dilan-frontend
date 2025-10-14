@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import VoiceControls from '@/components/chat/VoiceControls'
 import { ToastContainer, useToast } from '@/components/ui/toast'
 import { API_URL } from '@/lib/config'
+import { fetchWithAuth, getAuthHeaders } from '@/lib/api-client'
 import { 
   ArrowLeft, 
   Send, 
@@ -75,7 +76,9 @@ const ChatPage = () => {
   const fetchExpert = async () => {
     try {
       setIsLoading(true)
-      const response = await fetch(`${API_URL}/experts/${expertId}`)
+      const response = await fetchWithAuth(`${API_URL}/experts/${expertId}`, {
+        headers: getAuthHeaders(),
+      })
       const data = await response.json()
       
       if (data.success && data.expert) {
@@ -98,7 +101,9 @@ const ChatPage = () => {
 
   const fetchChatHistory = async () => {
     try {
-      const response = await fetch(`${API_URL}/chat/${expertId}/history?user_id=anonymous`)
+      const response = await fetchWithAuth(`${API_URL}/chat/${expertId}/history?user_id=anonymous`, {
+        headers: getAuthHeaders(),
+      })
       const data = await response.json()
       
       if (data.success && data.messages) {
@@ -169,17 +174,13 @@ const ChatPage = () => {
 
     try {
       // Send message to backend API
-      const response = await fetch(`${API_URL}/chat/${expertId}`, {
+      const response = await fetchWithAuth(`${API_URL}/chat/${expertId}`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
-          expert_id: expertId,
           message: messageContent,
-          message_type: 'text',
-          user_id: 'anonymous' // You can replace this with actual user ID from auth context
-        })
+          user_id: 'anonymous'
+        }),
       })
 
       const data = await response.json()

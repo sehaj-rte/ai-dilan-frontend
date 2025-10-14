@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input'
 import { Progress } from '@/components/ui/progress'
 import FolderSelector from './FolderSelector'
+import { fetchWithAuth, getAuthHeadersForFormData } from '@/lib/api-client'
 import { 
   Mic, 
   Square, 
@@ -18,7 +19,6 @@ import {
   AlertCircle
 } from 'lucide-react'
 import { API_URL } from '@/lib/config'
-import { getAuthHeadersForFormData } from '@/lib/auth-headers'
 
 interface AudioRecorderProps {
   onTranscriptionComplete?: (result: any) => void
@@ -176,7 +176,7 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({ onTranscriptionComplete }
       formData.append('folder', selectedFolder)
       formData.append('custom_name', `${fileName}_transcription.txt`)
 
-      const response = await fetch(`${API_URL}/knowledge-base/transcribe-audio`, {
+      const response = await fetchWithAuth(`${API_URL}/knowledge-base/transcribe-audio`, {
         method: 'POST',
         headers: getAuthHeadersForFormData(),
         body: formData,

@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { useAppSelector } from '@/store/hooks'
 import { API_URL } from '@/lib/config'
+import { fetchWithAuth, getAuthHeaders } from '@/lib/api-client'
 import { 
   Brain, 
   MessageSquare, 
@@ -131,7 +132,9 @@ const DashboardPage = () => {
   const fetchExperts = async () => {
     try {
       setLoadingExperts(true)
-      const response = await fetch(`${API_URL}/experts/`)
+      const response = await fetchWithAuth(`${API_URL}/experts/`, {
+        headers: getAuthHeaders(),
+      })
       const data = await response.json()
       
       if (data.success && data.experts) {
@@ -164,7 +167,9 @@ const DashboardPage = () => {
       // Fetch progress for each expert
       const progressPromises = expertsToCheck.map(async (expert) => {
         try {
-          const response = await fetch(`${API_URL}/api/experts/${expert.id}/progress`)
+          const response = await fetchWithAuth(`${API_URL}/api/experts/${expert.id}/progress`, {
+            headers: getAuthHeaders(),
+          })
           const data = await response.json()
           
           if (data.success && data.progress) {
@@ -203,8 +208,9 @@ const DashboardPage = () => {
   const handleDeleteExpert = async (expertId: string) => {
     try {
       setDeletingExpert(expertId)
-      const response = await fetch(`${API_URL}/experts/${expertId}`, {
+      const response = await fetchWithAuth(`${API_URL}/experts/${expertId}`, {
         method: 'DELETE',
+        headers: getAuthHeaders(),
       })
       const data = await response.json()
       

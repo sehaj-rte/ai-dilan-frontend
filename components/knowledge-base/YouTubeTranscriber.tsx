@@ -5,17 +5,10 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Progress } from '@/components/ui/progress'
-import FolderSelector from './FolderSelector'
-import { 
-  Youtube, 
-  Loader2, 
-  CheckCircle, 
-  AlertCircle,
-  Download,
-  FileText
-} from 'lucide-react'
+import { CheckCircle, AlertCircle, Youtube, Loader2 } from 'lucide-react'
 import { API_URL } from '@/lib/config'
-import { getAuthHeaders } from '@/lib/auth-headers'
+import { fetchWithAuth, getAuthHeaders } from '@/lib/api-client'
+import FolderSelector from './FolderSelector'
 
 interface YouTubeTranscriberProps {
   onTranscriptionComplete?: (result: any) => void
@@ -55,7 +48,7 @@ const YouTubeTranscriber: React.FC<YouTubeTranscriberProps> = ({ onTranscription
     setCurrentStep('Fetching video information...')
 
     try {
-      const response = await fetch(`${API_URL}/knowledge-base/transcribe-youtube`, {
+      const response = await fetchWithAuth(`${API_URL}/knowledge-base/transcribe-youtube`, {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({

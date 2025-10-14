@@ -1,6 +1,6 @@
 'use client'
 import { API_URL } from '@/lib/config'
-import { getAuthHeaders } from '@/lib/auth-headers'
+import { fetchWithAuth, getAuthHeaders } from '@/lib/api-client'
 
 import React, { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
@@ -100,7 +100,7 @@ const CreateExpertPage = () => {
     setLoadingFiles(true)
     setFilesError(null)
     try {
-      const response = await fetch(`${API_URL}/knowledge-base/files`, {
+      const response = await fetchWithAuth(`${API_URL}/knowledge-base/files`, {
         headers: getAuthHeaders(),
       })
       const data = await response.json()
@@ -123,7 +123,9 @@ const CreateExpertPage = () => {
     setLoadingVoices(true)
     try {
       console.log(`Fetching voices from: ${API_URL}/voice/elevenlabs-voices`)
-      const response = await fetch(`${API_URL}/voice/elevenlabs-voices`)
+      const response = await fetchWithAuth(`${API_URL}/voice/elevenlabs-voices`, {
+        headers: getAuthHeaders(),
+      })
       
       console.log(`Voice API response status: ${response.status}`)
       
@@ -316,12 +318,10 @@ const CreateExpertPage = () => {
       })
       
       // Send to backend
-      const response = await fetch(`${API_URL}/experts/`, {
+      const response = await fetchWithAuth(`${API_URL}/experts/`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload)
+        headers: getAuthHeaders(),
+        body: JSON.stringify(payload),
       })
       
       const result = await response.json()

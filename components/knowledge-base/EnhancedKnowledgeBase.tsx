@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { API_URL } from '@/lib/config'
-import { getAuthHeaders, getAuthHeadersForFormData } from '@/lib/auth-headers'
+import { fetchWithAuth, getAuthHeaders, getAuthHeadersForFormData } from '@/lib/api-client'
 import DocumentContentViewer from './DocumentContentViewer'
 import AudioRecorder from './AudioRecorder'
 import YouTubeTranscriber from './YouTubeTranscriber'
@@ -106,7 +106,7 @@ const EnhancedKnowledgeBase = () => {
   const fetchFiles = async () => {
     setIsLoadingFiles(true)
     try {
-      const response = await fetch(`${API_URL}/knowledge-base/files`, {
+      const response = await fetchWithAuth(`${API_URL}/knowledge-base/files`, {
         headers: getAuthHeaders(),
       })
       const data = await response.json()
@@ -173,7 +173,7 @@ const EnhancedKnowledgeBase = () => {
 
         progressTimersRef.current[fileId] = progressTimer
 
-        const response = await fetch(`${API_URL}/knowledge-base/upload`, {
+        const response = await fetchWithAuth(`${API_URL}/knowledge-base/upload`, {
           method: 'POST',
           headers: getAuthHeadersForFormData(),
           body: formData,
@@ -272,7 +272,7 @@ const EnhancedKnowledgeBase = () => {
   const handleDeleteFile = async (fileId: string) => {
     setDeletingFileId(fileId)
     try {
-      const response = await fetch(`${API_URL}/knowledge-base/files/${fileId}`, {
+      const response = await fetchWithAuth(`${API_URL}/knowledge-base/files/${fileId}`, {
         method: 'DELETE',
         headers: getAuthHeaders(),
       })
@@ -376,7 +376,7 @@ const EnhancedKnowledgeBase = () => {
     setIsCreatingFolder(true)
     
     try {
-      const response = await fetch(`${API_URL}/knowledge-base/folders?folder_name=${encodeURIComponent(trimmedName)}`, {
+      const response = await fetchWithAuth(`${API_URL}/knowledge-base/folders?folder_name=${encodeURIComponent(trimmedName)}`, {
         method: 'POST',
         headers: getAuthHeaders(),
       })
