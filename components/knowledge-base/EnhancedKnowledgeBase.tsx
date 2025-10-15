@@ -101,6 +101,10 @@ const EnhancedKnowledgeBase = () => {
   })
   const progressTimersRef = useRef<{ [key: string]: NodeJS.Timeout }>({})
   
+  // Add request deduplication
+  const requestInProgressRef = useRef<boolean>(false)
+  const lastRequestParamsRef = useRef<string>('')
+  
   // Toast notification state
   const [toast, setToast] = useState<{
     message: string
@@ -143,7 +147,7 @@ const EnhancedKnowledgeBase = () => {
       
       if (result.success) {
         setFiles(files.filter(file => file.id !== deleteConfirm.fileId))
-        // Refresh folder counts after deletion
+        // Only refresh folder counts after successful deletion
         setFolderRefreshTrigger(prev => prev + 1)
         showToast('File deleted successfully', 'success')
       } else {
@@ -215,29 +219,47 @@ const EnhancedKnowledgeBase = () => {
     return () => {
       Object.values(progressTimersRef.current).forEach(timer => clearInterval(timer))
     }
-  }, [])
+  }, []) // Only run on mount
 
+  // Debounced search effect
   useEffect(() => {
+    if (searchQuery === '') {
+      // If search is cleared, fetch immediately
+      fetchFiles(selectedFolderFilterId, 1, '')
+      return
+    }
+
     const timeoutId = setTimeout(() => {
-      if (searchQuery !== '') {
-        // Reset to first page when searching
-        setPagination(prev => ({ ...prev, currentPage: 1 }))
-        fetchFiles(selectedFolderFilterId, 1, searchQuery)
-      }
+      // Reset to first page when searching
+      setPagination(prev => ({ ...prev, currentPage: 1 }))
+      fetchFiles(selectedFolderFilterId, 1, searchQuery)
     }, 500) // 500ms debounce
 
     return () => clearTimeout(timeoutId)
-  }, [searchQuery])
+  }, [searchQuery]) // Only depend on searchQuery
 
+  // Folder filter effect
   useEffect(() => {
-    if (searchQuery === '') {
-      fetchFiles(selectedFolderFilterId, 1, '')
-    }
-  }, [selectedFolderFilterId])
+    // Reset to first page when changing folders
+    setPagination(prev => ({ ...prev, currentPage: 1 }))
+    fetchFiles(selectedFolderFilterId, 1, searchQuery)
+  }, [selectedFolderFilterId]) // Only depend on selectedFolderFilterId
 
 
   const fetchFiles = async (folderId: string | null = selectedFolderFilterId, page: number = 1, search: string = searchQuery) => {
+    // Create request signature for deduplication
+    const requestParams = JSON.stringify({ folderId, page, search, perPage: pagination.perPage })
+    
+    // Prevent duplicate requests
+    if (requestInProgressRef.current && lastRequestParamsRef.current === requestParams) {
+      console.log('🚫 Skipping duplicate request:', requestParams)
+      return
+    }
+    
+    requestInProgressRef.current = true
+    lastRequestParamsRef.current = requestParams
     setIsLoadingFiles(true)
+    
     try {
       // Build query parameters
       const params = new URLSearchParams({
@@ -272,8 +294,8 @@ const EnhancedKnowledgeBase = () => {
           hasNext: data.pagination.has_next,
           hasPrevious: data.pagination.has_previous
         })
-        // Refresh folder counts when files are fetched
-        setFolderRefreshTrigger(prev => prev + 1)
+        // Only refresh folder counts if files were actually updated
+        // Remove the automatic folder refresh trigger to break the circular pattern
       } else {
         console.error('Failed to fetch files:', data.error)
       }
@@ -281,6 +303,7 @@ const EnhancedKnowledgeBase = () => {
       console.error('Error fetching files:', error)
     } finally {
       setIsLoadingFiles(false)
+      requestInProgressRef.current = false
     }
   }
 
@@ -405,6 +428,11 @@ const EnhancedKnowledgeBase = () => {
     
     // Refresh files list after all uploads complete
     await fetchFiles()
+    
+    // Manually trigger folder refresh only after successful uploads
+    if (successCount > 0) {
+      setFolderRefreshTrigger(prev => prev + 1)
+    }
     
     // Log summary
     console.log(`Upload complete: ${successCount} succeeded, ${errorCount} failed out of ${selectedFiles.length} files`)

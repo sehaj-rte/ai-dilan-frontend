@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -49,12 +49,29 @@ const FolderSidebar: React.FC<FolderSidebarProps> = ({
   const [newFolderName, setNewFolderName] = useState('')
   const [isCreatingFolder, setIsCreatingFolder] = useState(false)
 
+  // Add request deduplication for folders
+  const folderRequestInProgressRef = useRef<boolean>(false)
+  const lastFolderFetchTimeRef = useRef<number>(0)
+
   useEffect(() => {
-    fetchFolders()
+    // Only fetch folders if not already loading and enough time has passed
+    const now = Date.now()
+    if (!folderRequestInProgressRef.current && (now - lastFolderFetchTimeRef.current > 1000)) {
+      fetchFolders()
+    }
   }, [refreshTrigger])
 
   const fetchFolders = async () => {
+    // Prevent duplicate requests
+    if (folderRequestInProgressRef.current) {
+      console.log('🚫 Skipping duplicate folder request')
+      return
+    }
+
+    folderRequestInProgressRef.current = true
+    lastFolderFetchTimeRef.current = Date.now()
     setIsLoading(true)
+    
     try {
       const response = await fetchWithAuth(`${API_URL}/knowledge-base/folders`, {
         headers: getAuthHeaders(),
@@ -68,6 +85,7 @@ const FolderSidebar: React.FC<FolderSidebarProps> = ({
       console.error('Error fetching folders:', error)
     } finally {
       setIsLoading(false)
+      folderRequestInProgressRef.current = false
     }
   }
 
@@ -100,8 +118,13 @@ const FolderSidebar: React.FC<FolderSidebarProps> = ({
       if (data.success) {
         setIsCreateFolderOpen(false)
         setNewFolderName('')
-        // Refresh folders list
-        await fetchFolders()
+        // Add the new folder to the existing list instead of refetching all
+        const newFolder: FolderInfo = {
+          id: data.folder?.id || trimmedName,
+          name: trimmedName,
+          count: 0
+        }
+        setFolders(prev => [...prev, newFolder])
         console.log('✅ Folder created:', trimmedName)
       } else {
         console.error('Failed to create folder:', data.error)
