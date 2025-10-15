@@ -22,8 +22,10 @@ const YouTubeTranscriber: React.FC<YouTubeTranscriberProps> = ({ onTranscription
   const [transcriptionResult, setTranscriptionResult] = useState<any>(null)
   const [error, setError] = useState<string | null>(null)
   const [currentStep, setCurrentStep] = useState<string>('')
+  const [progressValue, setProgressValue] = useState<number>(0)
   const [selectedFolderId, setSelectedFolderId] = useState<string>(defaultFolderId || '')
   const [fileName, setFileName] = useState<string>('youtube_video')
+  const [progressInterval, setProgressInterval] = useState<NodeJS.Timeout | null>(null)
 
   // Update selectedFolderId when defaultFolderId prop changes
   useEffect(() => {
@@ -32,6 +34,15 @@ const YouTubeTranscriber: React.FC<YouTubeTranscriberProps> = ({ onTranscription
       setSelectedFolderId(defaultFolderId)
     }
   }, [defaultFolderId])
+
+  // Cleanup progress interval on unmount
+  useEffect(() => {
+    return () => {
+      if (progressInterval) {
+        clearInterval(progressInterval)
+      }
+    }
+  }, [progressInterval])
 
   const isValidYouTubeUrl = (url: string) => {
     const patterns = [
@@ -55,9 +66,37 @@ const YouTubeTranscriber: React.FC<YouTubeTranscriberProps> = ({ onTranscription
     setIsTranscribing(true)
     setError(null)
     setTranscriptionResult(null)
-    setCurrentStep('Fetching video information...')
-
+    setProgressValue(0)
+    
     console.log('YouTube Transcriber - Sending folderId:', selectedFolderId)
+
+    // Simulate progress steps
+    const progressSteps = [
+      { step: 'Fetching video information...', progress: 10 },
+      { step: 'Downloading audio from YouTube...', progress: 30 },
+      { step: 'Processing audio chunks...', progress: 50 },
+      { step: 'Transcribing with AI...', progress: 80 },
+      { step: 'Saving to knowledge base...', progress: 95 }
+    ]
+
+    let currentStepIndex = 0
+
+    // Clear any existing interval
+    if (progressInterval) {
+      clearInterval(progressInterval)
+    }
+
+    // Start progress simulation
+    const newProgressInterval = setInterval(() => {
+      if (currentStepIndex < progressSteps.length) {
+        const { step, progress } = progressSteps[currentStepIndex]
+        setCurrentStep(step)
+        setProgressValue(progress)
+        currentStepIndex++
+      }
+    }, 1500) // Update every 1.5 seconds
+
+    setProgressInterval(newProgressInterval)
 
     try {
       const response = await fetchWithAuth(`${API_URL}/knowledge-base/transcribe-youtube`, {
@@ -71,9 +110,16 @@ const YouTubeTranscriber: React.FC<YouTubeTranscriberProps> = ({ onTranscription
 
       const result = await response.json()
 
+      // Clear the progress interval
+      if (progressInterval) {
+        clearInterval(progressInterval)
+        setProgressInterval(null)
+      }
+
       if (result.success) {
-        setTranscriptionResult(result)
+        setProgressValue(100)
         setCurrentStep('Complete!')
+        setTranscriptionResult(result)
         
         // Call callback if provided
         if (onTranscriptionComplete) {
@@ -82,11 +128,17 @@ const YouTubeTranscriber: React.FC<YouTubeTranscriberProps> = ({ onTranscription
       } else {
         setError(result.error || 'Transcription failed')
         setCurrentStep('')
+        setProgressValue(0)
       }
     } catch (err) {
       console.error('YouTube transcription error:', err)
+      if (progressInterval) {
+        clearInterval(progressInterval)
+        setProgressInterval(null)
+      }
       setError('Failed to transcribe YouTube video. Please try again.')
       setCurrentStep('')
+      setProgressValue(0)
     } finally {
       setIsTranscribing(false)
     }
@@ -177,16 +229,67 @@ const YouTubeTranscriber: React.FC<YouTubeTranscriberProps> = ({ onTranscription
 
         {/* Progress Indicator */}
         {isTranscribing && (
-          <div className="space-y-3">
+          <div className="space-y-4">
             <div className="flex items-center justify-between text-sm">
-              <span className="text-gray-600">{currentStep}</span>
+              <span className="text-gray-700 font-medium">{currentStep}</span>
+              <span className="text-gray-500">{progressValue}%</span>
             </div>
-            <Progress value={undefined} className="h-2" />
-            <div className="text-xs text-gray-500 space-y-1">
-              <p>⬇️ Downloading audio from YouTube...</p>
-              <p>✂️ Splitting into chunks if needed...</p>
-              <p>🎙️ Transcribing with AI...</p>
-              <p>💾 Saving to knowledge base...</p>
+            <Progress value={progressValue} className="h-3" />
+            
+            {/* Step-by-step progress indicators */}
+            <div className="space-y-2">
+              <div className={`flex items-center space-x-2 text-sm ${progressValue >= 10 ? 'text-green-600' : 'text-gray-400'}`}>
+                {progressValue >= 10 ? (
+                  <CheckCircle className="h-4 w-4" />
+                ) : (
+                  <div className="h-4 w-4 border-2 border-gray-300 rounded-full" />
+                )}
+                <span>Fetch video information</span>
+              </div>
+              
+              <div className={`flex items-center space-x-2 text-sm ${progressValue >= 30 ? 'text-green-600' : progressValue >= 10 ? 'text-blue-600' : 'text-gray-400'}`}>
+                {progressValue >= 30 ? (
+                  <CheckCircle className="h-4 w-4" />
+                ) : progressValue >= 10 ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <div className="h-4 w-4 border-2 border-gray-300 rounded-full" />
+                )}
+                <span>Download audio from YouTube</span>
+              </div>
+              
+              <div className={`flex items-center space-x-2 text-sm ${progressValue >= 50 ? 'text-green-600' : progressValue >= 30 ? 'text-blue-600' : 'text-gray-400'}`}>
+                {progressValue >= 50 ? (
+                  <CheckCircle className="h-4 w-4" />
+                ) : progressValue >= 30 ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <div className="h-4 w-4 border-2 border-gray-300 rounded-full" />
+                )}
+                <span>Process audio chunks</span>
+              </div>
+              
+              <div className={`flex items-center space-x-2 text-sm ${progressValue >= 80 ? 'text-green-600' : progressValue >= 50 ? 'text-blue-600' : 'text-gray-400'}`}>
+                {progressValue >= 80 ? (
+                  <CheckCircle className="h-4 w-4" />
+                ) : progressValue >= 50 ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <div className="h-4 w-4 border-2 border-gray-300 rounded-full" />
+                )}
+                <span>Transcribe with AI</span>
+              </div>
+              
+              <div className={`flex items-center space-x-2 text-sm ${progressValue >= 100 ? 'text-green-600' : progressValue >= 80 ? 'text-blue-600' : 'text-gray-400'}`}>
+                {progressValue >= 100 ? (
+                  <CheckCircle className="h-4 w-4" />
+                ) : progressValue >= 80 ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <div className="h-4 w-4 border-2 border-gray-300 rounded-full" />
+                )}
+                <span>Save to knowledge base</span>
+              </div>
             </div>
           </div>
         )}

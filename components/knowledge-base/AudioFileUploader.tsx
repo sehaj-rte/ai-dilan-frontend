@@ -47,18 +47,10 @@ const AudioFileUploader: React.FC<AudioFileUploaderProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null)
   const audioRefs = useRef<{ [key: string]: HTMLAudioElement }>({})
   
-  const MAX_FILE_SIZE = 25 * 1024 * 1024 // 25MB in bytes
   const SUPPORTED_FORMATS = ['mp3', 'wav', 'ogg', 'm4a', 'webm', 'flac', 'aac']
 
   const validateAudioFile = (file: File): { isValid: boolean; errorMessage?: string } => {
-    // Check file size
-    if (file.size > MAX_FILE_SIZE) {
-      return {
-        isValid: false,
-        errorMessage: `File size (${formatFileSize(file.size)}) exceeds 25MB limit`
-      }
-    }
-
+    // Check if file is empty
     if (file.size === 0) {
       return {
         isValid: false,
@@ -308,7 +300,7 @@ const AudioFileUploader: React.FC<AudioFileUploaderProps> = ({
                 </button>
               </p>
               <p className="text-sm text-gray-500 mt-2">
-                Supports: MP3, WAV, OGG, M4A, WebM, FLAC, AAC (Max 25MB each)
+                Supports: MP3, WAV, OGG, M4A, WebM, FLAC, AAC
               </p>
             </div>
             <input
@@ -546,7 +538,7 @@ const AudioFileUploader: React.FC<AudioFileUploaderProps> = ({
           <p><strong>Tips:</strong></p>
           <ul className="list-disc list-inside space-y-1 mt-1">
             <li>Clear audio quality produces better transcription results</li>
-            <li>Maximum file size: 25MB per file</li>
+            <li>No file size limit</li>
             <li>Supported formats: MP3, WAV, OGG, M4A, WebM, FLAC, AAC</li>
             <li>Transcriptions are powered by ElevenLabs AI</li>
           </ul>
