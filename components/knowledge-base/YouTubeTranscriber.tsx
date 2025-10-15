@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -12,16 +12,26 @@ import FolderSelector from './FolderSelector'
 
 interface YouTubeTranscriberProps {
   onTranscriptionComplete?: (result: any) => void
+  defaultFolderId?: string
+  hideFolderSelector?: boolean
 }
 
-const YouTubeTranscriber: React.FC<YouTubeTranscriberProps> = ({ onTranscriptionComplete }) => {
+const YouTubeTranscriber: React.FC<YouTubeTranscriberProps> = ({ onTranscriptionComplete, defaultFolderId, hideFolderSelector = false }) => {
   const [youtubeUrl, setYoutubeUrl] = useState('')
   const [isTranscribing, setIsTranscribing] = useState(false)
   const [transcriptionResult, setTranscriptionResult] = useState<any>(null)
   const [error, setError] = useState<string | null>(null)
   const [currentStep, setCurrentStep] = useState<string>('')
-  const [selectedFolder, setSelectedFolder] = useState<string>('Uncategorized')
+  const [selectedFolderId, setSelectedFolderId] = useState<string>(defaultFolderId || '')
   const [fileName, setFileName] = useState<string>('youtube_video')
+
+  // Update selectedFolderId when defaultFolderId prop changes
+  useEffect(() => {
+    console.log('YouTube Transcriber - defaultFolderId prop changed:', defaultFolderId)
+    if (defaultFolderId) {
+      setSelectedFolderId(defaultFolderId)
+    }
+  }, [defaultFolderId])
 
   const isValidYouTubeUrl = (url: string) => {
     const patterns = [
@@ -47,14 +57,15 @@ const YouTubeTranscriber: React.FC<YouTubeTranscriberProps> = ({ onTranscription
     setTranscriptionResult(null)
     setCurrentStep('Fetching video information...')
 
+    console.log('YouTube Transcriber - Sending folderId:', selectedFolderId)
+
     try {
       const response = await fetchWithAuth(`${API_URL}/knowledge-base/transcribe-youtube`, {
         method: 'POST',
         headers: getAuthHeaders(),
         body: JSON.stringify({
           youtube_url: youtubeUrl,
-          folder: selectedFolder,
-          custom_name: `${fileName}_transcription.txt`
+          folder_id: selectedFolderId
         }),
       })
 
@@ -100,10 +111,12 @@ const YouTubeTranscriber: React.FC<YouTubeTranscriberProps> = ({ onTranscription
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Folder Selection */}
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-gray-700">Save to Folder</label>
-          <FolderSelector value={selectedFolder} onChange={setSelectedFolder} />
-        </div>
+        {!hideFolderSelector && (
+          <div className="space-y-2">
+            <label className="text-sm font-medium text-gray-700">Save to Folder</label>
+            <FolderSelector value={selectedFolderId} onChange={setSelectedFolderId} />
+          </div>
+        )}
 
         {/* File Name Input */}
         <div className="space-y-2">

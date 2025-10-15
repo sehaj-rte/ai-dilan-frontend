@@ -12,12 +12,12 @@ import { ToastContainer, useToast } from '@/components/ui/toast'
 
 interface FolderSelectorProps {
   value: string
-  onChange: (folder: string) => void
+  onChange: (folderId: string) => void
   className?: string
 }
 
 const FolderSelector: React.FC<FolderSelectorProps> = ({ value, onChange, className }) => {
-  const [folders, setFolders] = useState<Array<{ name: string; count: number }>>([])
+  const [folders, setFolders] = useState<Array<{ name: string; count: number; id: string }>>([])
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
   const [newFolderName, setNewFolderName] = useState('')
   const [isLoading, setIsLoading] = useState(false)
@@ -84,10 +84,11 @@ const FolderSelector: React.FC<FolderSelectorProps> = ({ value, onChange, classN
         
         if (data.success) {
           // Add the new folder to the list
-          setFolders([...folders, { name: trimmedName, count: 0 }])
+          const newFolder = { name: trimmedName, count: 0, id: data.folder.id }
+          setFolders([...folders, newFolder])
           
-          // Select the new folder
-          onChange(trimmedName)
+          // Select the new folder by ID
+          onChange(data.folder.id)
           
           // Close dialog and reset
           setIsCreateDialogOpen(false)
@@ -124,7 +125,7 @@ const FolderSelector: React.FC<FolderSelectorProps> = ({ value, onChange, classN
             </SelectTrigger>
             <SelectContent>
               {folders.map((folder) => (
-                <SelectItem key={folder.name} value={folder.name}>
+                <SelectItem key={folder.id} value={folder.id}>
                   <div className="flex items-center">
                     <Folder className="h-4 w-4 mr-2" />
                     <span>{folder.name}</span>

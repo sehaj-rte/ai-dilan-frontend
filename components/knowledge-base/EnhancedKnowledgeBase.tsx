@@ -37,6 +37,7 @@ interface UploadedFile {
   url: string
   created_at: string
   updated_at: string
+  folder_id?: string
   folder?: string
   
   // Enhanced metadata
@@ -70,8 +71,8 @@ const EnhancedKnowledgeBase = () => {
   const [files, setFiles] = useState<UploadedFile[]>([])
   const [filteredFiles, setFilteredFiles] = useState<UploadedFile[]>([])
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null)
-  const [selectedFolder, setSelectedFolder] = useState<string>('Uncategorized')
-  const [selectedFolderFilter, setSelectedFolderFilter] = useState<string | null>(null)
+  const [selectedFolderId, setSelectedFolderId] = useState<string>('')
+  const [selectedFolderFilterId, setSelectedFolderFilterId] = useState<string | null>(null)
   const [isLoadingFiles, setIsLoadingFiles] = useState(false)
   const [deletingFileId, setDeletingFileId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
@@ -205,8 +206,8 @@ const EnhancedKnowledgeBase = () => {
     let filtered = files
 
     // Filter by folder
-    if (selectedFolderFilter) {
-      filtered = filtered.filter(file => file.folder === selectedFolderFilter)
+    if (selectedFolderFilterId) {
+      filtered = filtered.filter(file => file.folder_id === selectedFolderFilterId)
     }
 
     // Apply search filter
@@ -231,7 +232,7 @@ const EnhancedKnowledgeBase = () => {
     }
 
     setFilteredFiles(filtered)
-  }, [files, selectedFolderFilter, searchQuery])
+  }, [files, selectedFolderFilterId, searchQuery])
 
   const fetchFiles = async () => {
     setIsLoadingFiles(true)
@@ -255,7 +256,9 @@ const EnhancedKnowledgeBase = () => {
     }
   }
 
-  const handleFileUpload = async (selectedFiles: File[], folder: string) => {
+  const handleFileUpload = async (selectedFiles: File[], folderId: string) => {
+    console.log('folderId :::::',folderId)
+    
     // Reset counters at the start of each upload batch
     setSuccessCount(0)
     setErrorCount(0)
@@ -276,7 +279,7 @@ const EnhancedKnowledgeBase = () => {
       try {
         const formData = new FormData()
         formData.append('file', file)
-        formData.append('folder', folder)
+        formData.append('folder_id', folderId)
 
         // Simulate upload progress
         const progressTimer = setInterval(() => {
@@ -418,8 +421,11 @@ const EnhancedKnowledgeBase = () => {
         >
           <div className="w-64 h-full" onClick={(e) => e.stopPropagation()}>
             <FolderSidebar
-              selectedFolder={selectedFolderFilter}
-              onFolderSelect={setSelectedFolderFilter}
+              selectedFolder={selectedFolderFilterId}
+              onFolderSelect={(folderId) => {
+                setSelectedFolderFilterId(folderId)
+                setSelectedFolderId(folderId || '')
+              }}
               isCollapsed={false}
               onToggleCollapse={() => {}}
               isMobile={true}
@@ -433,8 +439,11 @@ const EnhancedKnowledgeBase = () => {
       {/* Desktop Sidebar */}
       <div className="hidden lg:block">
         <FolderSidebar
-          selectedFolder={selectedFolderFilter}
-          onFolderSelect={setSelectedFolderFilter}
+          selectedFolder={selectedFolderFilterId}
+          onFolderSelect={(folderId) => {
+            setSelectedFolderFilterId(folderId)
+            setSelectedFolderId(folderId || '')
+          }}
           isCollapsed={isSidebarCollapsed}
           onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
           refreshTrigger={folderRefreshTrigger}
@@ -462,11 +471,11 @@ const EnhancedKnowledgeBase = () => {
                 </h2>
                 <p className="text-sm text-gray-500">
                   {filteredFiles.length} {filteredFiles.length === 1 ? 'file' : 'files'}
-                  {selectedFolderFilter && ` in ${selectedFolderFilter}`}
+                  {selectedFolderFilterId && ` in ${selectedFolderFilterId}`}
                 </p>
               </div>
             </div>
-            {selectedFolderFilter && (
+            {selectedFolderFilterId && (
               <Button 
                 onClick={() => setIsAddContentModalOpen(true)}
                 className="bg-black hover:bg-gray-800 text-white"
@@ -518,7 +527,7 @@ const EnhancedKnowledgeBase = () => {
                     ? 'Try adjusting your search query' 
                     : 'Upload your first document to get started'}
                 </p>
-                {!searchQuery && selectedFolderFilter && (
+                {!searchQuery && selectedFolderFilterId && (
                   <Button onClick={() => setIsAddContentModalOpen(true)}>
                     <Plus className="h-4 w-4 mr-2" />
                     Add Content
@@ -618,8 +627,8 @@ const EnhancedKnowledgeBase = () => {
         onClose={() => setIsAddContentModalOpen(false)}
         onFileUpload={handleFileUpload}
         onTranscriptionComplete={fetchFiles}
-        selectedFolder={selectedFolderFilter || 'Uncategorized'}
-        setSelectedFolder={setSelectedFolder}
+        selectedFolderId={selectedFolderId}
+        setSelectedFolderId={setSelectedFolderId}
       />
 
       {/* Document Content Viewer Modal */}

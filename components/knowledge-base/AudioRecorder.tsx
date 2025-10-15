@@ -175,8 +175,7 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({ onTranscriptionComplete, 
       // For now, we'll send the webm file directly
       const audioFile = new File([audioBlob], `${fileName}.webm`, { type: audioBlob.type })
       formData.append('file', audioFile)
-      formData.append('folder', selectedFolder)
-      formData.append('custom_name', `${fileName}_transcription.txt`)
+      formData.append('folder_id', selectedFolder)
 
       const response = await fetchWithAuth(`${API_URL}/knowledge-base/transcribe-audio`, {
         method: 'POST',

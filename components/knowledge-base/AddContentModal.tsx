@@ -30,10 +30,10 @@ import FolderSelector from './FolderSelector'
 interface AddContentModalProps {
   isOpen: boolean
   onClose: () => void
-  onFileUpload: (files: File[], folder: string) => void
+  onFileUpload: (files: File[], folderId: string) => void
   onTranscriptionComplete: () => void
-  selectedFolder: string
-  setSelectedFolder: (folder: string) => void
+  selectedFolderId: string
+  setSelectedFolderId: (folderId: string) => void
 }
 
 type Category = 'popular' | 'websites' | 'youtube' | 'socials' | 'files' | 'podcasts' | 'snippets' | 'notes' | 'messaging' | 'speech'
@@ -48,8 +48,8 @@ const AddContentModal: React.FC<AddContentModalProps> = ({
   onClose,
   onFileUpload,
   onTranscriptionComplete,
-  selectedFolder,
-  setSelectedFolder
+  selectedFolderId,
+  setSelectedFolderId
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<Category>('popular')
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
@@ -62,7 +62,7 @@ const AddContentModal: React.FC<AddContentModalProps> = ({
   const categories = [
     { id: 'popular' as Category, label: 'Popular', icon: Upload, active: true },
     // { id: 'websites' as Category, label: 'Websites', icon: Globe, active: false },
-    // { id: 'youtube' as Category, label: 'YouTube', icon: Youtube, active: false },
+    { id: 'youtube' as Category, label: 'YouTube', icon: Youtube, active: true },
     { id: 'speech' as Category, label: 'Voice Notes', icon: Mic, active: true },
     // { id: 'socials' as Category, label: 'Socials', icon: Twitter, active: false },
     { id: 'files' as Category, label: 'Files', icon: FileText, active: true },
@@ -135,7 +135,7 @@ const AddContentModal: React.FC<AddContentModalProps> = ({
   const handleUpload = () => {
     const validFiles = getValidFiles()
     if (validFiles.length > 0) {
-      onFileUpload(validFiles, selectedFolder)
+      onFileUpload(validFiles, selectedFolderId)
       setSelectedFiles([])
       setFileValidationErrors({})
       onClose()
@@ -285,6 +285,27 @@ const AddContentModal: React.FC<AddContentModalProps> = ({
                 </div>
               </Card>
 
+              {/* YouTube */}
+              <Card 
+                className="p-4 hover:shadow-md transition-shadow cursor-pointer border"
+                onClick={() => setSelectedCategory('youtube')}
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
+                      <Youtube className="h-5 w-5 text-red-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-gray-900">YouTube</h3>
+                      <p className="text-sm text-gray-500 mt-1">
+                        Transcribe YouTube videos to text
+                      </p>
+                    </div>
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-gray-400" />
+                </div>
+              </Card>
+
               {/* Voice Notes */}
               <Card 
                 className="p-4 hover:shadow-md transition-shadow cursor-pointer border"
@@ -420,12 +441,17 @@ const AddContentModal: React.FC<AddContentModalProps> = ({
         )
 
       case 'youtube':
+        console.log('AddContentModal - Passing selectedFolderId to YouTubeTranscriber:', selectedFolderId)
         return (
           <div>
-            <YouTubeTranscriber onTranscriptionComplete={() => {
-              onTranscriptionComplete()
-              onClose()
-            }} />
+            <YouTubeTranscriber 
+              defaultFolderId={selectedFolderId}
+              hideFolderSelector={true}
+              onTranscriptionComplete={() => {
+                onTranscriptionComplete()
+                onClose()
+              }} 
+            />
           </div>
         )
 
@@ -433,7 +459,7 @@ const AddContentModal: React.FC<AddContentModalProps> = ({
         return (
           <div>
             <AudioRecorder 
-              defaultFolder={selectedFolder}
+              defaultFolder={selectedFolderId}
               hideFolderSelector={true}
               onTranscriptionComplete={() => {
                 onTranscriptionComplete()

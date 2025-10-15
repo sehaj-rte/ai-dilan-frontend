@@ -18,6 +18,7 @@ import { API_URL } from '@/lib/config'
 import { fetchWithAuth, getAuthHeaders } from '@/lib/api-client'
 
 interface FolderInfo {
+  id: string
   name: string
   count: number
 }
@@ -70,12 +71,13 @@ const FolderSidebar: React.FC<FolderSidebarProps> = ({
     }
   }
 
+  console.log('ddddddddddddd',folders)
   const filteredFolders = folders.filter(folder =>
     folder.name.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  const handleFolderClick = (folderName: string) => {
-    onFolderSelect(selectedFolder === folderName ? null : folderName)
+  const handleFolderClick = (folderId: string) => {
+    onFolderSelect(selectedFolder === folderId ? null : folderId)
     if (isMobile && onMobileClose) {
       onMobileClose()
     }
@@ -128,15 +130,15 @@ const FolderSidebar: React.FC<FolderSidebarProps> = ({
           {filteredFolders.slice(0, 5).map((folder) => (
             <button
               key={folder.name}
-              onClick={() => handleFolderClick(folder.name)}
+              onClick={() => handleFolderClick(folder.id)}
               className={`p-2 rounded-lg transition-colors ${
-                selectedFolder === folder.name
+                selectedFolder === folder.id
                   ? 'bg-blue-100 text-blue-600'
                   : 'text-gray-600 hover:bg-gray-100'
               }`}
               title={folder.name}
             >
-              {selectedFolder === folder.name ? (
+              {selectedFolder === folder.id ? (
                 <FolderOpen className="h-5 w-5" />
               ) : (
                 <Folder className="h-5 w-5" />
@@ -214,7 +216,7 @@ const FolderSidebar: React.FC<FolderSidebarProps> = ({
           <div className="space-y-1">
             {/* All Files Option */}
             <button
-              onClick={() => handleFolderClick(null as any)}
+              onClick={() => onFolderSelect(null)}
               className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition-colors ${
                 selectedFolder === null
                   ? 'bg-blue-50 text-blue-600'
@@ -238,15 +240,15 @@ const FolderSidebar: React.FC<FolderSidebarProps> = ({
             {filteredFolders.map((folder) => (
               <button
                 key={folder.name}
-                onClick={() => handleFolderClick(folder.name)}
+                onClick={() => handleFolderClick(folder.id)}
                 className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition-colors ${
-                  selectedFolder === folder.name
+                  selectedFolder === folder.id
                     ? 'bg-blue-50 text-blue-600'
                     : 'text-gray-700 hover:bg-gray-50'
                 }`}
               >
                 <div className="flex items-center space-x-2 min-w-0">
-                  {selectedFolder === folder.name ? (
+                  {selectedFolder === folder.id ? (
                     <FolderOpen className="h-4 w-4 flex-shrink-0" />
                   ) : (
                     <Folder className="h-4 w-4 flex-shrink-0" />
