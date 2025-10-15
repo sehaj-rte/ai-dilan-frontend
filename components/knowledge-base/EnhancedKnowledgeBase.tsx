@@ -499,7 +499,7 @@ const EnhancedKnowledgeBase = () => {
                 </h2>
                 <p className="text-sm text-gray-500">
                   {files.length} {files.length === 1 ? 'file' : 'files'}
-                  {selectedFolderFilterId && ` in ${selectedFolderFilterId}`}
+                  {/* {selectedFolderFilterId && ` in ${selectedFolderFilterId}`} */}
                 </p>
               </div>
             </div>
