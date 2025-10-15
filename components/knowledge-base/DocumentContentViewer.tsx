@@ -235,7 +235,7 @@ const DocumentContentViewer: React.FC<DocumentContentViewerProps> = ({
             </h2>
             <div className="flex items-center space-x-2 mt-1">
               <Badge variant="secondary">
-                {document.document_type.toUpperCase()}
+                {document.document_type?.toUpperCase() || 'UNKNOWN'}
               </Badge>
               <Badge className={getStatusColor(document.processing_status)}>
                 <div className="flex items-center space-x-1">

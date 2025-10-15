@@ -27,6 +27,7 @@ import {
 import AudioRecorder from './AudioRecorder'
 import YouTubeTranscriber from './YouTubeTranscriber'
 import AudioFileUploader from './AudioFileUploader'
+import WebScraper from './WebScraper'
 import FolderSelector from './FolderSelector'
 
 interface AddContentModalProps {
@@ -38,7 +39,7 @@ interface AddContentModalProps {
   setSelectedFolderId: (folderId: string) => void
 }
 
-type Category = 'popular' | 'websites' | 'youtube' | 'socials' | 'files' | 'podcasts' | 'snippets' | 'notes' | 'messaging' | 'speech' | 'audio'
+type Category = 'popular' | 'websites' | 'youtube' | 'socials' | 'files' | 'podcasts' | 'snippets' | 'notes' | 'messaging' | 'speech' | 'audio' | 'webscraping'
 
 interface FileWithValidation extends File {
   isValid: boolean
@@ -63,7 +64,7 @@ const AddContentModal: React.FC<AddContentModalProps> = ({
 
   const categories = [
     { id: 'popular' as Category, label: 'Popular', icon: Upload, active: true },
-    // { id: 'websites' as Category, label: 'Websites', icon: Globe, active: false },
+    { id: 'webscraping' as Category, label: 'Web Scraping', icon: Globe, active: true },
     { id: 'youtube' as Category, label: 'YouTube', icon: Youtube, active: true },
     { id: 'speech' as Category, label: 'Voice Notes', icon: Mic, active: true },
     { id: 'audio' as Category, label: 'Audio Files', icon: FileAudio, active: true },
@@ -350,6 +351,27 @@ const AddContentModal: React.FC<AddContentModalProps> = ({
                   <ChevronRight className="h-5 w-5 text-gray-400" />
                 </div>
               </Card>
+
+              {/* Web Scraping */}
+              <Card 
+                className="p-4 hover:shadow-md transition-shadow cursor-pointer border"
+                onClick={() => setSelectedCategory('webscraping')}
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
+                      <Globe className="h-5 w-5 text-purple-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-gray-900">Web Scraping</h3>
+                      <p className="text-sm text-gray-500 mt-1">
+                        Extract content from websites and articles
+                      </p>
+                    </div>
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-gray-400" />
+                </div>
+              </Card>
             </div>
           </div>
         )
@@ -500,6 +522,20 @@ const AddContentModal: React.FC<AddContentModalProps> = ({
               defaultFolder={selectedFolderId}
               hideFolderSelector={true}
               onTranscriptionComplete={() => {
+                onTranscriptionComplete()
+                onClose()
+              }} 
+            />
+          </div>
+        )
+
+      case 'webscraping':
+        return (
+          <div>
+            <WebScraper 
+              defaultFolderId={selectedFolderId}
+              hideFolderSelector={true}
+              onScrapingComplete={() => {
                 onTranscriptionComplete()
                 onClose()
               }} 
