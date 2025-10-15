@@ -12,6 +12,7 @@ import {
   Globe, 
   Twitter, 
   FileText,
+  FileAudio,
   Podcast,
   Code,
   MessageSquare,
@@ -25,6 +26,7 @@ import {
 } from 'lucide-react'
 import AudioRecorder from './AudioRecorder'
 import YouTubeTranscriber from './YouTubeTranscriber'
+import AudioFileUploader from './AudioFileUploader'
 import FolderSelector from './FolderSelector'
 
 interface AddContentModalProps {
@@ -36,7 +38,7 @@ interface AddContentModalProps {
   setSelectedFolderId: (folderId: string) => void
 }
 
-type Category = 'popular' | 'websites' | 'youtube' | 'socials' | 'files' | 'podcasts' | 'snippets' | 'notes' | 'messaging' | 'speech'
+type Category = 'popular' | 'websites' | 'youtube' | 'socials' | 'files' | 'podcasts' | 'snippets' | 'notes' | 'messaging' | 'speech' | 'audio'
 
 interface FileWithValidation extends File {
   isValid: boolean
@@ -64,6 +66,7 @@ const AddContentModal: React.FC<AddContentModalProps> = ({
     // { id: 'websites' as Category, label: 'Websites', icon: Globe, active: false },
     { id: 'youtube' as Category, label: 'YouTube', icon: Youtube, active: true },
     { id: 'speech' as Category, label: 'Voice Notes', icon: Mic, active: true },
+    { id: 'audio' as Category, label: 'Audio Files', icon: FileAudio, active: true },
     // { id: 'socials' as Category, label: 'Socials', icon: Twitter, active: false },
     { id: 'files' as Category, label: 'Files', icon: FileText, active: true },
     // { id: 'podcasts' as Category, label: 'Podcasts', icon: Podcast, active: false },
@@ -326,6 +329,27 @@ const AddContentModal: React.FC<AddContentModalProps> = ({
                   <ChevronRight className="h-5 w-5 text-gray-400" />
                 </div>
               </Card>
+
+              {/* Audio Files */}
+              <Card 
+                className="p-4 hover:shadow-md transition-shadow cursor-pointer border"
+                onClick={() => setSelectedCategory('audio')}
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center">
+                      <FileAudio className="h-5 w-5 text-orange-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-gray-900">Audio Files</h3>
+                      <p className="text-sm text-gray-500 mt-1">
+                        Upload audio files and transcribe to text
+                      </p>
+                    </div>
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-gray-400" />
+                </div>
+              </Card>
             </div>
           </div>
         )
@@ -459,6 +483,20 @@ const AddContentModal: React.FC<AddContentModalProps> = ({
         return (
           <div>
             <AudioRecorder 
+              defaultFolder={selectedFolderId}
+              hideFolderSelector={true}
+              onTranscriptionComplete={() => {
+                onTranscriptionComplete()
+                onClose()
+              }} 
+            />
+          </div>
+        )
+
+      case 'audio':
+        return (
+          <div>
+            <AudioFileUploader 
               defaultFolder={selectedFolderId}
               hideFolderSelector={true}
               onTranscriptionComplete={() => {
