@@ -120,7 +120,7 @@ const DashboardPage = () => {
     if (!s3Url) return s3Url
     
     // Convert S3 URL to proxy URL
-    // From: https://ai-dilan.s3.us-east-1.amazonaws.com/expert-avatars/filename.png
+    // From: https://ai-dilan.s3.us-west-2.amazonaws.com/expert-avatars/filename.png
     // To: {API_URL}/images/avatar/full/expert-avatars/filename.png
     const match = s3Url.match(/https:\/\/ai-dilan\.s3\.[^/]+\.amazonaws\.com\/(.+)/)
     if (match) {
