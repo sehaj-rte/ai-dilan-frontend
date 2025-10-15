@@ -67,9 +67,17 @@ interface UploadProgress {
   }
 }
 
+interface Pagination {
+  currentPage: number
+  totalPages: number
+  totalRecords: number
+  perPage: number
+  hasNext: boolean
+  hasPrevious: boolean
+}
+
 const EnhancedKnowledgeBase = () => {
   const [files, setFiles] = useState<UploadedFile[]>([])
-  const [filteredFiles, setFilteredFiles] = useState<UploadedFile[]>([])
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null)
   const [selectedFolderId, setSelectedFolderId] = useState<string>('')
   const [selectedFolderFilterId, setSelectedFolderFilterId] = useState<string | null>(null)
@@ -83,6 +91,14 @@ const EnhancedKnowledgeBase = () => {
   const [folderRefreshTrigger, setFolderRefreshTrigger] = useState(0)
   const [successCount, setSuccessCount] = useState(0)
   const [errorCount, setErrorCount] = useState(0)
+  const [pagination, setPagination] = useState<Pagination>({
+    currentPage: 1,
+    totalPages: 1,
+    totalRecords: 0,
+    perPage: 10,
+    hasNext: false,
+    hasPrevious: false
+  })
   const progressTimersRef = useRef<{ [key: string]: NodeJS.Timeout }>({})
   
   // Toast notification state
@@ -202,48 +218,60 @@ const EnhancedKnowledgeBase = () => {
   }, [])
 
   useEffect(() => {
-    // Filter files based on folder and search query
-    let filtered = files
+    const timeoutId = setTimeout(() => {
+      if (searchQuery !== '') {
+        // Reset to first page when searching
+        setPagination(prev => ({ ...prev, currentPage: 1 }))
+        fetchFiles(selectedFolderFilterId, 1, searchQuery)
+      }
+    }, 500) // 500ms debounce
 
-    // Filter by folder
-    if (selectedFolderFilterId) {
-      filtered = filtered.filter(file => file.folder_id === selectedFolderFilterId)
+    return () => clearTimeout(timeoutId)
+  }, [searchQuery])
+
+  useEffect(() => {
+    if (searchQuery === '') {
+      fetchFiles(selectedFolderFilterId, 1, '')
     }
+  }, [selectedFolderFilterId])
 
-    // Apply search filter
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase().trim()
-      filtered = filtered.filter(file => 
-        // Search in filename
-        (file.name || file.original_name).toLowerCase().includes(query) ||
-        // Search in file type
-        file.type.toLowerCase().includes(query) ||
-        // Search in folder name
-        (file.folder || '').toLowerCase().includes(query) ||
-        // Search in extracted text preview
-        (file.extracted_text_preview || '').toLowerCase().includes(query) ||
-        // Search in description
-        (file.description || '').toLowerCase().includes(query) ||
-        // Search in tags
-        file.tags?.some(tag => tag.toLowerCase().includes(query)) ||
-        // Search in document type
-        (file.document_type || '').toLowerCase().includes(query)
-      )
-    }
 
-    setFilteredFiles(filtered)
-  }, [files, selectedFolderFilterId, searchQuery])
-
-  const fetchFiles = async () => {
+  const fetchFiles = async (folderId: string | null = selectedFolderFilterId, page: number = 1, search: string = searchQuery) => {
     setIsLoadingFiles(true)
     try {
-      const response = await fetchWithAuth(`${API_URL}/knowledge-base/files`, {
+      // Build query parameters
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: pagination.perPage.toString()
+      })
+      
+      if (folderId) {
+        params.append('folder_id', folderId)
+      }
+      
+      if (search && search.trim()) {
+        params.append('search', search.trim())
+      }
+      
+      console.log('🔍 Fetching files with params:', params.toString())
+      
+      const response = await fetchWithAuth(`${API_URL}/knowledge-base/files?${params.toString()}`, {
         headers: getAuthHeaders(),
       })
       const data = await response.json()
       
+      console.log('📁 Files API response:', data)
+      
       if (data.success) {
         setFiles(data.files)
+        setPagination({
+          currentPage: data.pagination.current_page,
+          totalPages: data.pagination.total_pages,
+          totalRecords: data.pagination.total_records,
+          perPage: data.pagination.per_page,
+          hasNext: data.pagination.has_next,
+          hasPrevious: data.pagination.has_previous
+        })
         // Refresh folder counts when files are fetched
         setFolderRefreshTrigger(prev => prev + 1)
       } else {
@@ -470,7 +498,7 @@ const EnhancedKnowledgeBase = () => {
                   Content
                 </h2>
                 <p className="text-sm text-gray-500">
-                  {filteredFiles.length} {filteredFiles.length === 1 ? 'file' : 'files'}
+                  {files.length} {files.length === 1 ? 'file' : 'files'}
                   {selectedFolderFilterId && ` in ${selectedFolderFilterId}`}
                 </p>
               </div>
@@ -515,7 +543,7 @@ const EnhancedKnowledgeBase = () => {
                 <p className="text-gray-600">Loading files...</p>
               </div>
             </div>
-          ) : filteredFiles.length === 0 ? (
+          ) : files.length === 0 ? (
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
                 <FileText className="h-16 w-16 mx-auto mb-4 text-gray-300" />
@@ -545,7 +573,7 @@ const EnhancedKnowledgeBase = () => {
               </div>
 
               {/* Table Rows */}
-              {filteredFiles.map((file) => {
+              {files.map((file: UploadedFile) => {
                 const FileIcon = getFileIcon(file.type)
                 
                 return (
@@ -616,6 +644,56 @@ const EnhancedKnowledgeBase = () => {
                   </div>
                 )
               })}
+            </div>
+          )}
+          
+          {/* Pagination */}
+          {!isLoadingFiles && files.length > 0 && pagination.totalPages > 1 && (
+            <div className="flex items-center justify-between py-4 px-6 border-t bg-gray-50">
+              <div className="flex items-center space-x-2">
+                <Button
+                  onClick={() => {
+                    const newPage = pagination.currentPage - 1
+                    setPagination(prev => ({ ...prev, currentPage: newPage }))
+                    fetchFiles(selectedFolderFilterId, newPage, searchQuery)
+                  }}
+                  disabled={!pagination.hasPrevious || isLoadingFiles}
+                  className="bg-white hover:bg-gray-100 text-gray-600 border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                  Previous
+                </Button>
+                
+                <div className="flex items-center space-x-2 mx-4">
+                  <span className="text-sm text-gray-600">
+                    Page {pagination.currentPage} of {pagination.totalPages}
+                  </span>
+                  <span className="text-xs text-gray-500">
+                    ({pagination.totalRecords} total files)
+                  </span>
+                </div>
+                
+                <Button
+                  onClick={() => {
+                    const newPage = pagination.currentPage + 1
+                    setPagination(prev => ({ ...prev, currentPage: newPage }))
+                    fetchFiles(selectedFolderFilterId, newPage, searchQuery)
+                  }}
+                  disabled={!pagination.hasNext || isLoadingFiles}
+                  className="bg-white hover:bg-gray-100 text-gray-600 border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Next
+                  <svg className="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </Button>
+              </div>
+              
+              <div className="text-xs text-gray-500">
+                Showing {((pagination.currentPage - 1) * pagination.perPage) + 1} - {Math.min(pagination.currentPage * pagination.perPage, pagination.totalRecords)} of {pagination.totalRecords}
+              </div>
             </div>
           )}
         </div>
