@@ -21,9 +21,9 @@ export default function Home() {
   }, [dispatch])
 
   useEffect(() => {
-    // Redirect authenticated users to dashboard
+    // Redirect authenticated users to projects
     if (!isLoading && isAuthenticated) {
-      router.push('/dashboard')
+      router.push('/projects')
     }
   }, [isAuthenticated, isLoading, router])
 

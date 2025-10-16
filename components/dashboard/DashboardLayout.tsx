@@ -2,7 +2,10 @@
 
 import React, { useState } from 'react'
 import Sidebar from './Sidebar'
-import { Menu, X } from 'lucide-react'
+import AvatarSettingsModal from './AvatarSettingsModal'
+import { useAppSelector } from '@/store/hooks'
+import { Menu, X, User, Settings } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 
 interface DashboardLayoutProps {
   children: React.ReactNode
@@ -12,6 +15,8 @@ interface DashboardLayoutProps {
 
 const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, customHeader, hideDefaultHeader = false }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [avatarSettingsOpen, setAvatarSettingsOpen] = useState(false)
+  const { user } = useAppSelector((state) => state.auth)
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -48,8 +53,21 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, customHeade
                 <h1 className="text-xl sm:text-2xl font-semibold text-gray-900">Dashboard</h1>
               </div>
               <div className="flex items-center space-x-4">
-                {/* Add notifications, search, etc. here */}
-                <div className="w-8 h-8 bg-gray-200 rounded-full"></div>
+                {/* Avatar Settings Button */}
+                <Button
+                  onClick={() => setAvatarSettingsOpen(true)}
+                  variant="ghost"
+                  size="sm"
+                  className="flex items-center space-x-2 hover:bg-gray-100"
+                >
+                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center border border-gray-200">
+                    <User className="h-4 w-4 text-blue-600" />
+                  </div>
+                  <span className="hidden sm:inline text-sm font-medium text-gray-700">
+                    {user?.full_name || user?.username || 'User'}
+                  </span>
+                  <Settings className="h-4 w-4 text-gray-500" />
+                </Button>
               </div>
             </div>
           </header>
@@ -76,6 +94,12 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, customHeade
           {children}
         </main>
       </div>
+      
+      {/* Avatar Settings Modal */}
+      <AvatarSettingsModal
+        isOpen={avatarSettingsOpen}
+        onClose={() => setAvatarSettingsOpen(false)}
+      />
     </div>
   )
 }

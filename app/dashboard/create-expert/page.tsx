@@ -3,7 +3,7 @@ import { API_URL } from '@/lib/config'
 import { fetchWithAuth, getAuthHeaders } from '@/lib/api-client'
 
 import React, { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import DashboardLayout from '@/components/dashboard/DashboardLayout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -62,9 +62,15 @@ interface KnowledgeBaseFile {
 
 const CreateExpertPage = () => {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  
+  // Get project data from URL params
+  const projectDataParam = searchParams.get('project')
+  const projectData = projectDataParam ? JSON.parse(decodeURIComponent(projectDataParam)) : { name: '', description: '' }
+  
   const [formData, setFormData] = useState({
-    name: '',
-    description: '',
+    name: projectData.name || '',
+    description: projectData.description || '',
     systemPrompt: '',
     firstMessage: '',
     selectedVoice: '',
@@ -909,11 +915,11 @@ const CreateExpertPage = () => {
             <Button
               onClick={() => {
                 setShowSuccessDialog(false)
-                router.push('/dashboard')
+                router.push('/projects')
               }}
               className="w-full"
             >
-              Go to Dashboard
+              Back to Projects
             </Button>
           </DialogFooter>
         </DialogContent>
