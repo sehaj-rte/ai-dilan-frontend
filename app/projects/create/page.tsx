@@ -7,12 +7,18 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { ArrowLeft, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
+import { API_URL } from '@/lib/config';
+import { fetchWithAuth, getAuthHeaders } from '@/lib/api-client';
 
 export default function CreateProjectPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+  const [createdAvatarId, setCreatedAvatarId] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     description: ''
@@ -26,22 +32,59 @@ export default function CreateProjectPage() {
     }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!formData.name.trim()) {
+      setError('Please enter an avatar name');
       return;
     }
 
     setIsLoading(true);
+    setError(null);
     
-    // Simple redirect to existing agent creation with pre-filled data
-    const projectData = encodeURIComponent(JSON.stringify({
-      name: formData.name.trim(),
-      description: formData.description.trim()
-    }));
-    
-    router.push(`/dashboard/create-expert?project=${projectData}`);
+    try {
+      // Create avatar with minimal data - backend will use defaults for voice
+      const payload = {
+        name: formData.name.trim(),
+        description: formData.description.trim() || null,
+        system_prompt: `You are ${formData.name.trim()}, a helpful AI assistant.`,
+        first_message: null,
+        voice_id: 'EXAVITQu4vr4xnSDxMaL', // Default voice (Sarah)
+        avatar_base64: null,
+        selected_files: []
+      };
+
+      console.log('Creating avatar with payload:', payload);
+
+      const response = await fetchWithAuth(`${API_URL}/experts/`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(payload),
+      });
+
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        console.log('Avatar created successfully:', result);
+        const avatarId = result.expert?.id;
+        setCreatedAvatarId(avatarId);
+        setShowSuccessDialog(true);
+        
+        // Redirect to the avatar page after 2 seconds
+        setTimeout(() => {
+          router.push(`/project/${avatarId}`);
+        }, 2000);
+      } else {
+        console.error('Error creating avatar:', result);
+        setError(result.error || 'Failed to create avatar. Please try again.');
+      }
+    } catch (error) {
+      console.error('Network error:', error);
+      setError('Network error. Please check your connection and try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -99,6 +142,14 @@ export default function CreateProjectPage() {
                 />
               </div>
 
+              {/* Error Message */}
+              {error && (
+                <div className="flex items-center space-x-2 p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <AlertCircle className="h-4 w-4 text-red-600 flex-shrink-0" />
+                  <p className="text-sm text-red-700">{error}</p>
+                </div>
+              )}
+
               {/* Submit Button */}
               <div className="pt-4">
                 <Button
@@ -127,6 +178,47 @@ export default function CreateProjectPage() {
           </p>
         </div>
       </div>
+
+      {/* Success Dialog */}
+      <Dialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center text-green-600">
+              <CheckCircle className="h-5 w-5 mr-2" />
+              Avatar Created Successfully!
+            </DialogTitle>
+            <DialogDescription>
+              Your AI avatar "{formData.name}" has been created with ElevenLabs.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+              <p className="text-sm text-green-800 text-center">
+                ✓ Avatar created on ElevenLabs platform
+              </p>
+              <p className="text-sm text-green-800 text-center mt-2">
+                ✓ Voice agent configured with default voice
+              </p>
+            </div>
+            <p className="text-sm text-gray-600 text-center">
+              Redirecting to your avatar...
+            </p>
+          </div>
+          <DialogFooter>
+            <Button
+              onClick={() => {
+                setShowSuccessDialog(false);
+                if (createdAvatarId) {
+                  router.push(`/project/${createdAvatarId}`);
+                }
+              }}
+              className="w-full"
+            >
+              Go to Avatar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

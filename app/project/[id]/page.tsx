@@ -43,6 +43,16 @@ const ProjectPage = () => {
     fetchExpert()
   }, [projectId])
 
+  // Refresh expert data when returning to this page
+  useEffect(() => {
+    const handleFocus = () => {
+      fetchExpert()
+    }
+    
+    window.addEventListener('focus', handleFocus)
+    return () => window.removeEventListener('focus', handleFocus)
+  }, [projectId])
+
   const fetchExpert = async () => {
     try {
       setIsLoading(true)
@@ -211,10 +221,11 @@ const ProjectPage = () => {
           </Card>
 
           <Card className="cursor-pointer hover:shadow-md transition-shadow"
-                onClick={() => router.push(`/dashboard/voice`)}>
+                onClick={() => router.push(`/project/${projectId}/voice`)}>
             <CardHeader>
               <CardTitle className="flex items-center">
                 <Mic className="h-5 w-5 mr-2" />
+
                 Voice Studio
               </CardTitle>
               <CardDescription>
@@ -229,7 +240,7 @@ const ProjectPage = () => {
           </Card>
 
           <Card className="cursor-pointer hover:shadow-md transition-shadow"
-                onClick={() => router.push(`/chat/${projectId}`)}>
+                onClick={() => router.push(`/project/${projectId}/chat`)}>
             <CardHeader>
               <CardTitle className="flex items-center">
                 <MessageSquare className="h-5 w-5 mr-2" />

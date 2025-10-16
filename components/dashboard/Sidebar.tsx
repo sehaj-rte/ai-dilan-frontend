@@ -22,6 +22,11 @@ import {
 
 const sidebarItems = [
   {
+    title: 'Dashboard',
+    href: '/dashboard',
+    icon: BarChart3
+  },
+  {
     title: 'Projects',
     href: '/projects',
     icon: Home
@@ -30,32 +35,42 @@ const sidebarItems = [
     title: 'Knowledge Base',
     href: '/dashboard/knowledge-base',
     icon: BookOpen
-  },
-  {
-    title: 'Voice Studio',
-    href: '/dashboard/voice',
-    icon: Mic
-  },
-  {
-    title: 'Profile',
-    href: '/dashboard/profile',
-    icon: User
-  },
-  {
-    title: 'Settings',
-    href: '/dashboard/settings',
-    icon: Settings
   }
 ]
 
 interface SidebarProps {
   onClose?: () => void
+  projectId?: string
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
+const Sidebar: React.FC<SidebarProps> = ({ onClose, projectId }) => {
   const pathname = usePathname()
   const dispatch = useAppDispatch()
   const { user } = useAppSelector((state) => state.auth)
+
+  // Create dynamic sidebar items based on context
+  const dynamicSidebarItems = React.useMemo(() => {
+    if (projectId) {
+      return [
+        {
+          title: 'Dashboard',
+          href: `/project/${projectId}`,
+          icon: BarChart3
+        },
+        {
+          title: 'Knowledge Base',
+          href: `/project/${projectId}/knowledge-base`,
+          icon: BookOpen
+        },
+        {
+          title: 'Projects',
+          href: '/projects',
+          icon: Home
+        }
+      ]
+    }
+    return sidebarItems
+  }, [projectId])
 
   const handleLogout = () => {
     dispatch(logout())
@@ -109,7 +124,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose }) => {
 
       {/* Navigation */}
       <nav className="flex-1 px-4 py-4 space-y-1">
-        {sidebarItems.map((item) => {
+        {dynamicSidebarItems.map((item) => {
           const Icon = item.icon
           const isActive = pathname === item.href
           

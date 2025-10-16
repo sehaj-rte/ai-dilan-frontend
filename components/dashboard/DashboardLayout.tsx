@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
+import { usePathname } from 'next/navigation'
 import Sidebar from './Sidebar'
 import AvatarSettingsModal from './AvatarSettingsModal'
 import { useAppSelector } from '@/store/hooks'
@@ -17,6 +18,13 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, customHeade
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [avatarSettingsOpen, setAvatarSettingsOpen] = useState(false)
   const { user } = useAppSelector((state) => state.auth)
+  const pathname = usePathname()
+  
+  // Extract projectId from URL if we're in a project context
+  const projectId = React.useMemo(() => {
+    const match = pathname?.match(/\/project\/([^\/]+)/)
+    return match ? match[1] : undefined
+  }, [pathname])
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -33,7 +41,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, customHeade
         fixed inset-y-0 left-0 z-50 w-64 transform transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0
         ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
       `}>
-        <Sidebar onClose={() => setSidebarOpen(false)} />
+        <Sidebar onClose={() => setSidebarOpen(false)} projectId={projectId} />
       </div>
       
       {/* Main Content */}

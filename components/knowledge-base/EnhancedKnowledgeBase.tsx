@@ -76,14 +76,18 @@ interface Pagination {
   hasPrevious: boolean
 }
 
-const EnhancedKnowledgeBase = () => {
+interface EnhancedKnowledgeBaseProps {
+  projectId?: string
+}
+
+const EnhancedKnowledgeBase = ({ projectId }: EnhancedKnowledgeBaseProps = {}) => {
   const [files, setFiles] = useState<UploadedFile[]>([])
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null)
   const [selectedFolderId, setSelectedFolderId] = useState<string>('')
-  const [selectedFolderFilterId, setSelectedFolderFilterId] = useState<string | null>(null)
   const [isLoadingFiles, setIsLoadingFiles] = useState(false)
   const [deletingFileId, setDeletingFileId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
+  const [selectedFolderFilterId, setSelectedFolderFilterId] = useState<string | null>(null)
   const [isAddContentModalOpen, setIsAddContentModalOpen] = useState(false)
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
