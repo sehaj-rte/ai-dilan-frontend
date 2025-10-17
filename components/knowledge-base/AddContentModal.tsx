@@ -67,7 +67,7 @@ const AddContentModal: React.FC<AddContentModalProps> = ({
   const categories = [
     { id: 'popular' as Category, label: 'Popular', icon: Upload, active: true },
     { id: 'webscraping' as Category, label: 'Web Scraping', icon: Globe, active: true },
-    // { id: 'youtube' as Category, label: 'YouTube', icon: Youtube, active: true },
+    { id: 'youtube' as Category, label: 'YouTube', icon: Youtube, active: true },
     { id: 'speech' as Category, label: 'Voice Notes', icon: Mic, active: true },
     { id: 'audio' as Category, label: 'Audio Files', icon: FileAudio, active: true },
     // { id: 'socials' as Category, label: 'Socials', icon: Twitter, active: false },
