@@ -291,6 +291,27 @@ const AddContentModal: React.FC<AddContentModalProps> = ({
                 </div>
               </Card>
 
+              {/* YouTube */}
+              <Card 
+                className="p-4 hover:shadow-md transition-shadow cursor-pointer border"
+                onClick={() => setSelectedCategory('youtube')}
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
+                      <Youtube className="h-5 w-5 text-red-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-gray-900">YouTube</h3>
+                      <p className="text-sm text-gray-500 mt-1">
+                        Transcribe YouTube videos to text
+                      </p>
+                    </div>
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-gray-400" />
+                </div>
+              </Card>
+
               {/* Voice Notes */}
               <Card 
                 className="p-4 hover:shadow-md transition-shadow cursor-pointer border"

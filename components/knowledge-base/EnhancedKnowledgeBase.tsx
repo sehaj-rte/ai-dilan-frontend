@@ -49,7 +49,7 @@ interface UploadedFile {
   page_count?: number
   
   // Processing info
-  processing_status: 'pending' | 'processing' | 'completed' | 'failed' | 'queued'
+  processing_status: 'pending' | 'processing' | 'completed' | 'failed'
   processing_error?: string
   
   // Content metadata
@@ -176,24 +176,6 @@ const EnhancedKnowledgeBase = ({ projectId }: EnhancedKnowledgeBaseProps = {}) =
       Object.values(progressTimersRef.current).forEach(timer => clearInterval(timer))
     }
   }, []) // Only run on mount
-
-  // Auto-refresh files when there are processing files
-  useEffect(() => {
-    const hasProcessingFiles = files.some(file => 
-      file.processing_status === 'pending' || 
-      file.processing_status === 'processing' ||
-      file.processing_status === 'queued'
-    )
-
-    if (hasProcessingFiles) {
-      console.log('🔄 Auto-refreshing files due to processing status')
-      const intervalId = setInterval(() => {
-        fetchFiles(selectedFolderFilterId, pagination.currentPage, searchQuery)
-      }, 3000) // Refresh every 3 seconds
-
-      return () => clearInterval(intervalId)
-    }
-  }, [files, selectedFolderFilterId, pagination.currentPage, searchQuery])
 
   // Debounced search effect
   useEffect(() => {
@@ -844,6 +826,7 @@ const EnhancedKnowledgeBase = ({ projectId }: EnhancedKnowledgeBaseProps = {}) =
         onTranscriptionComplete={fetchFiles}
         selectedFolderId={selectedFolderId}
         setSelectedFolderId={setSelectedFolderId}
+        agentId={projectId}
       />
 
       {/* Document Content Viewer Modal */}

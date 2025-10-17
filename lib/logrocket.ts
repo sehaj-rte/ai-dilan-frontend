@@ -41,15 +41,16 @@ export const trackEvent = async (eventName: string, properties?: { [key: string]
 export const addSessionTags = async (tags: string[] | { [key: string]: string }) => {
   try {
     const LogRocket = await import('logrocket')
-    // LogRocket doesn't have addTag method, use track with custom properties instead
     if (Array.isArray(tags)) {
-      LogRocket.default.track('session_tags', { tags: tags.join(', ') })
+      tags.forEach(tag => LogRocket.default.addTag(tag))
     } else {
-      LogRocket.default.track('session_tags', tags)
+      Object.entries(tags).forEach(([key, value]) => {
+        LogRocket.default.addTag(key, value)
+      })
     }
-    console.log('LogRocket tags tracked:', tags)
+    console.log('LogRocket tags added:', tags)
   } catch (error) {
-    console.warn('LogRocket track tags failed:', error)
+    console.warn('LogRocket addTag failed:', error)
   }
 }
 
@@ -61,8 +62,7 @@ export const addSessionTags = async (tags: string[] | { [key: string]: string })
 export const captureException = async (error: Error | string, extra?: { [key: string]: any }) => {
   try {
     const LogRocket = await import('logrocket')
-    const errorObj = typeof error === 'string' ? new Error(error) : error
-    LogRocket.default.captureException(errorObj, extra)
+    LogRocket.default.captureException(error, extra)
     console.log('LogRocket exception captured:', error)
   } catch (logRocketError) {
     console.warn('LogRocket captureException failed:', logRocketError)
