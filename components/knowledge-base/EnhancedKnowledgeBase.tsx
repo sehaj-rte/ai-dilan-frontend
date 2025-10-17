@@ -49,7 +49,7 @@ interface UploadedFile {
   page_count?: number
   
   // Processing info
-  processing_status: 'pending' | 'processing' | 'completed' | 'failed'
+  processing_status: 'pending' | 'processing' | 'completed' | 'failed' | 'queued'
   processing_error?: string
   
   // Content metadata
@@ -176,6 +176,24 @@ const EnhancedKnowledgeBase = ({ projectId }: EnhancedKnowledgeBaseProps = {}) =
       Object.values(progressTimersRef.current).forEach(timer => clearInterval(timer))
     }
   }, []) // Only run on mount
+
+  // Auto-refresh files when there are processing files
+  useEffect(() => {
+    const hasProcessingFiles = files.some(file => 
+      file.processing_status === 'pending' || 
+      file.processing_status === 'processing' ||
+      file.processing_status === 'queued'
+    )
+
+    if (hasProcessingFiles) {
+      console.log('🔄 Auto-refreshing files due to processing status')
+      const intervalId = setInterval(() => {
+        fetchFiles(selectedFolderFilterId, pagination.currentPage, searchQuery)
+      }, 3000) // Refresh every 3 seconds
+
+      return () => clearInterval(intervalId)
+    }
+  }, [files, selectedFolderFilterId, pagination.currentPage, searchQuery])
 
   // Debounced search effect
   useEffect(() => {
@@ -526,12 +544,14 @@ const EnhancedKnowledgeBase = ({ projectId }: EnhancedKnowledgeBaseProps = {}) =
                 <h1 className="text-xl font-semibold text-gray-900">All Content</h1>
               </div>
             </div>
-            <Button 
-              onClick={() => setIsAddContentModalOpen(true)}
-              className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-medium"
-            >
-              Add Content
-            </Button>
+            {selectedFolderFilterId && (
+              <Button 
+                onClick={() => setIsAddContentModalOpen(true)}
+                className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-medium"
+              >
+                Add Content
+              </Button>
+            )}
           </div>
 
           {/* Search and Filters */}
@@ -580,9 +600,11 @@ const EnhancedKnowledgeBase = ({ projectId }: EnhancedKnowledgeBaseProps = {}) =
                 <p className="text-gray-500 text-sm mb-6 max-w-sm mx-auto">
                   {searchQuery 
                     ? 'Try adjusting your search query or check your filters' 
-                    : 'Upload your first document, video, or audio file to get started'}
+                    : selectedFolderFilterId 
+                      ? 'Upload your first document, video, or audio file to this folder to get started'
+                      : 'Select a folder from the sidebar to add content'}
                 </p>
-                {!searchQuery && (
+                {!searchQuery && selectedFolderFilterId && (
                   <Button 
                     onClick={() => setIsAddContentModalOpen(true)}
                     className="bg-orange-500 hover:bg-orange-600 text-white"

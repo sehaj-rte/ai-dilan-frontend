@@ -24,6 +24,7 @@ interface WebScraperProps {
   defaultFolderId?: string
   hideFolderSelector?: boolean
   onScrapingComplete: () => void
+  agentId?: string
 }
 
 interface WebsitePreview {
@@ -58,7 +59,8 @@ interface ScrapingResult {
 const WebScraper: React.FC<WebScraperProps> = ({
   defaultFolderId = "uncategorized",
   hideFolderSelector = false,
-  onScrapingComplete
+  onScrapingComplete,
+  agentId
 }) => {
   const [url, setUrl] = useState('')
   const [customName, setCustomName] = useState('')
@@ -145,7 +147,8 @@ const WebScraper: React.FC<WebScraperProps> = ({
         body: JSON.stringify({
           url: url.trim(),
           folder_id: selectedFolderId !== "uncategorized" ? selectedFolderId : null,
-          custom_name: customName.trim() || null
+          custom_name: customName.trim() || null,
+          agent_id: agentId
         }),
       })
 

@@ -21,8 +21,9 @@ import { API_URL } from '@/lib/config'
 
 interface AudioFileUploaderProps {
   onTranscriptionComplete?: (result: any) => void
-  defaultFolder?: string
+  defaultFolderId?: string
   hideFolderSelector?: boolean
+  agentId?: string
 }
 
 interface SelectedAudioFile extends File {
@@ -34,15 +35,16 @@ interface SelectedAudioFile extends File {
 
 const AudioFileUploader: React.FC<AudioFileUploaderProps> = ({ 
   onTranscriptionComplete, 
-  defaultFolder, 
-  hideFolderSelector = false 
+  defaultFolderId, 
+  hideFolderSelector = false,
+  agentId
 }) => {
   const [selectedFiles, setSelectedFiles] = useState<SelectedAudioFile[]>([])
   const [dragActive, setDragActive] = useState(false)
   const [isTranscribing, setIsTranscribing] = useState(false)
   const [transcriptionResults, setTranscriptionResults] = useState<any[]>([])
   const [error, setError] = useState<string | null>(null)
-  const [selectedFolder, setSelectedFolder] = useState<string>(defaultFolder || 'Uncategorized')
+  const [selectedFolderId, setSelectedFolderId] = useState<string>(defaultFolderId || '')
   const [playingFileId, setPlayingFileId] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const audioRefs = useRef<{ [key: string]: HTMLAudioElement }>({})
@@ -184,7 +186,12 @@ const AudioFileUploader: React.FC<AudioFileUploaderProps> = ({
       for (const file of validFiles) {
         const formData = new FormData()
         formData.append('file', file)
-        formData.append('folder_id', selectedFolder)
+        if (selectedFolderId) {
+          formData.append('folder_id', selectedFolderId)
+        }
+        if (agentId) {
+          formData.append('agent_id', agentId)
+        }
         
         // Use original filename without the ID prefix
         const originalName = file.name
@@ -269,7 +276,7 @@ const AudioFileUploader: React.FC<AudioFileUploaderProps> = ({
         {!hideFolderSelector && (
           <div className="space-y-2">
             <label className="text-sm font-medium text-gray-700">Save to Folder</label>
-            <FolderSelector value={selectedFolder} onChange={setSelectedFolder} />
+            <FolderSelector value={selectedFolderId} onChange={setSelectedFolderId} />
           </div>
         )}
 

@@ -217,8 +217,8 @@ const ProjectSettingsPage = () => {
             <p className="text-gray-500 text-sm mb-6">
               {error}
             </p>
-            <Button onClick={() => router.push('/dashboard')}>
-              Back to Dashboard
+            <Button onClick={() => router.push('/projects')}>
+              Back to Projects
             </Button>
           </div>
         </div>

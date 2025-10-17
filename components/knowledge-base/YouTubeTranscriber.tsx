@@ -14,9 +14,10 @@ interface YouTubeTranscriberProps {
   onTranscriptionComplete?: (result: any) => void
   defaultFolderId?: string
   hideFolderSelector?: boolean
+  agentId?: string
 }
 
-const YouTubeTranscriber: React.FC<YouTubeTranscriberProps> = ({ onTranscriptionComplete, defaultFolderId, hideFolderSelector = false }) => {
+const YouTubeTranscriber: React.FC<YouTubeTranscriberProps> = ({ onTranscriptionComplete, defaultFolderId, hideFolderSelector = false, agentId }) => {
   const [youtubeUrl, setYoutubeUrl] = useState('')
   const [isTranscribing, setIsTranscribing] = useState(false)
   const [transcriptionResult, setTranscriptionResult] = useState<any>(null)
@@ -104,7 +105,8 @@ const YouTubeTranscriber: React.FC<YouTubeTranscriberProps> = ({ onTranscription
         headers: getAuthHeaders(),
         body: JSON.stringify({
           youtube_url: youtubeUrl,
-          folder_id: selectedFolderId
+          folder_id: selectedFolderId,
+          agent_id: agentId
         }),
       })
 

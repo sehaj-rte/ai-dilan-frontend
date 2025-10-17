@@ -11,12 +11,10 @@ import { API_URL } from '@/lib/config'
 import { fetchWithAuth, getAuthHeaders } from '@/lib/api-client'
 import { 
   ArrowLeft, 
-  Send, 
   Mic, 
   Phone, 
   User,
   MoreHorizontal,
-  MessageSquare,
   Volume2
 } from 'lucide-react'
 
@@ -45,10 +43,7 @@ const ChatPage = () => {
   
   const [expert, setExpert] = useState<Expert | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
-  const [inputMessage, setInputMessage] = useState('')
   const [isLoading, setIsLoading] = useState(true)
-  const [isSending, setIsSending] = useState(false)
-  const [chatMode, setChatMode] = useState<'text' | 'voice'>('text')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const { toasts, removeToast, error: showError, success: showSuccess, info: showInfo } = useToast()
 
@@ -156,78 +151,6 @@ const ChatPage = () => {
     showError(error, 'Voice Chat Error')
   }
 
-  const handleSendMessage = async () => {
-    if (!inputMessage.trim() || isSending || !expert) return
-
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      content: inputMessage.trim(),
-      isUser: true,
-      timestamp: new Date(),
-      type: 'text'
-    }
-
-    setMessages(prev => [...prev, userMessage])
-    const messageContent = inputMessage.trim()
-    setInputMessage('')
-    setIsSending(true)
-
-    try {
-      // Send message to backend API
-      const response = await fetchWithAuth(`${API_URL}/chat/${expertId}`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({
-          message: messageContent,
-          user_id: 'anonymous'
-        }),
-      })
-
-      const data = await response.json()
-
-      if (data.success && data.response) {
-        const aiMessage: Message = {
-          id: data.message_id || (Date.now() + 1).toString(),
-          content: data.response.response || data.response,
-          isUser: false,
-          timestamp: new Date(),
-          type: 'text'
-        }
-        setMessages(prev => [...prev, aiMessage])
-      } else {
-        // Fallback message if API fails
-        const errorMessage: Message = {
-          id: (Date.now() + 1).toString(),
-          content: "I'm sorry, I'm having trouble responding right now. Please try again.",
-          isUser: false,
-          timestamp: new Date(),
-          type: 'text'
-        }
-        setMessages(prev => [...prev, errorMessage])
-        console.error('Chat API error:', data.error)
-      }
-    } catch (error) {
-      console.error('Error sending message:', error)
-      // Fallback message if API call fails
-      const errorMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        content: "I'm sorry, I'm having trouble connecting right now. Please try again.",
-        isUser: false,
-        timestamp: new Date(),
-        type: 'text'
-      }
-      setMessages(prev => [...prev, errorMessage])
-    } finally {
-      setIsSending(false)
-    }
-  }
-
-  const handleKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      handleSendMessage()
-    }
-  }
 
   if (isLoading) {
     return (
@@ -246,9 +169,9 @@ const ChatPage = () => {
         <div className="flex items-center justify-center h-full">
           <div className="text-center">
             <h2 className="text-xl font-semibold text-gray-900 mb-2">Expert not found</h2>
-            <Button onClick={() => router.push('/dashboard')}>
+            <Button onClick={() => router.push('/projects')}>
               <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Dashboard
+              Back to Projects
             </Button>
           </div>
         </div>
@@ -259,11 +182,11 @@ const ChatPage = () => {
   return (
     <DashboardLayout>
       <ToastContainer toasts={toasts} onClose={removeToast} />
-      <div className="h-full flex flex-col lg:flex-row gap-6">
+      <div className="h-[calc(100vh-120px)] flex flex-col lg:flex-row gap-6">
         {/* Expert Profile Section */}
         <div className="lg:w-1/3 xl:w-1/4">
           <Card className="h-full">
-            <CardContent className="p-6">
+            <CardContent className="p-6 overflow-y-auto">
               {/* Header */}
               <div className="flex items-center justify-between mb-6">
                 <Button 
@@ -315,43 +238,15 @@ const ChatPage = () => {
                   {expert.is_active ? 'Online' : 'Offline'}
                 </p>
 
-                {/* Chat Mode Toggle */}
-                <div className="flex space-x-2 mb-4">
-                  <Button 
-                    onClick={() => {
-                      setChatMode('text')
-                      showInfo('Switched to text chat mode', 'Mode Changed')
-                    }}
-                    variant={chatMode === 'text' ? 'default' : 'outline'}
-                    className="flex-1"
-                  >
-                    <MessageSquare className="mr-2 h-4 w-4" />
-                    Text
-                  </Button>
-                  <Button 
-                    onClick={() => {
-                      setChatMode('voice')
-                      showInfo('Switched to voice chat mode. Use the controls below to start a voice conversation.', 'Mode Changed')
-                    }}
-                    variant={chatMode === 'voice' ? 'default' : 'outline'}
-                    className="flex-1"
-                  >
-                    <Volume2 className="mr-2 h-4 w-4" />
-                    Voice
-                  </Button>
+                {/* Voice Controls */}
+                <div className="mb-6">
+                  <VoiceControls
+                    expertId={expertId}
+                    expertName={expert.name}
+                    onVoiceMessage={handleVoiceMessage}
+                    onError={handleVoiceError}
+                  />
                 </div>
-
-                {/* Voice Controls - Only show in voice mode */}
-                {chatMode === 'voice' && (
-                  <div className="mb-6">
-                    <VoiceControls
-                      expertId={expertId}
-                      expertName={expert.name}
-                      onVoiceMessage={handleVoiceMessage}
-                      onError={handleVoiceError}
-                    />
-                  </div>
-                )}
               </div>
 
               {/* Description */}
@@ -392,7 +287,7 @@ const ChatPage = () => {
             </div>
 
             {/* Messages Area */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0 max-h-[calc(100vh-300px)]">
               {messages.length === 0 ? (
                 <div className="flex items-center justify-center h-full text-center">
                   <div>
@@ -446,56 +341,17 @@ const ChatPage = () => {
                       </div>
                     </div>
                   ))}
-                  {isSending && (
-                    <div className="flex justify-start">
-                      <div className="bg-gray-100 text-gray-900 max-w-xs lg:max-w-md px-4 py-2 rounded-lg">
-                        <div className="flex items-center space-x-1">
-                          <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                          <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                          <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
                   <div ref={messagesEndRef} />
                 </>
               )}
             </div>
 
-            {/* Message Input - Only show in text mode */}
-            {chatMode === 'text' && (
-              <div className="border-t border-gray-200 p-4">
-                <div className="flex items-center space-x-2">
-                  <div className="flex-1 relative">
-                    <textarea
-                      value={inputMessage}
-                      onChange={(e) => setInputMessage(e.target.value)}
-                      onKeyPress={handleKeyPress}
-                      placeholder={`Ask ${expert.name} a question`}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      rows={1}
-                      style={{ minHeight: '44px', maxHeight: '120px' }}
-                    />
-                  </div>
-                  <Button
-                    onClick={handleSendMessage}
-                    disabled={!inputMessage.trim() || isSending}
-                    className="bg-blue-600 hover:bg-blue-700 text-white p-3"
-                  >
-                    <Send className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            )}
-
             {/* Voice Mode Info */}
-            {chatMode === 'voice' && (
-              <div className="border-t border-gray-200 p-4 text-center">
-                <p className="text-sm text-gray-600">
-                  Voice chat mode active. Use the voice controls in the left panel to start a conversation.
-                </p>
-              </div>
-            )}
+            <div className="border-t border-gray-200 p-4 text-center">
+              <p className="text-sm text-gray-600">
+                Voice chat mode active. Use the voice controls in the left panel to start a conversation.
+              </p>
+            </div>
           </Card>
         </div>
       </div>

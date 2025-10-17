@@ -22,12 +22,7 @@ import {
 
 const sidebarItems = [
   {
-    title: 'Dashboard',
-    href: '/dashboard',
-    icon: BarChart3
-  },
-  {
-    title: 'Projects',
+    title: 'All Agents',
     href: '/projects',
     icon: Home
   },
@@ -54,17 +49,17 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, projectId }) => {
     if (projectId) {
       return [
         {
-          title: 'Dashboard',
-          href: `/project/${projectId}`,
-          icon: BarChart3
-        },
-        {
           title: 'Knowledge Base',
           href: `/project/${projectId}/knowledge-base`,
           icon: BookOpen
         },
         {
-          title: 'Projects',
+          title: 'Talk to Knowledge Base',
+          href: `/project/${projectId}/chat`,
+          icon: MessageSquare
+        },
+        {
+          title: 'All Agents',
           href: '/projects',
           icon: Home
         }

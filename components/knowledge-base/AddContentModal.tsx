@@ -37,6 +37,7 @@ interface AddContentModalProps {
   onTranscriptionComplete: () => void
   selectedFolderId: string
   setSelectedFolderId: (folderId: string) => void
+  agentId?: string
 }
 
 type Category = 'popular' | 'websites' | 'youtube' | 'socials' | 'files' | 'podcasts' | 'snippets' | 'notes' | 'messaging' | 'speech' | 'audio' | 'webscraping'
@@ -52,7 +53,8 @@ const AddContentModal: React.FC<AddContentModalProps> = ({
   onFileUpload,
   onTranscriptionComplete,
   selectedFolderId,
-  setSelectedFolderId
+  setSelectedFolderId,
+  agentId
 }) => {
   const [selectedCategory, setSelectedCategory] = useState<Category>('popular')
   const [selectedFiles, setSelectedFiles] = useState<File[]>([])
@@ -65,7 +67,7 @@ const AddContentModal: React.FC<AddContentModalProps> = ({
   const categories = [
     { id: 'popular' as Category, label: 'Popular', icon: Upload, active: true },
     { id: 'webscraping' as Category, label: 'Web Scraping', icon: Globe, active: true },
-    { id: 'youtube' as Category, label: 'YouTube', icon: Youtube, active: true },
+    // { id: 'youtube' as Category, label: 'YouTube', icon: Youtube, active: true },
     { id: 'speech' as Category, label: 'Voice Notes', icon: Mic, active: true },
     { id: 'audio' as Category, label: 'Audio Files', icon: FileAudio, active: true },
     // { id: 'socials' as Category, label: 'Socials', icon: Twitter, active: false },
@@ -289,27 +291,6 @@ const AddContentModal: React.FC<AddContentModalProps> = ({
                 </div>
               </Card>
 
-              {/* YouTube */}
-              <Card 
-                className="p-4 hover:shadow-md transition-shadow cursor-pointer border"
-                onClick={() => setSelectedCategory('youtube')}
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
-                      <Youtube className="h-5 w-5 text-red-600" />
-                    </div>
-                    <div>
-                      <h3 className="font-medium text-gray-900">YouTube</h3>
-                      <p className="text-sm text-gray-500 mt-1">
-                        Transcribe YouTube videos to text
-                      </p>
-                    </div>
-                  </div>
-                  <ChevronRight className="h-5 w-5 text-gray-400" />
-                </div>
-              </Card>
-
               {/* Voice Notes */}
               <Card 
                 className="p-4 hover:shadow-md transition-shadow cursor-pointer border"
@@ -493,6 +474,7 @@ const AddContentModal: React.FC<AddContentModalProps> = ({
             <YouTubeTranscriber 
               defaultFolderId={selectedFolderId}
               hideFolderSelector={true}
+              agentId={agentId}
               onTranscriptionComplete={() => {
                 onTranscriptionComplete()
                 onClose()
@@ -505,8 +487,9 @@ const AddContentModal: React.FC<AddContentModalProps> = ({
         return (
           <div>
             <AudioRecorder 
-              defaultFolder={selectedFolderId}
+              defaultFolderId={selectedFolderId}
               hideFolderSelector={true}
+              agentId={agentId}
               onTranscriptionComplete={() => {
                 onTranscriptionComplete()
                 onClose()
@@ -519,8 +502,9 @@ const AddContentModal: React.FC<AddContentModalProps> = ({
         return (
           <div>
             <AudioFileUploader 
-              defaultFolder={selectedFolderId}
+              defaultFolderId={selectedFolderId}
               hideFolderSelector={true}
+              agentId={agentId}
               onTranscriptionComplete={() => {
                 onTranscriptionComplete()
                 onClose()
@@ -535,6 +519,7 @@ const AddContentModal: React.FC<AddContentModalProps> = ({
             <WebScraper 
               defaultFolderId={selectedFolderId}
               hideFolderSelector={true}
+              agentId={agentId}
               onScrapingComplete={() => {
                 onTranscriptionComplete()
                 onClose()

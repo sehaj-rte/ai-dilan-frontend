@@ -22,11 +22,12 @@ import { API_URL } from '@/lib/config'
 
 interface AudioRecorderProps {
   onTranscriptionComplete?: (result: any) => void
-  defaultFolder?: string
+  defaultFolderId?: string
   hideFolderSelector?: boolean
+  agentId?: string
 }
 
-const AudioRecorder: React.FC<AudioRecorderProps> = ({ onTranscriptionComplete, defaultFolder, hideFolderSelector = false }) => {
+const AudioRecorder: React.FC<AudioRecorderProps> = ({ onTranscriptionComplete, defaultFolderId, hideFolderSelector = false, agentId }) => {
   const [isRecording, setIsRecording] = useState(false)
   const [isPaused, setIsPaused] = useState(false)
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null)
@@ -36,7 +37,7 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({ onTranscriptionComplete, 
   const [isTranscribing, setIsTranscribing] = useState(false)
   const [transcriptionResult, setTranscriptionResult] = useState<any>(null)
   const [error, setError] = useState<string | null>(null)
-  const [selectedFolder, setSelectedFolder] = useState<string>(defaultFolder || 'Uncategorized')
+  const [selectedFolderId, setSelectedFolderId] = useState<string>(defaultFolderId || '')
   const [fileName, setFileName] = useState<string>('recording')
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
@@ -175,7 +176,12 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({ onTranscriptionComplete, 
       // For now, we'll send the webm file directly
       const audioFile = new File([audioBlob], `${fileName}.webm`, { type: audioBlob.type })
       formData.append('file', audioFile)
-      formData.append('folder_id', selectedFolder)
+      if (selectedFolderId) {
+        formData.append('folder_id', selectedFolderId)
+      }
+      if (agentId) {
+        formData.append('agent_id', agentId)
+      }
 
       const response = await fetchWithAuth(`${API_URL}/knowledge-base/transcribe-audio`, {
         method: 'POST',
@@ -225,7 +231,7 @@ const AudioRecorder: React.FC<AudioRecorderProps> = ({ onTranscriptionComplete, 
         {!hideFolderSelector && (
           <div className="space-y-2">
             <label className="text-sm font-medium text-gray-700">Save to Folder</label>
-            <FolderSelector value={selectedFolder} onChange={setSelectedFolder} />
+            <FolderSelector value={selectedFolderId} onChange={setSelectedFolderId} />
           </div>
         )}
 

@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
 import { ReduxProvider } from '@/components/providers/ReduxProvider'
+import { LogRocketProvider } from '@/components/providers/LogRocketProvider'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -18,9 +19,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <ReduxProvider>
-          {children}
-        </ReduxProvider>
+        <LogRocketProvider>
+          <ReduxProvider>
+            {children}
+          </ReduxProvider>
+        </LogRocketProvider>
       </body>
     </html>
   )
