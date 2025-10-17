@@ -2,7 +2,7 @@
 
 import React from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { useAppSelector, useAppDispatch } from '@/store/hooks'
 import { logout } from '@/store/slices/authSlice'
@@ -45,6 +45,7 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ onClose, projectId }) => {
   const pathname = usePathname()
+  const router = useRouter()
   const dispatch = useAppDispatch()
   const { user } = useAppSelector((state) => state.auth)
 
@@ -74,6 +75,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, projectId }) => {
 
   const handleLogout = () => {
     dispatch(logout())
+    router.push('/auth/login')
   }
 
   const handleLinkClick = () => {

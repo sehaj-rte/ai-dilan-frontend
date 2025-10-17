@@ -167,54 +167,6 @@ const EnhancedKnowledgeBase = ({ projectId }: EnhancedKnowledgeBaseProps = {}) =
     }
   }
 
-        {/* Enhanced Upload Summary Toast */}
-        {Object.keys(uploadProgress).length === 0 && successCount > 0 && errorCount >= 0 && (
-          <div className="border-b bg-gradient-to-r from-green-50 to-emerald-50 px-6 py-4">
-            <div className="bg-white rounded-lg border border-green-200 p-4 shadow-sm">
-              <div className="flex items-start space-x-4">
-                <div className="flex-shrink-0">
-                  <div className="h-8 w-8 rounded-full bg-green-100 flex items-center justify-center">
-                    <svg className="h-5 w-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                  </div>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-sm font-semibold text-green-900">
-                        Upload Complete!
-                      </h3>
-                      <p className="text-sm text-green-700 mt-1">
-                        {successCount} {successCount === 1 ? 'file' : 'files'} successfully uploaded to your knowledge base
-                        {errorCount > 0 && (
-                          <span className="text-red-600 ml-1">
-                            • {errorCount} failed
-                          </span>
-                        )}
-                      </p>
-                      <p className="text-xs text-green-600 mt-1">
-                        Files are now available for your AI experts to search and reference.
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => {
-                        setSuccessCount(0)
-                        setErrorCount(0)
-                      }}
-                      className="flex items-center space-x-1 text-green-600 hover:text-green-800 text-xs font-medium px-2 py-1 rounded hover:bg-green-100 transition-colors"
-                    >
-                      <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                      <span>Dismiss</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
 
   useEffect(() => {
     fetchFiles()
@@ -279,6 +231,11 @@ const EnhancedKnowledgeBase = ({ projectId }: EnhancedKnowledgeBaseProps = {}) =
         params.append('search', search.trim())
       }
       
+      // Add agent_id for agent isolation
+      if (projectId) {
+        params.append('agent_id', projectId)
+      }
+      
       console.log('🔍 Fetching files with params:', params.toString())
       
       const response = await fetchWithAuth(`${API_URL}/knowledge-base/files?${params.toString()}`, {
@@ -334,7 +291,16 @@ const EnhancedKnowledgeBase = ({ projectId }: EnhancedKnowledgeBaseProps = {}) =
       try {
         const formData = new FormData()
         formData.append('file', file)
-        formData.append('folder_id', folderId)
+        
+        // Only append folder_id if it's not empty
+        if (folderId && folderId.trim()) {
+          formData.append('folder_id', folderId)
+        }
+        
+        // Add agent_id for agent isolation
+        if (projectId) {
+          formData.append('agent_id', projectId)
+        }
 
         // Simulate upload progress
         const progressTimer = setInterval(() => {
@@ -484,13 +450,14 @@ const EnhancedKnowledgeBase = ({ projectId }: EnhancedKnowledgeBaseProps = {}) =
               selectedFolder={selectedFolderFilterId}
               onFolderSelect={(folderId) => {
                 setSelectedFolderFilterId(folderId)
-                setSelectedFolderId(folderId || '')
+                setIsMobileSidebarOpen(false)
               }}
               isCollapsed={false}
               onToggleCollapse={() => {}}
               isMobile={true}
               onMobileClose={() => setIsMobileSidebarOpen(false)}
               refreshTrigger={folderRefreshTrigger}
+              projectId={projectId}
             />
           </div>
         </div>
@@ -507,13 +474,41 @@ const EnhancedKnowledgeBase = ({ projectId }: EnhancedKnowledgeBaseProps = {}) =
           isCollapsed={isSidebarCollapsed}
           onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
           refreshTrigger={folderRefreshTrigger}
+          projectId={projectId}
         />
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col bg-white overflow-hidden">
+      <div className="flex-1 flex flex-col bg-gray-50 overflow-hidden">
+        {/* Success Notification Banner */}
+        {Object.keys(uploadProgress).length === 0 && successCount > 0 && (
+          <div className="bg-green-50 border-b border-green-200 px-6 py-3">
+            <div className="flex items-center space-x-3">
+              <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+                <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <span className="text-sm font-medium text-green-800">
+                Content uploaded successfully
+              </span>
+              <button
+                onClick={() => {
+                  setSuccessCount(0)
+                  setErrorCount(0)
+                }}
+                className="ml-auto text-green-600 hover:text-green-800"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Header */}
-        <div className="border-b bg-white px-4 py-4 space-y-4">
+        <div className="bg-white border-b px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <Button
@@ -524,44 +519,42 @@ const EnhancedKnowledgeBase = ({ projectId }: EnhancedKnowledgeBaseProps = {}) =
               >
                 <Menu className="h-5 w-5" />
               </Button>
-              <div>
-                <h2 className="text-xl font-bold flex items-center">
-                  <BookOpen className="h-5 w-5 mr-2" />
-                  Content
-                </h2>
-                <p className="text-sm text-gray-500">
-                  {files.length} {files.length === 1 ? 'file' : 'files'}
-                  {/* {selectedFolderFilterId && ` in ${selectedFolderFilterId}`} */}
-                </p>
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
+                  <BookOpen className="h-4 w-4 text-gray-600" />
+                </div>
+                <h1 className="text-xl font-semibold text-gray-900">All Content</h1>
               </div>
             </div>
-            {selectedFolderFilterId && (
-              <Button 
-                onClick={() => setIsAddContentModalOpen(true)}
-                className="bg-black hover:bg-gray-800 text-white"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Add Content
-              </Button>
-            )}
+            <Button 
+              onClick={() => setIsAddContentModalOpen(true)}
+              className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-medium"
+            >
+              Add Content
+            </Button>
           </div>
 
           {/* Search and Filters */}
-          <div className="flex items-center space-x-2">
-            <div className="relative flex-1">
+          <div className="flex items-center justify-between mt-4">
+            <div className="relative flex-1 max-w-md">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <Input
                 type="text"
-                placeholder="Search..."
+                placeholder="Search Content"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9"
+                className="pl-9 bg-gray-50 border-gray-200"
               />
             </div>
-            <Button variant="outline" size="sm">
-              <Filter className="h-4 w-4 mr-2" />
-              Edit Filters
-            </Button>
+            <div className="flex items-center space-x-2">
+              <Button variant="outline" size="sm" className="text-gray-600">
+                <Filter className="h-4 w-4 mr-2" />
+                Edit Filters
+              </Button>
+              <span className="text-sm text-gray-500">
+                Showing {files.length} {files.length === 1 ? 'item' : 'items'}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -577,18 +570,23 @@ const EnhancedKnowledgeBase = ({ projectId }: EnhancedKnowledgeBaseProps = {}) =
             </div>
           ) : files.length === 0 ? (
             <div className="flex items-center justify-center h-full">
-              <div className="text-center">
-                <FileText className="h-16 w-16 mx-auto mb-4 text-gray-300" />
+              <div className="text-center py-12">
+                <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center mx-auto mb-4">
+                  <FileText className="h-8 w-8 text-gray-400" />
+                </div>
                 <h3 className="text-lg font-medium text-gray-900 mb-2">
-                  {searchQuery ? 'No files found' : 'No documents yet'}
+                  {searchQuery ? 'No content found' : 'No content yet'}
                 </h3>
-                <p className="text-gray-500 text-sm mb-6">
+                <p className="text-gray-500 text-sm mb-6 max-w-sm mx-auto">
                   {searchQuery 
-                    ? 'Try adjusting your search query' 
-                    : 'Upload your first document to get started'}
+                    ? 'Try adjusting your search query or check your filters' 
+                    : 'Upload your first document, video, or audio file to get started'}
                 </p>
-                {!searchQuery && selectedFolderFilterId && (
-                  <Button onClick={() => setIsAddContentModalOpen(true)}>
+                {!searchQuery && (
+                  <Button 
+                    onClick={() => setIsAddContentModalOpen(true)}
+                    className="bg-orange-500 hover:bg-orange-600 text-white"
+                  >
                     <Plus className="h-4 w-4 mr-2" />
                     Add Content
                   </Button>
@@ -596,34 +594,103 @@ const EnhancedKnowledgeBase = ({ projectId }: EnhancedKnowledgeBaseProps = {}) =
               </div>
             </div>
           ) : (
-            <div className="divide-y">
+            <div className="bg-white mx-6 rounded-lg border border-gray-200 overflow-hidden">
               {/* Table Header */}
-              <div className="grid grid-cols-12 gap-4 px-6 py-3 bg-gray-50 text-xs font-medium text-gray-500 uppercase tracking-wider">
-                <div className="col-span-5">Content</div>
-                <div className="col-span-2">Uploaded</div>
-                <div className="col-span-2">Actions</div>
+              <div className="grid grid-cols-12 gap-4 px-6 py-4 bg-gray-50 border-b border-gray-200">
+                <div className="col-span-1 flex items-center">
+                  <input type="checkbox" className="rounded border-gray-300" />
+                </div>
+                <div className="col-span-5 text-sm font-medium text-gray-700 uppercase tracking-wide">
+                  CONTENT
+                </div>
+                <div className="col-span-2 text-sm font-medium text-gray-700 uppercase tracking-wide">
+                  UPLOADED
+                </div>
+                <div className="col-span-2 text-sm font-medium text-gray-700 uppercase tracking-wide">
+                  STATUS
+                </div>
+                <div className="col-span-2 text-sm font-medium text-gray-700 uppercase tracking-wide">
+                  ACTIONS
+                </div>
               </div>
 
               {/* Table Rows */}
-              {files.map((file: UploadedFile) => {
+              {files.map((file: UploadedFile, index) => {
                 const FileIcon = getFileIcon(file.type)
+                
+                // Determine status based on processing_status and other indicators
+                const getStatusBadge = () => {
+                  // Check if file is currently being processed/indexed
+                  const isRecentlyUploaded = new Date(file.created_at) > new Date(Date.now() - 5 * 60 * 1000) // Within last 5 minutes
+                  const hasNoExtractedText = !file.extracted_text || file.extracted_text.trim() === ''
+                  const isLikelyProcessing = isRecentlyUploaded && hasNoExtractedText && file.processing_status !== 'failed' && file.processing_status !== 'completed'
+                  
+                  switch (file.processing_status) {
+                    case 'processing':
+                      return (
+                        <div className="flex items-center space-x-2">
+                          <div className="w-2 h-2 bg-orange-400 rounded-full animate-pulse"></div>
+                          <span className="text-sm text-orange-600 font-medium">Processing</span>
+                        </div>
+                      )
+                    case 'completed':
+                      return (
+                        <div className="flex items-center space-x-2">
+                          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                          <span className="text-sm text-green-600 font-medium">Completed</span>
+                        </div>
+                      )
+                    case 'failed':
+                      return (
+                        <div className="flex items-center space-x-2">
+                          <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                          <span className="text-sm text-red-600 font-medium">Failed</span>
+                        </div>
+                      )
+                    case 'pending':
+                    default:
+                      // If file seems to be processing based on heuristics, show as processing
+                      if (isLikelyProcessing) {
+                        return (
+                          <div className="flex items-center space-x-2">
+                            <div className="w-2 h-2 bg-orange-400 rounded-full animate-pulse"></div>
+                            <span className="text-sm text-orange-600 font-medium">Processing</span>
+                          </div>
+                        )
+                      }
+                      // Otherwise show as queued
+                      return (
+                        <div className="flex items-center space-x-2">
+                          <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+                          <span className="text-sm text-gray-600 font-medium">Queued</span>
+                        </div>
+                      )
+                  }
+                }
                 
                 return (
                   <div 
                     key={file.id} 
-                    className="grid grid-cols-12 gap-4 px-6 py-4 hover:bg-gray-50 transition-colors items-center"
+                    className={`grid grid-cols-12 gap-4 px-6 py-4 hover:bg-gray-50 transition-colors items-center ${
+                      index !== files.length - 1 ? 'border-b border-gray-100' : ''
+                    }`}
                   >
+                    {/* Checkbox */}
+                    <div className="col-span-1 flex items-center">
+                      <input type="checkbox" className="rounded border-gray-300" />
+                    </div>
+
                     {/* File Info */}
                     <div className="col-span-5 flex items-center space-x-3 min-w-0">
-                      <div className="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center flex-shrink-0">
-                        <FileIcon className="h-5 w-5 text-blue-600" />
+                      <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
+                        <FileIcon className="h-4 w-4 text-gray-600" />
                       </div>
                       <div className="min-w-0 flex-1">
                         <h4 className="text-sm font-medium text-gray-900 truncate">
                           {file.name || file.original_name}
                         </h4>
-                        <div className="flex items-center space-x-2 text-xs text-gray-500">
-                          <span>{formatFileSize(file.size)}</span>
+                        <div className="flex items-center space-x-2 text-xs text-gray-500 mt-1">
+                          <span className="capitalize">{file.type.split('/')[0] || 'Document'}</span>
                           {file.word_count && (
                             <>
                               <span>•</span>
@@ -641,13 +708,18 @@ const EnhancedKnowledgeBase = ({ projectId }: EnhancedKnowledgeBaseProps = {}) =
                       </span>
                     </div>
 
+                    {/* Status */}
+                    <div className="col-span-2">
+                      {getStatusBadge()}
+                    </div>
+
                     {/* Actions */}
-                    <div className="col-span-2 flex items-center space-x-2">
+                    <div className="col-span-2 flex items-center space-x-1">
                       <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => setSelectedDocumentId(file.id)}
-                        className="text-gray-600 hover:text-gray-900"
+                        className="text-gray-400 hover:text-gray-600 p-1"
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
@@ -655,7 +727,7 @@ const EnhancedKnowledgeBase = ({ projectId }: EnhancedKnowledgeBaseProps = {}) =
                         variant="ghost"
                         size="sm"
                         onClick={() => window.open(file.url, '_blank')}
-                        className="text-gray-600 hover:text-gray-900"
+                        className="text-gray-400 hover:text-gray-600 p-1"
                       >
                         <Download className="h-4 w-4" />
                       </Button>
@@ -664,13 +736,20 @@ const EnhancedKnowledgeBase = ({ projectId }: EnhancedKnowledgeBaseProps = {}) =
                         size="sm"
                         onClick={() => handleDeleteFile(file.id)}
                         disabled={deletingFileId === file.id}
-                        className="text-red-600 hover:text-red-700"
+                        className="text-gray-400 hover:text-red-600 p-1"
                       >
                         {deletingFileId === file.id ? (
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
                           <Trash2 className="h-4 w-4" />
                         )}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-gray-400 hover:text-gray-600 p-1"
+                      >
+                        <MoreVertical className="h-4 w-4" />
                       </Button>
                     </div>
                   </div>
@@ -681,7 +760,7 @@ const EnhancedKnowledgeBase = ({ projectId }: EnhancedKnowledgeBaseProps = {}) =
           
           {/* Pagination */}
           {!isLoadingFiles && files.length > 0 && pagination.totalPages > 1 && (
-            <div className="flex items-center justify-between py-4 px-6 border-t bg-gray-50">
+            <div className="flex items-center justify-between py-4 px-6 mx-6 bg-white border-t border-gray-200 rounded-b-lg">
               <div className="flex items-center space-x-2">
                 <Button
                   onClick={() => {
@@ -690,9 +769,11 @@ const EnhancedKnowledgeBase = ({ projectId }: EnhancedKnowledgeBaseProps = {}) =
                     fetchFiles(selectedFolderFilterId, newPage, searchQuery)
                   }}
                   disabled={!pagination.hasPrevious || isLoadingFiles}
-                  className="bg-white hover:bg-gray-100 text-gray-600 border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                  variant="outline"
+                  size="sm"
+                  className="text-gray-600 border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <svg className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                   </svg>
                   Previous
@@ -703,7 +784,7 @@ const EnhancedKnowledgeBase = ({ projectId }: EnhancedKnowledgeBaseProps = {}) =
                     Page {pagination.currentPage} of {pagination.totalPages}
                   </span>
                   <span className="text-xs text-gray-500">
-                    ({pagination.totalRecords} total files)
+                    ({pagination.totalRecords} total items)
                   </span>
                 </div>
                 
@@ -714,7 +795,9 @@ const EnhancedKnowledgeBase = ({ projectId }: EnhancedKnowledgeBaseProps = {}) =
                     fetchFiles(selectedFolderFilterId, newPage, searchQuery)
                   }}
                   disabled={!pagination.hasNext || isLoadingFiles}
-                  className="bg-white hover:bg-gray-100 text-gray-600 border border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                  variant="outline"
+                  size="sm"
+                  className="text-gray-600 border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Next
                   <svg className="h-4 w-4 ml-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">

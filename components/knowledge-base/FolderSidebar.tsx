@@ -12,7 +12,10 @@ import {
   ChevronRight,
   Search,
   X,
-  Plus
+  Plus,
+  MoreVertical,
+  Trash2,
+  Edit
 } from 'lucide-react'
 import { API_URL } from '@/lib/config'
 import { fetchWithAuth, getAuthHeaders } from '@/lib/api-client'
@@ -21,6 +24,7 @@ interface FolderInfo {
   id: string
   name: string
   count: number
+  file_count?: number  // Backend might return this instead
 }
 
 interface FolderSidebarProps {
@@ -31,6 +35,7 @@ interface FolderSidebarProps {
   isMobile?: boolean
   onMobileClose?: () => void
   refreshTrigger?: number
+  projectId?: string  // Agent ID for isolation
 }
 
 const FolderSidebar: React.FC<FolderSidebarProps> = ({
@@ -40,7 +45,8 @@ const FolderSidebar: React.FC<FolderSidebarProps> = ({
   onToggleCollapse,
   isMobile = false,
   onMobileClose,
-  refreshTrigger
+  refreshTrigger,
+  projectId
 }) => {
   const [folders, setFolders] = useState<FolderInfo[]>([])
   const [searchQuery, setSearchQuery] = useState('')
@@ -48,6 +54,19 @@ const FolderSidebar: React.FC<FolderSidebarProps> = ({
   const [isCreateFolderOpen, setIsCreateFolderOpen] = useState(false)
   const [newFolderName, setNewFolderName] = useState('')
   const [isCreatingFolder, setIsCreatingFolder] = useState(false)
+  const [deleteConfirm, setDeleteConfirm] = useState<{folderId: string | null, folderName: string, show: boolean}>({
+    folderId: null,
+    folderName: '',
+    show: false
+  })
+  const [isDeletingFolder, setIsDeletingFolder] = useState(false)
+  const [editFolder, setEditFolder] = useState<{folderId: string | null, folderName: string, show: boolean}>({
+    folderId: null,
+    folderName: '',
+    show: false
+  })
+  const [newFolderNameEdit, setNewFolderNameEdit] = useState('')
+  const [isUpdatingFolder, setIsUpdatingFolder] = useState(false)
 
   // Add request deduplication for folders
   const folderRequestInProgressRef = useRef<boolean>(false)
@@ -73,7 +92,14 @@ const FolderSidebar: React.FC<FolderSidebarProps> = ({
     setIsLoading(true)
     
     try {
-      const response = await fetchWithAuth(`${API_URL}/knowledge-base/folders`, {
+      // Build query parameters for agent isolation
+      const params = new URLSearchParams()
+      if (projectId) {
+        params.append('agent_id', projectId)
+      }
+      
+      const url = `${API_URL}/knowledge-base/folders${params.toString() ? `?${params.toString()}` : ''}`
+      const response = await fetchWithAuth(url, {
         headers: getAuthHeaders(),
       })
       const data = await response.json()
@@ -89,7 +115,12 @@ const FolderSidebar: React.FC<FolderSidebarProps> = ({
     }
   }
 
-  console.log('ddddddddddddd',folders)
+  // Helper function to get folder count (handles both count and file_count)
+  const getFolderCount = (folder: FolderInfo): number => {
+    return folder.file_count !== undefined ? folder.file_count : (folder.count || 0)
+  }
+
+  console.log('Folders data:', folders)
   const filteredFolders = folders.filter(folder =>
     folder.name.toLowerCase().includes(searchQuery.toLowerCase())
   )
@@ -108,9 +139,16 @@ const FolderSidebar: React.FC<FolderSidebarProps> = ({
     setIsCreatingFolder(true)
     
     try {
-      const response = await fetchWithAuth(`${API_URL}/knowledge-base/folders?folder_name=${encodeURIComponent(trimmedName)}`, {
+      const response = await fetchWithAuth(`${API_URL}/knowledge-base/folders`, {
         method: 'POST',
-        headers: getAuthHeaders(),
+        headers: {
+          ...getAuthHeaders(),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: trimmedName,
+          agent_id: projectId
+        }),
       })
       
       const data = await response.json()
@@ -122,7 +160,8 @@ const FolderSidebar: React.FC<FolderSidebarProps> = ({
         const newFolder: FolderInfo = {
           id: data.folder?.id || trimmedName,
           name: trimmedName,
-          count: 0
+          count: 0,
+          file_count: 0  // Ensure both count fields are set
         }
         setFolders(prev => [...prev, newFolder])
         console.log('✅ Folder created:', trimmedName)
@@ -135,6 +174,96 @@ const FolderSidebar: React.FC<FolderSidebarProps> = ({
       alert('Failed to create folder. Please try again.')
     } finally {
       setIsCreatingFolder(false)
+    }
+  }
+
+  const handleDeleteFolder = async () => {
+    if (!deleteConfirm.folderId) return
+    
+    setIsDeletingFolder(true)
+    
+    try {
+      // Build query parameters for agent isolation
+      const params = new URLSearchParams()
+      if (projectId) {
+        params.append('agent_id', projectId)
+      }
+      
+      const url = `${API_URL}/knowledge-base/folders/${deleteConfirm.folderId}${params.toString() ? `?${params.toString()}` : ''}`
+      const response = await fetchWithAuth(url, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      })
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        // Remove folder from local state
+        setFolders(prev => prev.filter(f => f.id !== deleteConfirm.folderId))
+        
+        // If the deleted folder was selected, clear selection
+        if (selectedFolder === deleteConfirm.folderId) {
+          onFolderSelect(null)
+        }
+        
+        setDeleteConfirm({ folderId: null, folderName: '', show: false })
+        alert('Folder deleted successfully!')
+      } else {
+        alert('Failed to delete folder: ' + data.error)
+      }
+    } catch (error) {
+      console.error('Error deleting folder:', error)
+      alert('Failed to delete folder. Please try again.')
+    } finally {
+      setIsDeletingFolder(false)
+    }
+  }
+
+  const handleEditFolder = async () => {
+    if (!editFolder.folderId || !newFolderNameEdit.trim()) return
+    
+    setIsUpdatingFolder(true)
+    
+    try {
+      // Build query parameters for agent isolation
+      const params = new URLSearchParams()
+      if (projectId) {
+        params.append('agent_id', projectId)
+      }
+      
+      const url = `${API_URL}/knowledge-base/folders/${editFolder.folderId}${params.toString() ? `?${params.toString()}` : ''}`
+      const response = await fetchWithAuth(url, {
+        method: 'PUT',
+        headers: {
+          ...getAuthHeaders(),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: newFolderNameEdit.trim()
+        }),
+      })
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        // Update folder in local state
+        setFolders(prev => prev.map(f => 
+          f.id === editFolder.folderId 
+            ? { ...f, name: newFolderNameEdit.trim() }
+            : f
+        ))
+        
+        setEditFolder({ folderId: null, folderName: '', show: false })
+        setNewFolderNameEdit('')
+        alert('Folder renamed successfully!')
+      } else {
+        alert('Failed to rename folder: ' + data.error)
+      }
+    } catch (error) {
+      console.error('Error renaming folder:', error)
+      alert('Failed to rename folder. Please try again.')
+    } finally {
+      setIsUpdatingFolder(false)
     }
   }
 
@@ -255,33 +384,77 @@ const FolderSidebar: React.FC<FolderSidebarProps> = ({
                 <span className="text-sm font-medium">All Files</span>
               </div>
               <Badge variant="secondary" className="text-xs">
-                {folders.reduce((sum, f) => sum + f.count, 0)}
+                {folders.reduce((sum, f) => sum + getFolderCount(f), 0)}
               </Badge>
             </button>
 
             {/* Individual Folders */}
             {filteredFolders.map((folder) => (
-              <button
+              <div
                 key={folder.name}
-                onClick={() => handleFolderClick(folder.id)}
-                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition-colors ${
+                className={`group flex items-center justify-between px-3 py-2 rounded-lg transition-colors ${
                   selectedFolder === folder.id
                     ? 'bg-blue-50 text-blue-600'
                     : 'text-gray-700 hover:bg-gray-50'
                 }`}
               >
-                <div className="flex items-center space-x-2 min-w-0">
+                <button
+                  onClick={() => handleFolderClick(folder.id)}
+                  className="flex items-center space-x-2 min-w-0 flex-1"
+                >
                   {selectedFolder === folder.id ? (
                     <FolderOpen className="h-4 w-4 flex-shrink-0" />
                   ) : (
                     <Folder className="h-4 w-4 flex-shrink-0" />
                   )}
                   <span className="text-sm font-medium truncate">{folder.name}</span>
+                </button>
+                
+                <div className="flex items-center space-x-1">
+                  <Badge variant="secondary" className="text-xs">
+                    {getFolderCount(folder)}
+                  </Badge>
+                  
+                  {/* Edit button - show for all folders */}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setEditFolder({
+                        folderId: folder.id,
+                        folderName: folder.name,
+                        show: true
+                      })
+                      setNewFolderNameEdit(folder.name)
+                    }}
+                    className="p-1 h-6 w-6 text-gray-400 hover:text-blue-500 opacity-70 hover:opacity-100 transition-opacity"
+                    title="Rename folder"
+                  >
+                    <Edit className="h-3 w-3" />
+                  </Button>
+                  
+                  {/* Delete button - show for empty folders */}
+                  {getFolderCount(folder) === 0 && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setDeleteConfirm({
+                          folderId: folder.id,
+                          folderName: folder.name,
+                          show: true
+                        })
+                      }}
+                      className="p-1 h-6 w-6 text-gray-400 hover:text-red-500 opacity-70 hover:opacity-100 transition-opacity"
+                      title="Delete empty folder"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  )}
                 </div>
-                <Badge variant="secondary" className="text-xs ml-2 flex-shrink-0">
-                  {folder.count}
-                </Badge>
-              </button>
+              </div>
             ))}
           </div>
         )}
@@ -316,6 +489,80 @@ const FolderSidebar: React.FC<FolderSidebarProps> = ({
               disabled={!newFolderName.trim() || isCreatingFolder}
             >
               {isCreatingFolder ? 'Creating...' : 'Create'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Folder Confirmation Dialog */}
+      <Dialog open={deleteConfirm.show} onOpenChange={(open) => !open && setDeleteConfirm({ folderId: null, folderName: '', show: false })}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Folder</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete the folder "{deleteConfirm.folderName}"? This action cannot be undone.
+              {deleteConfirm.folderName !== 'Uncategorized' && (
+                <span className="block mt-2 text-sm text-gray-600">
+                  Note: You can only delete empty folders. Make sure all files are moved to other folders first.
+                </span>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => setDeleteConfirm({ folderId: null, folderName: '', show: false })}
+              disabled={isDeletingFolder}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteFolder}
+              disabled={isDeletingFolder}
+            >
+              {isDeletingFolder ? 'Deleting...' : 'Delete Folder'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Folder Name Dialog */}
+      <Dialog open={editFolder.show} onOpenChange={(open) => !open && setEditFolder({ folderId: null, folderName: '', show: false })}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rename Folder</DialogTitle>
+            <DialogDescription>
+              Enter a new name for the folder "{editFolder.folderName}".
+            </DialogDescription>
+          </DialogHeader>
+          <Input
+            placeholder="Enter new folder name"
+            value={newFolderNameEdit}
+            onChange={(e) => setNewFolderNameEdit(e.target.value)}
+            onKeyPress={(e) => {
+              if (e.key === 'Enter' && newFolderNameEdit.trim() && !isUpdatingFolder) {
+                handleEditFolder()
+              }
+            }}
+            disabled={isUpdatingFolder}
+          />
+          <DialogFooter>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setEditFolder({ folderId: null, folderName: '', show: false })
+                setNewFolderNameEdit('')
+              }}
+              disabled={isUpdatingFolder}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleEditFolder}
+              disabled={!newFolderNameEdit.trim() || isUpdatingFolder || newFolderNameEdit.trim() === editFolder.folderName}
+            >
+              {isUpdatingFolder ? 'Renaming...' : 'Rename'}
             </Button>
           </DialogFooter>
         </DialogContent>

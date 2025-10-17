@@ -2,11 +2,13 @@
 
 import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
 import { logout, loadUserFromStorage } from '@/store/slices/authSlice'
 import { Menu, X } from 'lucide-react'
 
 const Header = () => {
+  const router = useRouter()
   const dispatch = useAppDispatch()
   const { user, isAuthenticated } = useAppSelector((state) => state.auth)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -19,6 +21,7 @@ const Header = () => {
   const handleLogout = () => {
     dispatch(logout())
     setMobileMenuOpen(false)
+    router.push('/auth/login')
   }
 
   return (
