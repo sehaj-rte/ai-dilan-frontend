@@ -76,6 +76,12 @@ interface Pagination {
   hasPrevious: boolean
 }
 
+interface FolderInfo {
+  id: string
+  name: string
+  count: number
+}
+
 interface EnhancedKnowledgeBaseProps {
   projectId?: string
 }
@@ -88,6 +94,8 @@ const EnhancedKnowledgeBase = ({ projectId }: EnhancedKnowledgeBaseProps = {}) =
   const [deletingFileId, setDeletingFileId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedFolderFilterId, setSelectedFolderFilterId] = useState<string | null>(null)
+  const [folders, setFolders] = useState<FolderInfo[]>([])
+  const [hasInitializedFolder, setHasInitializedFolder] = useState(false)
   const [isAddContentModalOpen, setIsAddContentModalOpen] = useState(false)
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false)
@@ -475,6 +483,15 @@ const EnhancedKnowledgeBase = ({ projectId }: EnhancedKnowledgeBaseProps = {}) =
           onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
           refreshTrigger={folderRefreshTrigger}
           projectId={projectId}
+          onFoldersLoaded={(loadedFolders: FolderInfo[]) => {
+            // Auto-select first folder if none selected yet
+            if (!hasInitializedFolder && loadedFolders.length > 0) {
+              const firstFolder = loadedFolders[0]
+              setSelectedFolderFilterId(firstFolder.id)
+              setSelectedFolderId(firstFolder.id)
+              setHasInitializedFolder(true)
+            }
+          }}
         />
       </div>
 

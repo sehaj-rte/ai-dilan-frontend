@@ -36,6 +36,7 @@ interface FolderSidebarProps {
   onMobileClose?: () => void
   refreshTrigger?: number
   projectId?: string  // Agent ID for isolation
+  onFoldersLoaded?: (folders: FolderInfo[]) => void  // Callback when folders are loaded
 }
 
 const FolderSidebar: React.FC<FolderSidebarProps> = ({
@@ -46,7 +47,8 @@ const FolderSidebar: React.FC<FolderSidebarProps> = ({
   isMobile = false,
   onMobileClose,
   refreshTrigger,
-  projectId
+  projectId,
+  onFoldersLoaded
 }) => {
   const [folders, setFolders] = useState<FolderInfo[]>([])
   const [searchQuery, setSearchQuery] = useState('')
@@ -106,6 +108,10 @@ const FolderSidebar: React.FC<FolderSidebarProps> = ({
       
       if (data.success) {
         setFolders(data.folders)
+        // Notify parent component that folders are loaded
+        if (onFoldersLoaded) {
+          onFoldersLoaded(data.folders)
+        }
       }
     } catch (error) {
       console.error('Error fetching folders:', error)
