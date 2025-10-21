@@ -375,7 +375,7 @@ const AddContentModal: React.FC<AddContentModalProps> = ({
                   <ChevronRight className="h-5 w-5 text-gray-400" />
                 </div>
               </Card>
-              */
+              */}
             </div>
           </div>
         )
