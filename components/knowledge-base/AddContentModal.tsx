@@ -66,8 +66,8 @@ const AddContentModal: React.FC<AddContentModalProps> = ({
 
   const categories = [
     { id: 'popular' as Category, label: 'Popular', icon: Upload, active: true },
-    { id: 'webscraping' as Category, label: 'Web Scraping', icon: Globe, active: true },
-    { id: 'youtube' as Category, label: 'YouTube', icon: Youtube, active: true },
+    // { id: 'webscraping' as Category, label: 'Web Scraping', icon: Globe, active: true },
+    // { id: 'youtube' as Category, label: 'YouTube', icon: Youtube, active: true },
     { id: 'speech' as Category, label: 'Voice Notes', icon: Mic, active: true },
     { id: 'audio' as Category, label: 'Audio Files', icon: FileAudio, active: true },
     // { id: 'socials' as Category, label: 'Socials', icon: Twitter, active: false },
@@ -291,8 +291,8 @@ const AddContentModal: React.FC<AddContentModalProps> = ({
                 </div>
               </Card>
 
-              {/* YouTube */}
-              <Card 
+              {/* YouTube - HIDDEN */}
+              {/* <Card 
                 className="p-4 hover:shadow-md transition-shadow cursor-pointer border"
                 onClick={() => setSelectedCategory('youtube')}
               >
@@ -310,7 +310,7 @@ const AddContentModal: React.FC<AddContentModalProps> = ({
                   </div>
                   <ChevronRight className="h-5 w-5 text-gray-400" />
                 </div>
-              </Card>
+              </Card> */}
 
               {/* Voice Notes */}
               <Card 
@@ -354,8 +354,8 @@ const AddContentModal: React.FC<AddContentModalProps> = ({
                 </div>
               </Card>
 
-              {/* Web Scraping */}
-              <Card 
+              {/* Web Scraping - HIDDEN */}
+              {/* <Card 
                 className="p-4 hover:shadow-md transition-shadow cursor-pointer border"
                 onClick={() => setSelectedCategory('webscraping')}
               >
@@ -373,7 +373,7 @@ const AddContentModal: React.FC<AddContentModalProps> = ({
                   </div>
                   <ChevronRight className="h-5 w-5 text-gray-400" />
                 </div>
-              </Card>
+              </Card> */
             </div>
           </div>
         )
