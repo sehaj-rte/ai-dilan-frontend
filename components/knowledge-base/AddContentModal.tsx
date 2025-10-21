@@ -291,8 +291,8 @@ const AddContentModal: React.FC<AddContentModalProps> = ({
                 </div>
               </Card>
 
-              {/* YouTube - HIDDEN */}
-              {/* <Card 
+              {/* YouTube - HIDDEN 
+              <Card 
                 className="p-4 hover:shadow-md transition-shadow cursor-pointer border"
                 onClick={() => setSelectedCategory('youtube')}
               >
@@ -310,7 +310,8 @@ const AddContentModal: React.FC<AddContentModalProps> = ({
                   </div>
                   <ChevronRight className="h-5 w-5 text-gray-400" />
                 </div>
-              </Card> */}
+              </Card>
+              */}
 
               {/* Voice Notes */}
               <Card 
@@ -354,8 +355,8 @@ const AddContentModal: React.FC<AddContentModalProps> = ({
                 </div>
               </Card>
 
-              {/* Web Scraping - HIDDEN */}
-              {/* <Card 
+              {/* Web Scraping - HIDDEN 
+              <Card 
                 className="p-4 hover:shadow-md transition-shadow cursor-pointer border"
                 onClick={() => setSelectedCategory('webscraping')}
               >
@@ -373,7 +374,8 @@ const AddContentModal: React.FC<AddContentModalProps> = ({
                   </div>
                   <ChevronRight className="h-5 w-5 text-gray-400" />
                 </div>
-              </Card> */
+              </Card>
+              */
             </div>
           </div>
         )
