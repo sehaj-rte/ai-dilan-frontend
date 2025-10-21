@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback, useRef, useEffect } from 'react'
+import { API_URL } from '@/lib/config'
 
 interface ChatMessage {
   id: string
@@ -55,7 +56,7 @@ export const useChatMode = (options: ChatModeOptions): UseChatModeReturn => {
       
       const overrides = textOnly ? {} : { conversation: { text_only: true } }
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}${endpoint}`, {
+      const response = await fetch(`${API_URL}${endpoint}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
