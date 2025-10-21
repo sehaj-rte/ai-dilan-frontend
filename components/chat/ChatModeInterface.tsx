@@ -489,11 +489,11 @@ const ChatModeInterface: React.FC<ChatModeInterfaceProps> = ({
         <div className="text-xs text-gray-500 text-center">
           {isConnected ? (
             <span className="text-green-600">
-              ✅ Text-only chat active • 25x higher concurrency limits
+              ✅ Connected • Searching only completed documents in your knowledge base
             </span>
           ) : (
             <span>
-              Chat mode provides text-only conversations with enhanced performance
+              Only fully processed documents (✓ Completed status) will be used to answer your questions
             </span>
           )}
         </div>

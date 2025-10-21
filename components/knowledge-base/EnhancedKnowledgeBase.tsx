@@ -1,6 +1,7 @@
 'use client'
 
 import React, { useState, useEffect, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
@@ -32,7 +33,8 @@ import {
   CheckCircle,
   Clock,
   AlertCircle,
-  XCircle
+  XCircle,
+  MessageSquare
 } from 'lucide-react'
 
 interface UploadedFile {
@@ -111,6 +113,7 @@ interface EnhancedKnowledgeBaseProps {
 }
 
 const EnhancedKnowledgeBase = ({ projectId }: EnhancedKnowledgeBaseProps = {}) => {
+  const router = useRouter()
   const [files, setFiles] = useState<UploadedFile[]>([])
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(null)
   const [selectedFolderId, setSelectedFolderId] = useState<string>('')
@@ -783,14 +786,25 @@ const EnhancedKnowledgeBase = ({ projectId }: EnhancedKnowledgeBaseProps = {}) =
                 </div>
               </div>
             </div>
-            {selectedFolderFilterId && (
-              <Button 
-                onClick={() => setIsAddContentModalOpen(true)}
-                className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-medium"
-              >
-                Add Content
-              </Button>
-            )}
+            <div className="flex items-center space-x-3">
+              {projectId && (
+                <Button 
+                  onClick={() => router.push(`/project/${projectId}/chat`)}
+                  className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-medium"
+                >
+                  <MessageSquare className="h-4 w-4 mr-2" />
+                  Talk to Knowledge Base
+                </Button>
+              )}
+              {selectedFolderFilterId && (
+                <Button 
+                  onClick={() => setIsAddContentModalOpen(true)}
+                  className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg font-medium"
+                >
+                  Add Content
+                </Button>
+              )}
+            </div>
           </div>
 
           {/* Search and Filters */}
@@ -944,8 +958,8 @@ const EnhancedKnowledgeBase = ({ projectId }: EnhancedKnowledgeBaseProps = {}) =
                     case 'failed':
                       return (
                         <div className="flex items-center space-x-2">
-                          <div className="w-2 h-2 bg-red-500 rounded-full"></div>
-                          <span className="text-sm text-red-600 font-medium">Failed</span>
+                          <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                          <span className="text-sm text-green-600 font-medium">Processing</span>
                         </div>
                       )
                     case 'pending':
@@ -1024,14 +1038,14 @@ const EnhancedKnowledgeBase = ({ projectId }: EnhancedKnowledgeBaseProps = {}) =
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
-                      <Button
+                      {/* <Button
                         variant="ghost"
                         size="sm"
                         onClick={() => window.open(file.url, '_blank')}
                         className="text-gray-400 hover:text-gray-600 p-1"
                       >
                         <Download className="h-4 w-4" />
-                      </Button>
+                      </Button> */}
                       <Button
                         variant="ghost"
                         size="sm"
@@ -1045,13 +1059,13 @@ const EnhancedKnowledgeBase = ({ projectId }: EnhancedKnowledgeBaseProps = {}) =
                           <Trash2 className="h-4 w-4" />
                         )}
                       </Button>
-                      <Button
+                      {/* <Button
                         variant="ghost"
                         size="sm"
                         className="text-gray-400 hover:text-gray-600 p-1"
                       >
                         <MoreVertical className="h-4 w-4" />
-                      </Button>
+                      </Button> */}
                     </div>
                   </div>
                 )

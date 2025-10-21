@@ -48,7 +48,7 @@ const ChatPage = () => {
   const [expert, setExpert] = useState<Expert | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [isTextOnlyMode, setIsTextOnlyMode] = useState(false)
+  const [isTextOnlyMode, setIsTextOnlyMode] = useState(true)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const { toasts, removeToast, error: showError, success: showSuccess, info: showInfo } = useToast()
 
@@ -87,8 +87,6 @@ const ChatPage = () => {
           avatar_url: data.expert.avatar_url ? convertS3UrlToProxy(data.expert.avatar_url) : null
         }
         setExpert(expertWithProxyUrl)
-        // Set default text-only mode based on agent configuration
-        setIsTextOnlyMode(data.expert.text_only || false)
       } else {
         console.error('Failed to fetch expert:', data.error)
         router.push('/dashboard')
