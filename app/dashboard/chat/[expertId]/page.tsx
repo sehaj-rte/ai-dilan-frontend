@@ -259,10 +259,10 @@ const ChatPage = () => {
   return (
     <DashboardLayout>
       <ToastContainer toasts={toasts} onClose={removeToast} />
-      <div className="h-full flex flex-col lg:flex-row gap-6">
+      <div className="flex flex-col lg:flex-row gap-4 h-full max-h-[calc(100vh-8rem)]">
         {/* Expert Profile Section */}
-        <div className="lg:w-1/3 xl:w-1/4">
-          <Card className="h-full">
+        <div className="lg:w-1/3 xl:w-1/4 flex-shrink-0">
+          <Card className="h-full max-h-[600px] lg:max-h-full overflow-y-auto">
             <CardContent className="p-6">
               {/* Header */}
               <div className="flex items-center justify-between mb-6">
@@ -355,21 +355,23 @@ const ChatPage = () => {
               </div>
 
               {/* Description */}
-              <div>
+              <div className="overflow-hidden">
                 <h3 className="font-semibold text-gray-900 mb-3">Description</h3>
-                <p className="text-sm text-gray-600 leading-relaxed">
-                  {expert.description || "No description available for this expert."}
-                </p>
+                <div className="max-h-20 overflow-y-auto border rounded-md p-2 bg-gray-50">
+                  <p className="text-sm text-gray-600 leading-relaxed break-words">
+                    {expert.description || "No description available for this expert."}
+                  </p>
+                </div>
               </div>
             </CardContent>
           </Card>
         </div>
 
         {/* Chat Section */}
-        <div className="lg:w-2/3 xl:w-3/4 flex flex-col">
-          <Card className="flex-1 flex flex-col">
+        <div className="lg:w-2/3 xl:w-3/4 flex flex-col min-h-0 flex-1">
+          <Card className="flex-1 flex flex-col min-h-0 max-h-full">
             {/* Chat Header */}
-            <div className="border-b border-gray-200 p-4">
+            <div className="border-b border-gray-200 p-4 flex-shrink-0">
               <div className="flex items-center space-x-3">
                 {expert.avatar_url ? (
                   <img
@@ -464,14 +466,14 @@ const ChatPage = () => {
 
             {/* Message Input - Only show in text mode */}
             {chatMode === 'text' && (
-              <div className="border-t border-gray-200 p-4">
-                <div className="flex items-center space-x-2">
+              <div className="border-t border-gray-200 p-4 flex-shrink-0">
+                <div className="flex items-end space-x-2">
                   <div className="flex-1 relative">
                     <textarea
                       value={inputMessage}
                       onChange={(e) => setInputMessage(e.target.value)}
                       onKeyPress={handleKeyPress}
-                      placeholder={`Ask ${expert.name} a question`}
+                      placeholder={`Ask ${expert.name} a question...`}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       rows={1}
                       style={{ minHeight: '44px', maxHeight: '120px' }}
@@ -480,7 +482,7 @@ const ChatPage = () => {
                   <Button
                     onClick={handleSendMessage}
                     disabled={!inputMessage.trim() || isSending}
-                    className="bg-blue-600 hover:bg-blue-700 text-white p-3"
+                    className="bg-blue-600 hover:bg-blue-700 text-white p-3 h-11"
                   >
                     <Send className="h-4 w-4" />
                   </Button>
@@ -490,7 +492,7 @@ const ChatPage = () => {
 
             {/* Voice Mode Info */}
             {chatMode === 'voice' && (
-              <div className="border-t border-gray-200 p-4 text-center">
+              <div className="border-t border-gray-200 p-4 text-center flex-shrink-0">
                 <p className="text-sm text-gray-600">
                   Voice chat mode active. Use the voice controls in the left panel to start a conversation.
                 </p>

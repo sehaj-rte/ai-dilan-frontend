@@ -287,7 +287,7 @@ const ChatModeInterface: React.FC<ChatModeInterfaceProps> = ({
   }
 
   return (
-    <Card className={`flex flex-col h-full ${className}`}>
+    <Card className={`flex flex-col h-full max-h-full ${className}`}>
       <CardHeader className="flex-shrink-0 pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
@@ -326,10 +326,10 @@ const ChatModeInterface: React.FC<ChatModeInterfaceProps> = ({
         </div>
       </CardHeader>
 
-      <CardContent className="flex flex-col flex-1 p-4 space-y-4">
+      <CardContent className="flex flex-col flex-1 p-4 min-h-0 overflow-hidden">
         {/* Error Display */}
         {error && (
-          <div className="flex items-center justify-between bg-red-50 border border-red-200 rounded-md p-3">
+          <div className="flex items-center justify-between bg-red-50 border border-red-200 rounded-md p-3 mb-4">
             <span className="text-sm text-red-600">{error}</span>
             <Button
               variant="ghost"
@@ -343,7 +343,7 @@ const ChatModeInterface: React.FC<ChatModeInterfaceProps> = ({
         )}
 
         {/* Chat Messages */}
-        <div className="flex-1 overflow-y-auto space-y-3 min-h-0">
+        <div className="flex-1 overflow-y-auto space-y-3 min-h-0 mb-4">
           {messages.length === 0 && !isConnected && (
             <div className="flex flex-col items-center justify-center h-full text-center space-y-3">
               <MessageSquare className="h-12 w-12 text-gray-300" />

@@ -193,7 +193,7 @@ const ChatPage = () => {
         {/* Expert Profile Section */}
         <div className="lg:w-1/3 xl:w-1/4">
           <Card className="h-full">
-            <CardContent className="p-6 overflow-y-auto">
+            <CardContent className="p-6 flex flex-col h-full">
               {/* Header */}
               <div className="flex items-center justify-between mb-6">
                 <Button 
@@ -283,11 +283,16 @@ const ChatPage = () => {
               </div>
 
               {/* Description */}
-              <div>
+              <div className="flex-1 flex flex-col min-h-0">
                 <h3 className="font-semibold text-gray-900 mb-3">Description</h3>
-                <p className="text-sm text-gray-600 leading-relaxed">
-                  {expert.description || "No description available for this expert."}
-                </p>
+                <div className="flex-1 overflow-y-auto border rounded-md p-3 bg-gray-50">
+                  <p className="text-sm text-gray-600 leading-relaxed break-words">
+                    {expert.description 
+                      ? expert.description.split(' ').slice(0, 500).join(' ') + (expert.description.split(' ').length > 500 ? '...' : '')
+                      : "No description available for this expert."
+                    }
+                  </p>
+                </div>
               </div>
             </CardContent>
           </Card>

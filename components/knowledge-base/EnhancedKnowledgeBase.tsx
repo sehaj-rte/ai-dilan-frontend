@@ -277,17 +277,34 @@ const EnhancedKnowledgeBase = ({ projectId }: EnhancedKnowledgeBaseProps = {}) =
     fetchFiles(selectedFolderFilterId, 1, searchQuery, selectedStatusFilter)
   }, [selectedStatusFilter]) // Only depend on selectedStatusFilter
 
-  // Live polling for status updates
+  // Basic live polling for file status updates
   useEffect(() => {
-    // Poll status stats every 5 seconds for live updates
+    // Check if any files are processing
+    const hasProcessingFiles = files.some(file => 
+      file.processing_status === 'processing' || 
+      file.processing_status === 'pending'
+    )
+    
+    // Only poll if there are processing files
+    if (!hasProcessingFiles) {
+      // Still poll status stats every 10 seconds for general updates
+      const statsInterval = setInterval(() => {
+        fetchStatusStats(selectedFolderFilterId)
+      }, 10000)
+      return () => clearInterval(statsInterval)
+    }
+    
+    // Poll every 3 seconds when files are processing
     const interval = setInterval(() => {
+      console.log('🔄 Polling: Refreshing files and stats...')
       fetchStatusStats(selectedFolderFilterId)
-    }, 5000)
+      fetchFiles(selectedFolderFilterId, pagination.currentPage, searchQuery, selectedStatusFilter, true) // Silent polling
+    }, 3000)
 
     return () => clearInterval(interval)
-  }, [selectedFolderFilterId])
+  }, [files, selectedFolderFilterId, pagination.currentPage, searchQuery, selectedStatusFilter])
 
-  const fetchFiles = async (folderId: string | null = selectedFolderFilterId, page: number = 1, search: string = searchQuery, statusFilter: StatusFilter = selectedStatusFilter) => {
+  const fetchFiles = async (folderId: string | null = selectedFolderFilterId, page: number = 1, search: string = searchQuery, statusFilter: StatusFilter = selectedStatusFilter, silent: boolean = false) => {
     // Create request signature for deduplication
     const requestParams = JSON.stringify({ folderId, page, search, statusFilter, perPage: pagination.perPage })
     
@@ -299,7 +316,9 @@ const EnhancedKnowledgeBase = ({ projectId }: EnhancedKnowledgeBaseProps = {}) =
     
     requestInProgressRef.current = true
     lastRequestParamsRef.current = requestParams
-    setIsLoadingFiles(true)
+    if (!silent) {
+      setIsLoadingFiles(true)
+    }
     
     try {
       // Build query parameters
@@ -352,7 +371,9 @@ const EnhancedKnowledgeBase = ({ projectId }: EnhancedKnowledgeBaseProps = {}) =
     } catch (error) {
       console.error('Error fetching files:', error)
     } finally {
-      setIsLoadingFiles(false)
+      if (!silent) {
+        setIsLoadingFiles(false)
+      }
       requestInProgressRef.current = false
     }
   }
@@ -690,6 +711,14 @@ const EnhancedKnowledgeBase = ({ projectId }: EnhancedKnowledgeBaseProps = {}) =
                 </div>
                 <div className="flex items-center space-x-4">
                   <h1 className="text-xl font-semibold text-gray-900">All Content</h1>
+                  
+                  {/* Live Polling Indicator */}
+                  {files.some(file => file.processing_status === 'processing' || file.processing_status === 'pending') && (
+                    <div className="flex items-center space-x-2 text-sm text-blue-600">
+                      <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                      <span className="text-xs">Live updates</span>
+                    </div>
+                  )}
                   
                   {/* Live Status Statistics */}
                   {statusStats.total > 0 && (
