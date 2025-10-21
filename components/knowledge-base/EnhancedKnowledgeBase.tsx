@@ -25,7 +25,14 @@ import {
   Menu,
   Loader2,
   MoreVertical,
-  BookOpen
+  BookOpen,
+  ChevronDown,
+  Check,
+  Files,
+  CheckCircle,
+  Clock,
+  AlertCircle,
+  XCircle
 } from 'lucide-react'
 
 interface UploadedFile {
@@ -82,6 +89,23 @@ interface FolderInfo {
   count: number
 }
 
+type StatusFilter = 'all' | 'queued' | 'processing' | 'completed' | 'failed'
+
+interface StatusOption {
+  value: StatusFilter
+  label: string
+  color: string
+  dotColor: string
+}
+
+interface StatusStats {
+  queued: number
+  processing: number
+  completed: number
+  failed: number
+  total: number
+}
+
 interface EnhancedKnowledgeBaseProps {
   projectId?: string
 }
@@ -94,6 +118,15 @@ const EnhancedKnowledgeBase = ({ projectId }: EnhancedKnowledgeBaseProps = {}) =
   const [deletingFileId, setDeletingFileId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedFolderFilterId, setSelectedFolderFilterId] = useState<string | null>(null)
+  const [selectedStatusFilter, setSelectedStatusFilter] = useState<StatusFilter>('all')
+  const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false)
+  const [statusStats, setStatusStats] = useState<StatusStats>({
+    queued: 0,
+    processing: 0,
+    completed: 0,
+    failed: 0,
+    total: 0
+  })
   const [folders, setFolders] = useState<FolderInfo[]>([])
   const [hasInitializedFolder, setHasInitializedFolder] = useState(false)
   const [isAddContentModalOpen, setIsAddContentModalOpen] = useState(false)
@@ -116,6 +149,15 @@ const EnhancedKnowledgeBase = ({ projectId }: EnhancedKnowledgeBaseProps = {}) =
   // Add request deduplication
   const requestInProgressRef = useRef<boolean>(false)
   const lastRequestParamsRef = useRef<string>('')
+  
+  // Status filter options
+  const statusOptions: StatusOption[] = [
+    { value: 'all', label: 'All Status', color: 'text-gray-600', dotColor: 'bg-gray-400' },
+    { value: 'queued', label: 'Queued', color: 'text-gray-600', dotColor: 'bg-gray-400' },
+    { value: 'processing', label: 'Processing', color: 'text-orange-600', dotColor: 'bg-orange-400' },
+    { value: 'completed', label: 'Completed', color: 'text-green-600', dotColor: 'bg-green-500' },
+    { value: 'failed', label: 'Failed', color: 'text-red-600', dotColor: 'bg-red-500' }
+  ]
   
   // Toast notification state
   const [toast, setToast] = useState<{
@@ -161,6 +203,8 @@ const EnhancedKnowledgeBase = ({ projectId }: EnhancedKnowledgeBaseProps = {}) =
         setFiles(files.filter(file => file.id !== deleteConfirm.fileId))
         // Only refresh folder counts after successful deletion
         setFolderRefreshTrigger(prev => prev + 1)
+        // Also refresh status stats after deletion
+        fetchStatusStats()
         showToast('File deleted successfully', 'success')
       } else {
         console.error('Failed to delete file:', result.error)
@@ -178,6 +222,7 @@ const EnhancedKnowledgeBase = ({ projectId }: EnhancedKnowledgeBaseProps = {}) =
 
   useEffect(() => {
     fetchFiles()
+    fetchStatusStats()
     
     // Cleanup timers on unmount
     return () => {
@@ -185,18 +230,33 @@ const EnhancedKnowledgeBase = ({ projectId }: EnhancedKnowledgeBaseProps = {}) =
     }
   }, []) // Only run on mount
 
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element
+      if (isStatusDropdownOpen && !target.closest('.status-filter-dropdown')) {
+        setIsStatusDropdownOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [isStatusDropdownOpen])
+
   // Debounced search effect
   useEffect(() => {
     if (searchQuery === '') {
       // If search is cleared, fetch immediately
-      fetchFiles(selectedFolderFilterId, 1, '')
+      fetchFiles(selectedFolderFilterId, 1, '', selectedStatusFilter)
       return
     }
 
     const timeoutId = setTimeout(() => {
       // Reset to first page when searching
       setPagination(prev => ({ ...prev, currentPage: 1 }))
-      fetchFiles(selectedFolderFilterId, 1, searchQuery)
+      fetchFiles(selectedFolderFilterId, 1, searchQuery, selectedStatusFilter)
     }, 500) // 500ms debounce
 
     return () => clearTimeout(timeoutId)
@@ -206,13 +266,30 @@ const EnhancedKnowledgeBase = ({ projectId }: EnhancedKnowledgeBaseProps = {}) =
   useEffect(() => {
     // Reset to first page when changing folders
     setPagination(prev => ({ ...prev, currentPage: 1 }))
-    fetchFiles(selectedFolderFilterId, 1, searchQuery)
+    fetchFiles(selectedFolderFilterId, 1, searchQuery, selectedStatusFilter)
+    fetchStatusStats(selectedFolderFilterId)
   }, [selectedFolderFilterId]) // Only depend on selectedFolderFilterId
+  
+  // Status filter effect
+  useEffect(() => {
+    // Reset to first page when changing status filter
+    setPagination(prev => ({ ...prev, currentPage: 1 }))
+    fetchFiles(selectedFolderFilterId, 1, searchQuery, selectedStatusFilter)
+  }, [selectedStatusFilter]) // Only depend on selectedStatusFilter
 
+  // Live polling for status updates
+  useEffect(() => {
+    // Poll status stats every 5 seconds for live updates
+    const interval = setInterval(() => {
+      fetchStatusStats(selectedFolderFilterId)
+    }, 5000)
 
-  const fetchFiles = async (folderId: string | null = selectedFolderFilterId, page: number = 1, search: string = searchQuery) => {
+    return () => clearInterval(interval)
+  }, [selectedFolderFilterId])
+
+  const fetchFiles = async (folderId: string | null = selectedFolderFilterId, page: number = 1, search: string = searchQuery, statusFilter: StatusFilter = selectedStatusFilter) => {
     // Create request signature for deduplication
-    const requestParams = JSON.stringify({ folderId, page, search, perPage: pagination.perPage })
+    const requestParams = JSON.stringify({ folderId, page, search, statusFilter, perPage: pagination.perPage })
     
     // Prevent duplicate requests
     if (requestInProgressRef.current && lastRequestParamsRef.current === requestParams) {
@@ -237,6 +314,10 @@ const EnhancedKnowledgeBase = ({ projectId }: EnhancedKnowledgeBaseProps = {}) =
       
       if (search && search.trim()) {
         params.append('search', search.trim())
+      }
+      
+      if (statusFilter && statusFilter !== 'all') {
+        params.append('status', statusFilter)
       }
       
       // Add agent_id for agent isolation
@@ -410,6 +491,8 @@ const EnhancedKnowledgeBase = ({ projectId }: EnhancedKnowledgeBaseProps = {}) =
     // Manually trigger folder refresh only after successful uploads
     if (successCount > 0) {
       setFolderRefreshTrigger(prev => prev + 1)
+      // Also refresh status stats after successful uploads
+      fetchStatusStats()
     }
     
     // Log summary
@@ -443,6 +526,71 @@ const EnhancedKnowledgeBase = ({ projectId }: EnhancedKnowledgeBaseProps = {}) =
       day: 'numeric', 
       year: 'numeric' 
     })
+  }
+
+  // Helper function to determine file status for filtering
+  const getFileStatus = (file: UploadedFile): StatusFilter => {
+    // Check if file is currently being processed/indexed
+    const isRecentlyUploaded = new Date(file.created_at) > new Date(Date.now() - 5 * 60 * 1000) // Within last 5 minutes
+    const hasNoExtractedText = !file.extracted_text || file.extracted_text.trim() === ''
+    const isLikelyProcessing = isRecentlyUploaded && hasNoExtractedText && file.processing_status !== 'failed' && file.processing_status !== 'completed'
+    
+    switch (file.processing_status) {
+      case 'processing':
+        return 'processing'
+      case 'completed':
+        return 'completed'
+      case 'failed':
+        return 'failed'
+      case 'pending':
+      default:
+        // If file seems to be processing based on heuristics, show as processing
+        if (isLikelyProcessing) {
+          return 'processing'
+        }
+        // Otherwise show as queued
+        return 'queued'
+    }
+  }
+
+  // Fetch status statistics
+  const fetchStatusStats = async (folderId: string | null = selectedFolderFilterId) => {
+    try {
+      // Build query parameters
+      const params = new URLSearchParams()
+      
+      if (folderId) {
+        params.append('folder_id', folderId)
+      }
+      
+      // Add agent_id for agent isolation
+      if (projectId) {
+        params.append('agent_id', projectId)
+      }
+      
+      console.log('📊 Fetching status stats with params:', params.toString())
+      
+      const response = await fetchWithAuth(`${API_URL}/knowledge-base/files/stats?${params.toString()}`, {
+        headers: getAuthHeaders(),
+      })
+      const data = await response.json()
+      
+      console.log('📈 Status stats API response:', data)
+      
+      if (data.success) {
+        setStatusStats({
+          queued: data.stats.queued || 0,
+          processing: data.stats.processing || 0,
+          completed: data.stats.completed || 0,
+          failed: data.stats.failed || 0,
+          total: data.total || 0
+        })
+      } else {
+        console.error('Failed to fetch status stats:', data.error)
+      }
+    } catch (error) {
+      console.error('Error fetching status stats:', error)
+    }
   }
 
   return (
@@ -540,7 +688,70 @@ const EnhancedKnowledgeBase = ({ projectId }: EnhancedKnowledgeBaseProps = {}) =
                 <div className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
                   <BookOpen className="h-4 w-4 text-gray-600" />
                 </div>
-                <h1 className="text-xl font-semibold text-gray-900">All Content</h1>
+                <div className="flex items-center space-x-4">
+                  <h1 className="text-xl font-semibold text-gray-900">All Content</h1>
+                  
+                  {/* Live Status Statistics */}
+                  {statusStats.total > 0 && (
+                    <div className="flex items-center space-x-3 text-sm">
+                      <div className="h-6 w-px bg-gray-300"></div>
+                      
+                      {/* Total Files */}
+                      <div 
+                        className="flex items-center space-x-1 cursor-help" 
+                        title="Total number of documents in your knowledge base"
+                      >
+                        <Files className="h-3 w-3 text-gray-500" />
+                        <span className="text-gray-600">Total:</span>
+                        <span className="font-medium text-gray-900">{statusStats.total}</span>
+                      </div>
+                      
+                      {/* Completed */}
+                      {statusStats.completed > 0 && (
+                        <div 
+                          className="flex items-center space-x-1 cursor-help" 
+                          title={`${statusStats.completed} documents successfully processed and ready for AI search`}
+                        >
+                          <CheckCircle className="h-3 w-3 text-green-500" />
+                          <span className="text-green-600 font-medium">{statusStats.completed}</span>
+                        </div>
+                      )}
+                      
+                      {/* Processing */}
+                      {statusStats.processing > 0 && (
+                        <div 
+                          className="flex items-center space-x-1 cursor-help" 
+                          title={`${statusStats.processing} documents currently being processed (extracting text and generating embeddings)`}
+                        >
+                          <Loader2 className="h-3 w-3 text-orange-500 animate-spin" />
+                          <span className="text-orange-600 font-medium">{statusStats.processing}</span>
+                        </div>
+                      )}
+                      
+                      {/* Queued */}
+                      {statusStats.queued > 0 && (
+                        <div 
+                          className="flex items-center space-x-1 cursor-help" 
+                          title={`${statusStats.queued} documents waiting in queue to be processed`}
+                        >
+                          <Clock className="h-3 w-3 text-gray-500" />
+                          <span className="text-gray-600 font-medium">{statusStats.queued}</span>
+                        </div>
+                      )}
+                      
+                      {/* Failed */}
+                      {statusStats.failed > 0 && (
+                        <div 
+                          className="flex items-center space-x-1 cursor-help" 
+                          title={`${statusStats.failed} documents failed to process (may need to be re-uploaded)`}
+                        >
+                          <XCircle className="h-3 w-3 text-red-500" />
+                          <span className="text-red-600 font-medium">{statusStats.failed}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
             {selectedFolderFilterId && (
@@ -566,10 +777,50 @@ const EnhancedKnowledgeBase = ({ projectId }: EnhancedKnowledgeBaseProps = {}) =
               />
             </div>
             <div className="flex items-center space-x-2">
-              <Button variant="outline" size="sm" className="text-gray-600">
-                <Filter className="h-4 w-4 mr-2" />
-                Edit Filters
-              </Button>
+              {/* Status Filter Dropdown */}
+              <div className="relative status-filter-dropdown">
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="text-gray-600 min-w-[120px] justify-between"
+                  onClick={() => setIsStatusDropdownOpen(!isStatusDropdownOpen)}
+                >
+                  <div className="flex items-center space-x-2">
+                    <div className={`w-2 h-2 rounded-full ${statusOptions.find(opt => opt.value === selectedStatusFilter)?.dotColor || 'bg-gray-400'}`}></div>
+                    <span>{statusOptions.find(opt => opt.value === selectedStatusFilter)?.label || 'All Status'}</span>
+                  </div>
+                  <ChevronDown className="h-4 w-4 ml-2" />
+                </Button>
+                
+                {/* Dropdown Menu */}
+                {isStatusDropdownOpen && (
+                  <div className="absolute top-full left-0 mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
+                    <div className="py-1">
+                      {statusOptions.map((option) => (
+                        <button
+                          key={option.value}
+                          onClick={() => {
+                            setSelectedStatusFilter(option.value)
+                            setIsStatusDropdownOpen(false)
+                          }}
+                          className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-50 flex items-center justify-between ${
+                            selectedStatusFilter === option.value ? 'bg-gray-50' : ''
+                          }`}
+                        >
+                          <div className="flex items-center space-x-2">
+                            <div className={`w-2 h-2 rounded-full ${option.dotColor}`}></div>
+                            <span className={option.color}>{option.label}</span>
+                          </div>
+                          {selectedStatusFilter === option.value && (
+                            <Check className="h-4 w-4 text-blue-600" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+              
               <span className="text-sm text-gray-500">
                 Showing {files.length} {files.length === 1 ? 'item' : 'items'}
               </span>
@@ -787,7 +1038,7 @@ const EnhancedKnowledgeBase = ({ projectId }: EnhancedKnowledgeBaseProps = {}) =
                   onClick={() => {
                     const newPage = pagination.currentPage - 1
                     setPagination(prev => ({ ...prev, currentPage: newPage }))
-                    fetchFiles(selectedFolderFilterId, newPage, searchQuery)
+                    fetchFiles(selectedFolderFilterId, newPage, searchQuery, selectedStatusFilter)
                   }}
                   disabled={!pagination.hasPrevious || isLoadingFiles}
                   variant="outline"
@@ -813,7 +1064,7 @@ const EnhancedKnowledgeBase = ({ projectId }: EnhancedKnowledgeBaseProps = {}) =
                   onClick={() => {
                     const newPage = pagination.currentPage + 1
                     setPagination(prev => ({ ...prev, currentPage: newPage }))
-                    fetchFiles(selectedFolderFilterId, newPage, searchQuery)
+                    fetchFiles(selectedFolderFilterId, newPage, searchQuery, selectedStatusFilter)
                   }}
                   disabled={!pagination.hasNext || isLoadingFiles}
                   variant="outline"
