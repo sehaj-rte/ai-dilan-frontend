@@ -7,6 +7,8 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import DashboardLayout from '@/components/dashboard/DashboardLayout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Switch } from '@/components/ui/switch'
+import { Label } from '@/components/ui/label'
 import {
   Dialog,
   DialogContent,
@@ -30,7 +32,9 @@ import {
   Copy,
   Folder,
   ChevronDown,
-  ChevronRight
+  ChevronRight,
+  MessageSquare,
+  Zap
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -76,7 +80,8 @@ const CreateExpertPage = () => {
     selectedVoice: '',
     avatar: null as File | null,
     avatarBase64: '' as string,
-    selectedFiles: [] as string[]
+    selectedFiles: [] as string[],
+    textOnly: false
   })
   
   const [voices, setVoices] = useState<Voice[]>([])
@@ -315,7 +320,8 @@ const CreateExpertPage = () => {
         first_message: formData.firstMessage.trim() || null,
         voice_id: formData.selectedVoice,
         avatar_base64: formData.avatarBase64 || null,
-        selected_files: formData.selectedFiles
+        selected_files: formData.selectedFiles,
+        text_only: formData.textOnly
       }
       
       console.log('Creating expert with payload:', {
@@ -360,7 +366,8 @@ const CreateExpertPage = () => {
           selectedVoice: '',
           avatar: null,
           avatarBase64: '',
-          selectedFiles: []
+          selectedFiles: [],
+          textOnly: false
         })
         setAvatarPreview(null)
       } else {
@@ -585,6 +592,88 @@ const CreateExpertPage = () => {
                       )}
                     </div>
                   )}
+                </CardContent>
+              </Card>
+
+              {/* Chat Mode Configuration */}
+              <Card className="shadow-sm hover:shadow-md transition-shadow duration-200">
+                <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 border-b border-green-100">
+                  <CardTitle className="flex items-center text-lg">
+                    <MessageSquare className="h-5 w-5 mr-2 text-green-600" />
+                    Chat Mode
+                  </CardTitle>
+                  <CardDescription className="text-green-700">
+                    Configure your agent for text-only conversations
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="p-6">
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between p-4 bg-green-50 rounded-lg border border-green-200">
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <Label htmlFor="text-only-mode" className="text-sm font-medium text-green-800">
+                            Enable Text-Only Mode
+                          </Label>
+                          {formData.textOnly && (
+                            <div className="flex items-center space-x-1 text-xs text-green-600 bg-green-100 px-2 py-1 rounded-full">
+                              <Zap className="h-3 w-3" />
+                              <span>25x Higher Concurrency</span>
+                            </div>
+                          )}
+                        </div>
+                        <p className="text-sm text-green-700">
+                          {formData.textOnly 
+                            ? "Agent will be optimized for text-only conversations with enhanced performance and higher concurrency limits."
+                            : "Agent will support both voice and text conversations (standard concurrency limits)."
+                          }
+                        </p>
+                      </div>
+                      <Switch
+                        id="text-only-mode"
+                        checked={formData.textOnly}
+                        onCheckedChange={(checked) => 
+                          setFormData(prev => ({ ...prev, textOnly: checked }))
+                        }
+                        className="ml-4"
+                      />
+                    </div>
+
+                    {formData.textOnly && (
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <div className="flex items-start space-x-3">
+                          <MessageSquare className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                          <div>
+                            <h4 className="text-sm font-medium text-blue-800 mb-1">
+                              Chat Mode Benefits
+                            </h4>
+                            <ul className="text-sm text-blue-700 space-y-1">
+                              <li>• 25x higher concurrency limits compared to voice conversations</li>
+                              <li>• Faster response times and lower latency</li>
+                              <li>• Ideal for chat interfaces, testing, and high-volume applications</li>
+                              <li>• Separate concurrency pool from voice conversations</li>
+                            </ul>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {!formData.textOnly && (
+                      <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                        <div className="flex items-start space-x-3">
+                          <Mic className="h-5 w-5 text-gray-600 mt-0.5 flex-shrink-0" />
+                          <div>
+                            <h4 className="text-sm font-medium text-gray-800 mb-1">
+                              Voice + Text Mode
+                            </h4>
+                            <p className="text-sm text-gray-700">
+                              Agent supports both voice and text conversations with standard concurrency limits. 
+                              You can still enable text-only mode at runtime using conversation overrides.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </CardContent>
               </Card>
 

@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { Switch } from '@/components/ui/switch'
 import { API_URL } from '@/lib/config'
 import { fetchWithAuth, getAuthHeaders } from '@/lib/api-client'
 import { 
@@ -21,7 +22,9 @@ import {
   CheckCircle,
   AlertCircle,
   Play,
-  Pause
+  Pause,
+  MessageSquare,
+  Zap
 } from 'lucide-react'
 
 interface Expert {
@@ -31,6 +34,7 @@ interface Expert {
   avatar_url: string | null
   elevenlabs_agent_id: string
   is_active: boolean
+  text_only: boolean
   created_at: string
 }
 
@@ -69,7 +73,8 @@ const AgentSettingsPage = () => {
     name: '',
     description: '',
     selectedVoice: '',
-    selectedFiles: [] as string[]
+    selectedFiles: [] as string[],
+    textOnly: false
   })
 
   const [voices, setVoices] = useState<Voice[]>([])
@@ -99,7 +104,8 @@ const AgentSettingsPage = () => {
           name: expertData.name || '',
           description: expertData.description || '',
           selectedVoice: expertData.voice_id || '',
-          selectedFiles: expertData.selected_files || []
+          selectedFiles: expertData.selected_files || [],
+          textOnly: expertData.text_only || false
         })
       } else {
         setError('Failed to load expert data')
@@ -165,7 +171,8 @@ const AgentSettingsPage = () => {
           name: formData.name,
           description: formData.description,
           voice_id: formData.selectedVoice,
-          selected_files: formData.selectedFiles
+          selected_files: formData.selectedFiles,
+          text_only: formData.textOnly
         }),
       })
 
@@ -364,6 +371,86 @@ const AgentSettingsPage = () => {
                     </div>
                   ) : null
                 })()}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Chat Mode Configuration */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <MessageSquare className="h-5 w-5 mr-2" />
+              Chat Mode
+            </CardTitle>
+            <CardDescription>
+              Configure your agent for text-only conversations
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between p-4 bg-green-50 rounded-lg border border-green-200">
+              <div className="flex-1">
+                <div className="flex items-center space-x-2 mb-2">
+                  <Label htmlFor="text-only-mode" className="text-sm font-medium text-green-800">
+                    Enable Text-Only Mode
+                  </Label>
+                  {formData.textOnly && (
+                    <div className="flex items-center space-x-1 text-xs text-green-600 bg-green-100 px-2 py-1 rounded-full">
+                      <Zap className="h-3 w-3" />
+                      <span>25x Higher Concurrency</span>
+                    </div>
+                  )}
+                </div>
+                <p className="text-sm text-green-700">
+                  {formData.textOnly 
+                    ? "Agent is optimized for text-only conversations with enhanced performance and higher concurrency limits."
+                    : "Agent supports both voice and text conversations (standard concurrency limits)."
+                  }
+                </p>
+              </div>
+              <Switch
+                id="text-only-mode"
+                checked={formData.textOnly}
+                onCheckedChange={(checked) => 
+                  setFormData(prev => ({ ...prev, textOnly: checked }))
+                }
+                className="ml-4"
+              />
+            </div>
+
+            {formData.textOnly && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <div className="flex items-start space-x-3">
+                  <MessageSquare className="h-5 w-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <h4 className="text-sm font-medium text-blue-800 mb-1">
+                      Chat Mode Benefits
+                    </h4>
+                    <ul className="text-sm text-blue-700 space-y-1">
+                      <li>• 25x higher concurrency limits compared to voice conversations</li>
+                      <li>• Faster response times and lower latency</li>
+                      <li>• Ideal for chat interfaces, testing, and high-volume applications</li>
+                      <li>• Separate concurrency pool from voice conversations</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {!formData.textOnly && (
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                <div className="flex items-start space-x-3">
+                  <Mic className="h-5 w-5 text-gray-600 mt-0.5 flex-shrink-0" />
+                  <div>
+                    <h4 className="text-sm font-medium text-gray-800 mb-1">
+                      Voice + Text Mode
+                    </h4>
+                    <p className="text-sm text-gray-700">
+                      Agent supports both voice and text conversations with standard concurrency limits. 
+                      You can still enable text-only mode at runtime using conversation overrides.
+                    </p>
+                  </div>
+                </div>
               </div>
             )}
           </CardContent>

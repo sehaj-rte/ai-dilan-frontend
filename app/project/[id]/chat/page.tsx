@@ -6,7 +6,10 @@ import DashboardLayout from '@/components/dashboard/DashboardLayout'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import VoiceControls from '@/components/chat/VoiceControls'
+import ChatModeInterface from '@/components/chat/ChatModeInterface'
 import { ToastContainer, useToast } from '@/components/ui/toast'
+import { Switch } from '@/components/ui/switch'
+import { Label } from '@/components/ui/label'
 import { API_URL } from '@/lib/config'
 import { fetchWithAuth, getAuthHeaders } from '@/lib/api-client'
 import { 
@@ -25,6 +28,7 @@ interface Expert {
   avatar_url: string | null
   elevenlabs_agent_id: string
   is_active: boolean
+  text_only: boolean
   created_at: string
 }
 
@@ -44,6 +48,7 @@ const ChatPage = () => {
   const [expert, setExpert] = useState<Expert | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [isTextOnlyMode, setIsTextOnlyMode] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const { toasts, removeToast, error: showError, success: showSuccess, info: showInfo } = useToast()
 
@@ -82,6 +87,8 @@ const ChatPage = () => {
           avatar_url: data.expert.avatar_url ? convertS3UrlToProxy(data.expert.avatar_url) : null
         }
         setExpert(expertWithProxyUrl)
+        // Set default text-only mode based on agent configuration
+        setIsTextOnlyMode(data.expert.text_only || false)
       } else {
         console.error('Failed to fetch expert:', data.error)
         router.push('/dashboard')
@@ -238,14 +245,40 @@ const ChatPage = () => {
                   {expert.is_active ? 'Online' : 'Offline'}
                 </p>
 
-                {/* Voice Controls */}
+                {/* Chat Mode Toggle */}
                 <div className="mb-6">
-                  <VoiceControls
-                    expertId={expertId}
-                    expertName={expert.name}
-                    onVoiceMessage={handleVoiceMessage}
-                    onError={handleVoiceError}
-                  />
+                  <div className="flex items-center justify-center space-x-3 mb-4">
+                    <Label htmlFor="chat-mode-toggle" className="text-sm font-medium">
+                      Voice
+                    </Label>
+                    <Switch
+                      id="chat-mode-toggle"
+                      checked={isTextOnlyMode}
+                      onCheckedChange={setIsTextOnlyMode}
+                    />
+                    <Label htmlFor="chat-mode-toggle" className="text-sm font-medium">
+                      Text Chat
+                    </Label>
+                  </div>
+                  
+                  {isTextOnlyMode ? (
+                    <div className="text-center">
+                      <div className="inline-flex items-center space-x-1 text-xs text-green-600 bg-green-100 px-2 py-1 rounded-full mb-2">
+                        <span>⚡</span>
+                        <span>25x Higher Concurrency</span>
+                      </div>
+                      <p className="text-xs text-gray-500">
+                        Text-only mode active
+                      </p>
+                    </div>
+                  ) : (
+                    <VoiceControls
+                      expertId={expertId}
+                      expertName={expert.name}
+                      onVoiceMessage={handleVoiceMessage}
+                      onError={handleVoiceError}
+                    />
+                  )}
                 </div>
               </div>
 
@@ -262,97 +295,107 @@ const ChatPage = () => {
 
         {/* Chat Section */}
         <div className="lg:w-2/3 xl:w-3/4 flex flex-col">
-          <Card className="flex-1 flex flex-col">
-            {/* Chat Header */}
-            <div className="border-b border-gray-200 p-4">
-              <div className="flex items-center space-x-3">
-                {expert.avatar_url ? (
-                  <img
-                    src={expert.avatar_url}
-                    alt={expert.name}
-                    className="w-10 h-10 rounded-full object-cover"
-                  />
-                ) : (
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center">
-                    <User className="h-5 w-5 text-blue-600" />
-                  </div>
-                )}
-                <div>
-                  <h3 className="font-semibold text-gray-900">{expert.name}</h3>
-                  <p className="text-sm text-gray-500">
-                    {expert.is_active ? 'Active now' : 'Offline'}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            {/* Messages Area */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0 max-h-[calc(100vh-300px)]">
-              {messages.length === 0 ? (
-                <div className="flex items-center justify-center h-full text-center">
-                  <div>
-                    <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center mx-auto mb-4">
-                      <User className="h-8 w-8 text-blue-600" />
+          {isTextOnlyMode ? (
+            <ChatModeInterface
+              expertId={expertId}
+              expertName={expert.name}
+              textOnly={true}
+              onError={handleVoiceError}
+              className="h-full"
+            />
+          ) : (
+            <Card className="flex-1 flex flex-col">
+              {/* Chat Header */}
+              <div className="border-b border-gray-200 p-4">
+                <div className="flex items-center space-x-3">
+                  {expert.avatar_url ? (
+                    <img
+                      src={expert.avatar_url}
+                      alt={expert.name}
+                      className="w-10 h-10 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center">
+                      <User className="h-5 w-5 text-blue-600" />
                     </div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                      Start a conversation with {expert.name}
-                    </h3>
-                    <p className="text-gray-500 text-sm">
-                      Ask a question to get started!
+                  )}
+                  <div>
+                    <h3 className="font-semibold text-gray-900">{expert.name}</h3>
+                    <p className="text-sm text-gray-500">
+                      {expert.is_active ? 'Active now' : 'Offline'}
                     </p>
                   </div>
                 </div>
-              ) : (
-                <>
-                  {messages.map((message) => (
-                    <div
-                      key={message.id}
-                      className={`flex ${message.isUser ? 'justify-end' : 'justify-start'}`}
-                    >
-                      <div
-                        className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
-                        message.isUser
-                          ? 'bg-blue-600 text-white'
-                          : message.type === 'transcription'
-                          ? 'bg-yellow-50 text-yellow-800 border border-yellow-200'
-                          : 'bg-gray-100 text-gray-900'
-                      }`}
-                      >
-                        <p className="text-sm">{message.content}</p>
-                        {message.type && message.type !== 'text' && (
-                          <span className={`inline-block px-2 py-1 rounded text-xs mt-1 mr-2 ${
-                            message.type === 'voice' ? 'bg-green-100 text-green-800' :
-                            message.type === 'transcription' ? 'bg-yellow-100 text-yellow-800' :
-                            'bg-gray-100 text-gray-600'
-                          }`}>
-                            {message.type === 'voice' ? '🎤 Voice' : 
-                             message.type === 'transcription' ? '📝 Transcript' : message.type}
-                          </span>
-                        )}
-                        <p className={`text-xs mt-1 ${
-                          message.isUser ? 'text-blue-100' : 
-                          message.type === 'transcription' ? 'text-yellow-600' : 'text-gray-500'
-                        }`}>
-                          {message.timestamp.toLocaleTimeString([], { 
-                            hour: '2-digit', 
-                            minute: '2-digit' 
-                          })}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                  <div ref={messagesEndRef} />
-                </>
-              )}
-            </div>
+              </div>
 
-            {/* Voice Mode Info */}
-            <div className="border-t border-gray-200 p-4 text-center">
-              <p className="text-sm text-gray-600">
-                Voice chat mode active. Use the voice controls in the left panel to start a conversation.
-              </p>
-            </div>
-          </Card>
+              {/* Messages Area */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0 max-h-[calc(100vh-300px)]">
+                {messages.length === 0 ? (
+                  <div className="flex items-center justify-center h-full text-center">
+                    <div>
+                      <div className="w-16 h-16 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center mx-auto mb-4">
+                        <User className="h-8 w-8 text-blue-600" />
+                      </div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                        Start a conversation with {expert.name}
+                      </h3>
+                      <p className="text-gray-500 text-sm">
+                        Use voice controls to get started!
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    {messages.map((message) => (
+                      <div
+                        key={message.id}
+                        className={`flex ${message.isUser ? 'justify-end' : 'justify-start'}`}
+                      >
+                        <div
+                          className={`max-w-xs lg:max-w-md px-4 py-2 rounded-lg ${
+                          message.isUser
+                            ? 'bg-blue-600 text-white'
+                            : message.type === 'transcription'
+                            ? 'bg-yellow-50 text-yellow-800 border border-yellow-200'
+                            : 'bg-gray-100 text-gray-900'
+                        }`}
+                        >
+                          <p className="text-sm">{message.content}</p>
+                          {message.type && message.type !== 'text' && (
+                            <span className={`inline-block px-2 py-1 rounded text-xs mt-1 mr-2 ${
+                              message.type === 'voice' ? 'bg-green-100 text-green-800' :
+                              message.type === 'transcription' ? 'bg-yellow-100 text-yellow-800' :
+                              'bg-gray-100 text-gray-600'
+                            }`}>
+                              {message.type === 'voice' ? '🎤 Voice' : 
+                               message.type === 'transcription' ? '📝 Transcript' : message.type}
+                            </span>
+                          )}
+                          <p className={`text-xs mt-1 ${
+                            message.isUser ? 'text-blue-100' : 
+                            message.type === 'transcription' ? 'text-yellow-600' : 'text-gray-500'
+                          }`}>
+                            {message.timestamp.toLocaleTimeString([], { 
+                              hour: '2-digit', 
+                              minute: '2-digit' 
+                            })}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                    <div ref={messagesEndRef} />
+                  </>
+                )}
+              </div>
+
+              {/* Voice Mode Info */}
+              <div className="border-t border-gray-200 p-4 text-center">
+                <p className="text-sm text-gray-600">
+                  Voice chat mode active. Use the voice controls in the left panel to start a conversation.
+                </p>
+              </div>
+            </Card>
+          )}
         </div>
       </div>
     </DashboardLayout>
