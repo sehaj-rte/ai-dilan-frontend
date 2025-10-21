@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { API_URL } from '@/lib/config'
 import { 
   MessageSquare, 
   Send, 
@@ -74,7 +75,7 @@ const ChatModeInterface: React.FC<ChatModeInterfaceProps> = ({
       
       const overrides = textOnly ? {} : { conversation: { text_only: true } }
 
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}${endpoint}`, {
+      const response = await fetch(`${API_URL}${endpoint}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
