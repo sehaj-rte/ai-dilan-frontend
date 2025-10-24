@@ -1,11 +1,13 @@
 'use client'
 
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { useAppSelector, useAppDispatch } from '@/store/hooks'
 import { logout } from '@/store/slices/authSlice'
+import { API_URL } from '@/lib/config'
+import { fetchWithAuth, getAuthHeaders } from '@/lib/api-client'
 import {
   Home,
   MessageSquare,
@@ -43,6 +45,38 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, projectId }) => {
   const router = useRouter()
   const dispatch = useAppDispatch()
   const { user } = useAppSelector((state) => state.auth)
+  const [projectName, setProjectName] = useState<string>('Dilan AI')
+  
+  // Debug: Log user data
+  useEffect(() => {
+    console.log('👤 User data in Sidebar:', user)
+  }, [user])
+
+  // Fetch project name when projectId is available
+  useEffect(() => {
+    const fetchProjectName = async () => {
+      if (!projectId) {
+        setProjectName('Dilan AI')
+        return
+      }
+      
+      try {
+        const response = await fetchWithAuth(`${API_URL}/experts/${projectId}`, {
+          headers: getAuthHeaders(),
+        })
+        const data = await response.json()
+        
+        if (data.success && data.expert) {
+          setProjectName(data.expert.name || 'Project')
+        }
+      } catch (error) {
+        console.error('Error fetching project name:', error)
+        setProjectName('Project')
+      }
+    }
+
+    fetchProjectName()
+  }, [projectId])
 
   // Create dynamic sidebar items based on context
   const dynamicSidebarItems = React.useMemo(() => {
@@ -83,9 +117,9 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, projectId }) => {
       <div className="flex h-16 items-center justify-between px-6 border-b border-gray-200">
         <Link href="/projects" className="flex items-center space-x-3" onClick={handleLinkClick}>
           <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
-            <span className="text-white font-bold text-sm">D</span>
+            <span className="text-white font-bold text-sm">{projectName.charAt(0).toUpperCase()}</span>
           </div>
-          <span className="text-xl font-bold text-gray-900">Dilan AI</span>
+          <span className="text-xl font-bold text-blue-600">{projectName}</span>
         </Link>
         {/* Close button for mobile */}
         {onClose && (
@@ -101,23 +135,25 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, projectId }) => {
       </div>
 
       {/* User Info */}
-      <div className="px-6 py-4 border-b border-gray-200">
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
-            <span className="text-white font-semibold text-sm">
-              {user?.username?.charAt(0).toUpperCase() || 'U'}
-            </span>
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-gray-900 truncate">
-              {user?.full_name || user?.username || 'User'}
-            </p>
-            <p className="text-xs text-gray-500 truncate">
-              {user?.email}
-            </p>
+      {user && (
+        <div className="px-6 py-4 border-b border-gray-200">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
+              <span className="text-white font-semibold text-sm">
+                {user.username?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase() || 'U'}
+              </span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-gray-900 truncate">
+                {user.full_name || user.username || user.email?.split('@')[0] || 'User'}
+              </p>
+              <p className="text-xs text-gray-500 truncate">
+                {user.email}
+              </p>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Navigation */}
       <nav className="flex-1 px-4 py-4 space-y-1">

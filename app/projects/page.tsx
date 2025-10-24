@@ -20,7 +20,11 @@ import {
   Search,
   Calendar,
   Folder,
-  LogOut
+  LogOut,
+  FileText,
+  Database,
+  Zap,
+  BarChart3
 } from 'lucide-react'
 
 interface Project {
@@ -33,6 +37,19 @@ interface Project {
   created_at: string
 }
 
+interface KnowledgeBaseStats {
+  total_vectors: number
+  total_word_count: number
+  total_word_count_formatted: string
+  memory_usage_mb: number
+  memory_usage_formatted: string
+  average_chunk_size: number
+  files_processed: number
+  index_utilization_percent: number
+  namespace: string
+  data_source: string
+}
+
 const ProjectsPage = () => {
   const { user } = useAppSelector((state) => state.auth)
   const dispatch = useAppDispatch()
@@ -42,10 +59,47 @@ const ProjectsPage = () => {
   const [deletingProject, setDeletingProject] = useState<string | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
+  const [knowledgeBaseStats, setKnowledgeBaseStats] = useState<KnowledgeBaseStats | null>(null)
+  const [loadingKBStats, setLoadingKBStats] = useState(false)
 
   useEffect(() => {
     fetchProjects()
+    fetchKnowledgeBaseStats()
   }, [])
+
+  const fetchKnowledgeBaseStats = async () => {
+    try {
+      setLoadingKBStats(true)
+      
+      const response = await fetchWithAuth(`${API_URL}/knowledge-base/knowledge-base-stats`, {
+        headers: getAuthHeaders(),
+      })
+      const data = await response.json()
+      
+      if (data.success) {
+        setKnowledgeBaseStats({
+          total_vectors: data.stats.total_vectors || 0,
+          total_word_count: data.stats.total_word_count || 0,
+          total_word_count_formatted: data.stats.total_word_count_formatted || '0',
+          memory_usage_mb: data.stats.memory_usage_mb || 0,
+          memory_usage_formatted: data.stats.memory_usage_formatted || '0 B',
+          average_chunk_size: data.stats.average_chunk_size || 0,
+          files_processed: data.stats.files_processed || 0,
+          index_utilization_percent: data.stats.index_utilization_percent || 0,
+          namespace: data.stats.namespace || '',
+          data_source: data.stats.data_source || 'pinecone_only'
+        })
+      } else {
+        console.error('Failed to fetch KB stats:', data.error)
+        setKnowledgeBaseStats(null)
+      }
+    } catch (error) {
+      console.error('Error fetching KB stats:', error)
+      setKnowledgeBaseStats(null)
+    } finally {
+      setLoadingKBStats(false)
+    }
+  }
 
   const handleLogout = () => {
     dispatch(logout())
@@ -165,6 +219,8 @@ const ProjectsPage = () => {
             </div>
           )}
         </div>
+
+    
 
         {/* Create New Project Button */}
         <div className="text-center mb-12">

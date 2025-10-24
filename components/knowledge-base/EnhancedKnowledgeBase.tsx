@@ -108,6 +108,19 @@ interface StatusStats {
   total: number
 }
 
+interface KnowledgeBaseStats {
+  total_vectors: number
+  total_word_count: number
+  total_word_count_formatted: string
+  memory_usage_mb: number
+  memory_usage_formatted: string
+  average_chunk_size: number
+  files_processed: number
+  index_utilization_percent: number
+  namespace: string
+  data_source: string
+}
+
 interface EnhancedKnowledgeBaseProps {
   projectId?: string
 }
@@ -130,6 +143,8 @@ const EnhancedKnowledgeBase = ({ projectId }: EnhancedKnowledgeBaseProps = {}) =
     failed: 0,
     total: 0
   })
+  const [knowledgeBaseStats, setKnowledgeBaseStats] = useState<KnowledgeBaseStats | null>(null)
+  const [isLoadingKBStats, setIsLoadingKBStats] = useState(false)
   const [folders, setFolders] = useState<FolderInfo[]>([])
   const [hasInitializedFolder, setHasInitializedFolder] = useState(false)
   const [isAddContentModalOpen, setIsAddContentModalOpen] = useState(false)
@@ -208,6 +223,8 @@ const EnhancedKnowledgeBase = ({ projectId }: EnhancedKnowledgeBaseProps = {}) =
         setFolderRefreshTrigger(prev => prev + 1)
         // Also refresh status stats after deletion
         fetchStatusStats()
+        // Refresh KB stats after deletion
+        fetchKnowledgeBaseStats()
         showToast('File deleted successfully', 'success')
       } else {
         console.error('Failed to delete file:', result.error)
@@ -226,6 +243,7 @@ const EnhancedKnowledgeBase = ({ projectId }: EnhancedKnowledgeBaseProps = {}) =
   useEffect(() => {
     fetchFiles()
     fetchStatusStats()
+    fetchKnowledgeBaseStats()
     
     // Cleanup timers on unmount
     return () => {
@@ -517,6 +535,8 @@ const EnhancedKnowledgeBase = ({ projectId }: EnhancedKnowledgeBaseProps = {}) =
       setFolderRefreshTrigger(prev => prev + 1)
       // Also refresh status stats after successful uploads
       fetchStatusStats()
+      // Refresh KB stats after successful uploads
+      fetchKnowledgeBaseStats()
     }
     
     // Log summary
@@ -614,6 +634,53 @@ const EnhancedKnowledgeBase = ({ projectId }: EnhancedKnowledgeBaseProps = {}) =
       }
     } catch (error) {
       console.error('Error fetching status stats:', error)
+    }
+  }
+
+  // Fetch comprehensive knowledge base statistics from Pinecone
+  const fetchKnowledgeBaseStats = async () => {
+    try {
+      setIsLoadingKBStats(true)
+      
+      // Build query parameters
+      const params = new URLSearchParams()
+      
+      // Add agent_id for agent isolation
+      if (projectId) {
+        params.append('agent_id', projectId)
+      }
+      
+      console.log('📊 Fetching KB stats with params:', params.toString())
+      
+      const response = await fetchWithAuth(`${API_URL}/knowledge-base/knowledge-base-stats?${params.toString()}`, {
+        headers: getAuthHeaders(),
+      })
+      const data = await response.json()
+      
+      console.log('📈 KB stats API response:', data)
+      
+      if (data.success) {
+        setKnowledgeBaseStats({
+          total_vectors: data.stats.total_vectors || 0,
+          total_word_count: data.stats.total_word_count || 0,
+          total_word_count_formatted: data.stats.total_word_count_formatted || '0',
+          memory_usage_mb: data.stats.memory_usage_mb || 0,
+          memory_usage_formatted: data.stats.memory_usage_formatted || '0 B',
+          average_chunk_size: data.stats.average_chunk_size || 0,
+          files_processed: data.stats.files_processed || 0,
+          index_utilization_percent: data.stats.index_utilization_percent || 0,
+          namespace: data.stats.namespace || '',
+          data_source: data.stats.data_source || 'pinecone_only'
+        })
+      } else {
+        console.error('Failed to fetch KB stats:', data.error)
+        setKnowledgeBaseStats(null)
+      }
+    } catch (error) {
+      console.error('Error fetching KB stats:', error)
+      setKnowledgeBaseStats(null)
+    } finally {
+      setIsLoadingKBStats(false)
     }
   }
 
@@ -915,8 +982,11 @@ const EnhancedKnowledgeBase = ({ projectId }: EnhancedKnowledgeBaseProps = {}) =
                 <div className="col-span-1 flex items-center">
                   <input type="checkbox" className="rounded border-gray-300" />
                 </div>
-                <div className="col-span-5 text-sm font-medium text-gray-700 uppercase tracking-wide">
+                <div className="col-span-4 text-sm font-medium text-gray-700 uppercase tracking-wide">
                   CONTENT
+                </div>
+                <div className="col-span-1 text-sm font-medium text-gray-700 uppercase tracking-wide">
+                  TYPE
                 </div>
                 <div className="col-span-2 text-sm font-medium text-gray-700 uppercase tracking-wide">
                   UPLOADED
@@ -996,7 +1066,7 @@ const EnhancedKnowledgeBase = ({ projectId }: EnhancedKnowledgeBaseProps = {}) =
                     </div>
 
                     {/* File Info */}
-                    <div className="col-span-5 flex items-center space-x-3 min-w-0">
+                    <div className="col-span-4 flex items-center space-x-3 min-w-0">
                       <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
                         <FileIcon className="h-4 w-4 text-gray-600" />
                       </div>
@@ -1005,15 +1075,24 @@ const EnhancedKnowledgeBase = ({ projectId }: EnhancedKnowledgeBaseProps = {}) =
                           {file.name || file.original_name}
                         </h4>
                         <div className="flex items-center space-x-2 text-xs text-gray-500 mt-1">
-                          <span className="capitalize">{file.type.split('/')[0] || 'Document'}</span>
                           {file.word_count && (
+                            <span>{file.word_count.toLocaleString()} words</span>
+                          )}
+                          {file.page_count && (
                             <>
                               <span>•</span>
-                              <span>{file.word_count.toLocaleString()} words</span>
+                              <span>{file.page_count} pages</span>
                             </>
                           )}
                         </div>
                       </div>
+                    </div>
+
+                    {/* Document Type Column */}
+                    <div className="col-span-1 flex items-center">
+                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-blue-100 text-blue-800 uppercase">
+                        {file.document_type || file.type.split('/')[1] || 'doc'}
+                      </span>
                     </div>
 
                     {/* Upload Date */}
