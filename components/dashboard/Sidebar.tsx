@@ -45,7 +45,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, projectId }) => {
   const router = useRouter()
   const dispatch = useAppDispatch()
   const { user } = useAppSelector((state) => state.auth)
-  const [projectName, setProjectName] = useState<string>('Dilan AI')
+  const [projectName, setProjectName] = useState<string>('')
   
   // Debug: Log user data
   useEffect(() => {
@@ -56,7 +56,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, projectId }) => {
   useEffect(() => {
     const fetchProjectName = async () => {
       if (!projectId) {
-        setProjectName('Dilan AI')
+        setProjectName('')
         return
       }
       
