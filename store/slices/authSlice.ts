@@ -7,6 +7,8 @@ interface User {
   email: string
   username: string
   full_name?: string
+  bio?: string
+  avatar_url?: string
   is_active: boolean
 }
 
@@ -132,6 +134,43 @@ export const verifyToken = createAsyncThunk(
   }
 )
 
+export const fetchCurrentUser = createAsyncThunk(
+  'auth/fetchCurrentUser',
+  async (_, { rejectWithValue }) => {
+    try {
+      const token = localStorage.getItem('dilan_ai_token')
+      
+      if (!token) {
+        return rejectWithValue('No token found')
+      }
+
+      const response = await fetch(`${API_URL}/auth/profile`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        return rejectWithValue(data.detail || 'Failed to fetch user profile')
+      }
+
+      // Update localStorage with fresh user data
+      if (data.success && data.user) {
+        localStorage.setItem('dilan_ai_user', JSON.stringify(data.user))
+        return data.user as User
+      }
+
+      return rejectWithValue('Invalid response format')
+    } catch (error) {
+      return rejectWithValue('Network error. Please try again.')
+    }
+  }
+)
+
 // Auth slice
 const authSlice = createSlice({
   name: 'auth',
@@ -218,6 +257,26 @@ const authSlice = createSlice({
         // Clear invalid token from storage
         localStorage.removeItem('dilan_ai_token')
         localStorage.removeItem('dilan_ai_user')
+      })
+
+    // Fetch current user
+    builder
+      .addCase(fetchCurrentUser.pending, (state) => {
+        state.isLoading = true
+      })
+      .addCase(fetchCurrentUser.fulfilled, (state, action) => {
+        state.isLoading = false
+        state.user = action.payload
+        state.isAuthenticated = true
+        state.error = null
+      })
+      .addCase(fetchCurrentUser.rejected, (state, action) => {
+        state.isLoading = false
+        // Don't clear user data on fetch failure - keep cached data
+        // Only log the error
+        console.warn('Failed to fetch current user:', action.payload)
+        // If there's a token but fetch failed, user might be offline
+        // Keep them logged in with cached data
       })
   },
 })

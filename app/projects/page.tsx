@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { useAppSelector, useAppDispatch } from '@/store/hooks'
-import { logout } from '@/store/slices/authSlice'
+import { logout, fetchCurrentUser } from '@/store/slices/authSlice'
 import { API_URL } from '@/lib/config'
 import { fetchWithAuth, getAuthHeaders } from '@/lib/api-client'
 import { 
@@ -63,10 +63,13 @@ const ProjectsPage = () => {
   const [loadingKBStats, setLoadingKBStats] = useState(false)
 
   useEffect(() => {
+    // Fetch fresh user data on page load
+    dispatch(fetchCurrentUser())
     fetchProjects()
     fetchKnowledgeBaseStats()
-  }, [])
-
+  }, [dispatch])
+  
+  console.log('user ::::',user)
   const fetchKnowledgeBaseStats = async () => {
     try {
       setLoadingKBStats(true)
@@ -196,6 +199,41 @@ const ProjectsPage = () => {
 
         {/* Header */}
         <div className="text-center mb-12">
+          {/* User Avatar */}
+          <div className="mb-6 flex justify-center">
+            {user?.avatar_url ? (
+              <div className="relative w-24 h-24">
+                <img
+                  
+                  src={user.avatar_url}
+                  alt={user.full_name || user.username || 'User'}
+                  className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-lg"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none'
+                    const fallback = e.currentTarget.parentElement?.querySelector('.avatar-fallback') as HTMLElement
+                    if (fallback) {
+                      fallback.style.display = 'flex'
+                    }
+                  }}
+                />
+                <div 
+                  className="avatar-fallback absolute inset-0 w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center border-4 border-white shadow-lg"
+                  style={{ display: 'none' }}
+                >
+                  <span className="text-white font-bold text-2xl">
+                    {user.username?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase() || 'U'}
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center border-4 border-white shadow-lg">
+                <span className="text-white font-bold text-2xl">
+                  {user?.username?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase() || 'U'}
+                </span>
+              </div>
+            )}
+          </div>
+          
           <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
             Welcome back, {user?.full_name || user?.username}! 👋
           </h1>

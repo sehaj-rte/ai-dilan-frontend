@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { useAppSelector, useAppDispatch } from '@/store/hooks'
 import { API_URL } from '@/lib/config'
-import { fetchWithAuth, getAuthHeaders } from '@/lib/api-client'
+import { fetchWithAuth, getAuthHeaders, getAuthHeadersForFormData } from '@/lib/api-client'
 import { 
   User, 
   Camera, 
@@ -135,10 +135,7 @@ const AvatarSettingsModal: React.FC<AvatarSettingsModalProps> = ({ isOpen, onClo
 
       const response = await fetchWithAuth(`${API_URL}/auth/upload-avatar`, {
         method: 'POST',
-        headers: {
-          ...getAuthHeaders(),
-          // Don't set Content-Type for FormData, let the browser set it
-        },
+        headers: getAuthHeadersForFormData(), // Use FormData-specific headers (no Content-Type)
         body: formData,
       })
 
