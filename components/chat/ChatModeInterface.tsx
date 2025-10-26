@@ -73,7 +73,10 @@ const ChatModeInterface: React.FC<ChatModeInterfaceProps> = ({
         ? `/conversation/chat-session/${expertId}`
         : `/conversation/session/${expertId}`
       
-      const overrides = textOnly ? {} : { conversation: { text_only: true } }
+      // Always send text_only override to ensure text-only mode
+      const overrides = { conversation: { text_only: true } }
+
+      console.log(`✅ Creating ${textOnly ? 'text-only' : 'conversation'} session with overrides:`, overrides)
 
       const response = await fetch(`${API_URL}${endpoint}`, {
         method: 'POST',
@@ -116,6 +119,14 @@ const ChatModeInterface: React.FC<ChatModeInterfaceProps> = ({
       websocket.onmessage = (event) => {
         try {
           const data = JSON.parse(event.data)
+          
+          // CRITICAL: Filter out audio events in text-only mode
+          if (data.type === 'audio') {
+            // Silently ignore audio events - they shouldn't be processed in text-only mode
+            // This prevents unnecessary audio transcription costs
+            return;
+          }
+          
           console.log('Received WebSocket message:', data)
           
           // Handle different message types from ElevenLabs
