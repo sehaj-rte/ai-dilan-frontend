@@ -13,25 +13,32 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const router = useRouter()
   const dispatch = useAppDispatch()
   const { isAuthenticated, isLoading, token } = useAppSelector((state) => state.auth)
+  const [initialCheckDone, setInitialCheckDone] = React.useState(false)
 
   useEffect(() => {
     // Load user from storage first (for immediate UI)
     dispatch(loadUserFromStorage())
+    setInitialCheckDone(true)
     
     // Then fetch fresh user data from API
-    if (token || localStorage.getItem('dilan_ai_token')) {
+    const storedToken = localStorage.getItem('dilan_ai_token')
+    if (token || storedToken) {
       dispatch(fetchCurrentUser())
     }
-  }, [dispatch, token])
+  }, [dispatch])
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      router.push('/auth/login')
+    // Only redirect after initial check is done
+    if (initialCheckDone && !isLoading && !isAuthenticated) {
+      const storedToken = localStorage.getItem('dilan_ai_token')
+      if (!storedToken) {
+        router.push('/auth/login')
+      }
     }
-  }, [isAuthenticated, isLoading, router])
+  }, [isAuthenticated, isLoading, router, initialCheckDone])
 
-  // Show loading spinner while checking authentication
-  if (isLoading) {
+  // Show loading spinner only on initial load, not after storage check
+  if (!initialCheckDone || (isLoading && !isAuthenticated)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="text-center">
@@ -42,8 +49,8 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     )
   }
 
-  // Don't render children if not authenticated
-  if (!isAuthenticated) {
+  // Don't render children if not authenticated and no token in storage
+  if (!isAuthenticated && !localStorage.getItem('dilan_ai_token')) {
     return null
   }
 

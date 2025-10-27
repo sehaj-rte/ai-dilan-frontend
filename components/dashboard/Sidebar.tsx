@@ -93,6 +93,11 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, projectId }) => {
           icon: MessageSquare
         },
         {
+          title: 'Voice Studio',
+          href: `/project/${projectId}/voice-studio`,
+          icon: Mic
+        },
+        {
           title: 'All Agents',
           href: '/projects',
           icon: Home
