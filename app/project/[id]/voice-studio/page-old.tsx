@@ -6,8 +6,8 @@ import DashboardLayout from '@/components/dashboard/DashboardLayout'
 import VoiceCloneLibrary from '@/components/voice-studio/VoiceCloneLibrary'
 import VoiceCloneModal from '@/components/voice-studio/VoiceCloneModal'
 import { API_URL } from '@/lib/config'
-import { fetchWithAuth, getAuthHeaders } from '@/lib/api-client'
-import { Mic2, Plus } from 'lucide-react'
+import { fetchWithAuth, getAuthHeaders, getAuthHeadersForFormData } from '@/lib/api-client'
+import { CheckCircle, Loader2, Mic2, Plus, Upload, XCircle } from 'lucide-react'
 
 interface Expert {
   id: string
