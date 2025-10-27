@@ -54,7 +54,10 @@ export const useChatMode = (options: ChatModeOptions): UseChatModeReturn => {
         ? `/conversation/chat-session/${expertId}`
         : `/conversation/session/${expertId}`
       
-      const overrides = textOnly ? {} : { conversation: { text_only: true } }
+      // Always send text_only override to ensure text-only mode
+      const overrides = { conversation: { text_only: true } }
+
+      console.log(`✅ Creating ${textOnly ? 'text-only' : 'conversation'} session with overrides:`, overrides)
 
       const response = await fetch(`${API_URL}${endpoint}`, {
         method: 'POST',

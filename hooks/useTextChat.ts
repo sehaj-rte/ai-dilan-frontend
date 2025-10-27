@@ -1,5 +1,6 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { Conversation } from '@elevenlabs/client';
+import { API_URL } from '@/lib/config';
 
 interface TextChatMessage {
   id: string;
@@ -80,12 +81,20 @@ export const useTextChat = ({
       setError(null);
       handleStatusChange('connecting');
 
-      // Get signed URL from backend for secure authentication
-      const response = await fetch(`/api/conversation/signed-url/${expertId}`, {
-        method: 'GET',
+      // Get signed URL from backend with text-only overrides
+      // This ensures ElevenLabs API receives text_only parameter in query string
+      const response = await fetch(`${API_URL}/conversation/session/${expertId}`, {
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
+        body: JSON.stringify({
+          overrides: {
+            conversation: {
+              text_only: true, // Critical: Enable text-only mode at API level
+            },
+          },
+        }),
       });
 
       if (!response.ok) {
@@ -99,13 +108,18 @@ export const useTextChat = ({
 
       const signedUrl = data.signed_url;
 
+      // CRITICAL: Apply overrides at BOTH levels:
+      // 1. API level (text_only in signed URL) - Already done above ✅
+      // 2. SDK level (overrides in startSession) - Required to disable audio processing
+      console.log('✅ Using text-only mode (API + SDK overrides applied)');
+
       // Start text-only conversation using ElevenLabs SDK
       const conversation = await Conversation.startSession({
         signedUrl,
         connectionType: 'websocket',
         overrides: {
           conversation: {
-            textOnly: true, // Enable text-only mode
+            textOnly: true, // CRITICAL: Disable audio processing at SDK level
           },
         },
         onConnect: () => {
@@ -118,7 +132,8 @@ export const useTextChat = ({
           conversationRef.current = null;
         },
         onMessage: (message: any) => {
-          console.log('📨 Received message:', message);
+          // Filter out audio events (shouldn't happen in text-only mode)
+          if (message.type === 'audio') return;
           
           // Handle different message types
           if (message.type === 'agent_response') {
