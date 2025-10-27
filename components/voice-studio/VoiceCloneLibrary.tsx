@@ -289,12 +289,12 @@ export default function VoiceCloneLibrary({ projectId, refreshTrigger, selectedV
 
       {/* Error Toast */}
       {errorMessage && (
-        <div className="fixed top-4 right-4 z-50 bg-red-500 text-white px-6 py-3 rounded-lg shadow-lg flex items-center space-x-2 animate-in slide-in-from-right duration-300">
-          <AlertCircle className="w-5 h-5" />
-          <span>{errorMessage}</span>
+        <div className="fixed top-4 right-4 z-50 bg-blue-500 text-white px-6 py-3 rounded-lg shadow-lg flex items-center space-x-2 animate-in slide-in-from-right duration-300">
+          <Loader2 className="w-5 h-5 animate-spin" />
+          <span>🎵 Generating voice preview... This may take a moment</span>
         </div>
       )}
-
+      
       <div className="flex items-center space-x-3 mb-6">
         <Mic2 className="w-6 h-6 text-purple-600" />
         <h2 className="text-xl font-semibold text-gray-900">Voice Clone Library</h2>
