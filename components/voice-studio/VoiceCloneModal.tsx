@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useRef, useEffect } from 'react'
-import { X, Upload, Loader2, Mic2, Globe, Users, FileAudio, AlertCircle } from 'lucide-react'
+import { X, Upload, Loader2, Mic2, Globe, Users, FileAudio, AlertCircle, Square, Play, Pause } from 'lucide-react'
 import { API_URL } from '@/lib/config'
 import { getAuthHeadersForFormData } from '@/lib/api-client'
 
@@ -34,6 +34,13 @@ export default function VoiceCloneModal({ isOpen, onClose, projectId, onSuccess 
   const [dragActive, setDragActive] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  
+  // Recording states
+  const [isRecording, setIsRecording] = useState(false)
+  const [recordingTime, setRecordingTime] = useState(0)
+  const [mediaRecorder, setMediaRecorder] = useState<MediaRecorder | null>(null)
+  const [recordingNumber, setRecordingNumber] = useState(1)
+  const recordingTimerRef = useRef<NodeJS.Timeout | null>(null)
 
   // Auto-dismiss error message after 5 seconds
   useEffect(() => {
@@ -81,6 +88,73 @@ export default function VoiceCloneModal({ isOpen, onClose, projectId, onSuccess 
     setAudioFiles(prev => prev.filter((_, i) => i !== index))
   }
 
+  // Recording functions
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      const recorder = new MediaRecorder(stream)
+      
+      setMediaRecorder(recorder)
+      setIsRecording(true)
+      setRecordingTime(0)
+      
+      // Start timer
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingTime(prev => prev + 1)
+      }, 1000)
+      
+      const chunks: Blob[] = []
+      
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          chunks.push(event.data)
+        }
+      }
+      
+      recorder.onstop = () => {
+        stream.getTracks().forEach((track: MediaStreamTrack) => track.stop())
+        
+        // Create file from recorded chunks
+        if (chunks.length > 0) {
+          const blob = new Blob(chunks, { type: 'audio/webm' })
+          const file = new File([blob], `recording_${recordingNumber}.webm`, { type: 'audio/webm' })
+          
+          setAudioFiles(prev => [...prev, file])
+          setRecordingNumber(prev => prev + 1)
+        }
+      }
+      
+      recorder.start()
+    } catch (error) {
+      console.error('Error starting recording:', error)
+      setErrorMessage('Failed to start recording. Please check microphone permissions.')
+    }
+  }
+
+  const stopRecording = () => {
+    if (mediaRecorder && isRecording) {
+      mediaRecorder.stop()
+      setIsRecording(false)
+      
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current)
+        recordingTimerRef.current = null
+      }
+    }
+  }
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current)
+      }
+      if (mediaRecorder && isRecording) {
+        mediaRecorder.stop()
+      }
+    }
+  }, [])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
@@ -123,6 +197,11 @@ export default function VoiceCloneModal({ isOpen, onClose, projectId, onSuccess 
         // Reset form
         setFormData({ name: '', language: 'English', accent: 'American', description: '' })
         setAudioFiles([])
+        setRecordingNumber(1)
+        setRecordingTime(0)
+        if (isRecording) {
+          stopRecording()
+        }
         onSuccess()
         onClose()
       } else {
@@ -261,7 +340,51 @@ export default function VoiceCloneModal({ isOpen, onClose, projectId, onSuccess 
           <div className="space-y-4">
             <div className="flex items-center space-x-2 mb-4">
               <FileAudio className="w-5 h-5 text-gray-600" />
-              <h3 className="text-lg font-medium text-gray-900">Upload Audio Files</h3>
+              <h3 className="text-lg font-medium text-gray-900">Audio Files</h3>
+            </div>
+
+            {/* Recording Section */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center space-x-2">
+                  <Mic2 className="w-5 h-5 text-blue-600" />
+                  <h4 className="text-md font-medium text-blue-900">Record Audio</h4>
+                </div>
+                {isRecording && (
+                  <div className="flex items-center space-x-2 text-red-600">
+                    <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                    <span className="text-sm font-medium">
+                      {Math.floor(recordingTime / 60)}:{(recordingTime % 60).toString().padStart(2, '0')}
+                    </span>
+                  </div>
+                )}
+              </div>
+              
+              <div className="flex items-center space-x-3">
+                {!isRecording ? (
+                  <button
+                    type="button"
+                    onClick={startRecording}
+                    className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    <Mic2 className="w-4 h-4" />
+                    <span>Start Recording</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={stopRecording}
+                    className="flex items-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                  >
+                    <Square className="w-4 h-4" />
+                    <span>Stop Recording</span>
+                  </button>
+                )}
+                
+                <p className="text-sm text-blue-700">
+                  Record multiple samples for better voice quality
+                </p>
+              </div>
             </div>
 
             {/* Upload Area */}
@@ -280,7 +403,8 @@ export default function VoiceCloneModal({ isOpen, onClose, projectId, onSuccess 
                 Click to upload or drag and drop
               </p>
               <p className="text-sm text-gray-600 mb-4">
-                MP3, WAV, WebM, OGG, M4A (Multiple files recommended)
+                MP3, WAV, WebM, OGG, M4A (Multiple files recommended)<br/>
+                <span className="text-blue-600">Or use the recording feature above</span>
               </p>
               <button
                 type="button"
@@ -309,8 +433,17 @@ export default function VoiceCloneModal({ isOpen, onClose, projectId, onSuccess 
                   {audioFiles.map((file, index) => (
                     <div key={index} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
                       <div className="flex items-center space-x-2">
-                        <FileAudio className="w-4 h-4 text-purple-600" />
+                        {file.name.startsWith('recording_') ? (
+                          <Mic2 className="w-4 h-4 text-blue-600" />
+                        ) : (
+                          <FileAudio className="w-4 h-4 text-purple-600" />
+                        )}
                         <span className="text-sm text-gray-700 truncate">{file.name}</span>
+                        {file.name.startsWith('recording_') && (
+                          <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">
+                            Recorded
+                          </span>
+                        )}
                         <span className="text-xs text-gray-500">
                           ({(file.size / 1024 / 1024).toFixed(1)} MB)
                         </span>

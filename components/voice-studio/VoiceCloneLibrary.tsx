@@ -35,10 +35,12 @@ export default function VoiceCloneLibrary({ projectId, refreshTrigger, selectedV
   const [playingVoice, setPlayingVoice] = useState<string | null>(null)
   const [audioLoading, setAudioLoading] = useState<string | null>(null)
   const [audioRefs, setAudioRefs] = useState<{ [key: string]: HTMLAudioElement }>({})
-  const [previewText, setPreviewText] = useState('Hello, this is a preview of the voice clone.')
+  const [previewText, setPreviewText] = useState("Hello there! This is a demonstration of my cloned voice. I can speak naturally, clearly, and with emotion. Imagine using this voice for your videos, podcasts, or interactive projects.");
   const [selectingVoice, setSelectingVoice] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [preparingVoices, setPreparingVoices] = useState<Set<string>>(new Set())
+  const [preparingTimers, setPreparingTimers] = useState<{ [key: string]: NodeJS.Timeout }>({})
 
   // Auto-dismiss error message after 5 seconds
   useEffect(() => {
@@ -68,7 +70,37 @@ export default function VoiceCloneLibrary({ projectId, refreshTrigger, selectedV
         const data = await response.json()
         
         if (data.success) {
-          setVoiceClones(data.voice_clones || [])
+          const newVoiceClones = data.voice_clones || []
+          const previousVoiceIds = new Set(voiceClones.map(v => v.voice_id))
+          
+          // Only check for newly created voice clones if this is a refresh after creation
+          // (refreshTrigger > 0 means this is not the initial load)
+          if (refreshTrigger && refreshTrigger > 0 && voiceClones.length > 0) {
+            newVoiceClones.forEach((voiceClone: VoiceClone) => {
+              if (voiceClone.status === 'completed' && !previousVoiceIds.has(voiceClone.voice_id)) {
+                // This is a newly created voice clone, start the preparation timer
+                setPreparingVoices(prev => new Set([...Array.from(prev), voiceClone.voice_id]))
+                
+                // Set timer to remove from preparing state after 60 seconds
+                const timer = setTimeout(() => {
+                  setPreparingVoices(prev => {
+                    const newSet = new Set(prev)
+                    newSet.delete(voiceClone.voice_id)
+                    return newSet
+                  })
+                  setPreparingTimers(prev => {
+                    const newTimers = { ...prev }
+                    delete newTimers[voiceClone.voice_id]
+                    return newTimers
+                  })
+                }, 60000) // 60 seconds
+                
+                setPreparingTimers(prev => ({ ...prev, [voiceClone.voice_id]: timer }))
+              }
+            })
+          }
+          
+          setVoiceClones(newVoiceClones)
         } else {
           throw new Error(data.error || 'Failed to load voice clones')
         }
@@ -85,15 +117,19 @@ export default function VoiceCloneLibrary({ projectId, refreshTrigger, selectedV
     }
   }, [projectId, refreshTrigger])
 
-  // Cleanup audio refs on unmount
+  // Cleanup audio refs and timers on unmount
   useEffect(() => {
     return () => {
       Object.values(audioRefs).forEach(audio => {
         audio.pause()
         URL.revokeObjectURL(audio.src)
       })
+      // Clear all preparation timers
+      Object.values(preparingTimers).forEach(timer => {
+        clearTimeout(timer)
+      })
     }
-  }, [audioRefs])
+  }, [audioRefs, preparingTimers])
 
   const handlePreviewVoice = async (voiceId: string) => {
     try {
@@ -312,6 +348,11 @@ export default function VoiceCloneLibrary({ projectId, refreshTrigger, selectedV
                     <span className={`px-2 py-1 text-xs rounded-full border ${getStatusColor(voiceClone.status)}`}>
                       {getStatusIcon(voiceClone.status)} {voiceClone.status.charAt(0).toUpperCase() + voiceClone.status.slice(1)}
                     </span>
+                    {preparingVoices.has(voiceClone.voice_id) && (
+                      <span className="px-2 py-1 bg-orange-100 text-orange-700 text-xs rounded-full border border-orange-200 animate-pulse">
+                        🔄 Preparing Preview
+                      </span>
+                    )}
                     <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full">
                       {voiceClone.category}
                     </span>
@@ -364,7 +405,16 @@ export default function VoiceCloneLibrary({ projectId, refreshTrigger, selectedV
                   {voiceClone.status === 'completed' && (
                     <>
                       {/* Preview Button */}
-                      {audioLoading === voiceClone.voice_id ? (
+                      {preparingVoices.has(voiceClone.voice_id) ? (
+                        <button
+                          disabled
+                          className="flex items-center px-3 py-2 bg-orange-100 text-orange-700 rounded-lg text-sm cursor-not-allowed"
+                          title="ElevenLabs is preparing the voice preview. Please wait..."
+                        >
+                          <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                          Preparing preview...
+                        </button>
+                      ) : audioLoading === voiceClone.voice_id ? (
                         <button
                           disabled
                           className="flex items-center px-3 py-2 bg-gray-100 text-gray-400 rounded-lg text-sm cursor-not-allowed"
@@ -393,7 +443,16 @@ export default function VoiceCloneLibrary({ projectId, refreshTrigger, selectedV
                       )}
                       
                       {/* Use Voice Button */}
-                      {selectingVoice === voiceClone.voice_id ? (
+                      {preparingVoices.has(voiceClone.voice_id) ? (
+                        <button
+                          disabled
+                          className="flex items-center px-3 py-2 bg-orange-400 text-white rounded-lg text-sm cursor-not-allowed"
+                          title="Voice is being prepared by ElevenLabs. Please wait..."
+                        >
+                          <Loader2 className="w-4 h-4 mr-1 animate-spin" />
+                          Preparing...
+                        </button>
+                      ) : selectingVoice === voiceClone.voice_id ? (
                         <button
                           disabled
                           className="flex items-center px-3 py-2 bg-purple-400 text-white rounded-lg text-sm cursor-not-allowed"
