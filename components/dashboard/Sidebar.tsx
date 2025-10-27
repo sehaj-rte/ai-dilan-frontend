@@ -19,7 +19,8 @@ import {
   LogOut,
   User,
   Plus,
-  BookOpen
+  BookOpen,
+  Mic2
 } from 'lucide-react'
 
 const sidebarItems = [
@@ -86,6 +87,11 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, projectId }) => {
           title: 'Knowledge Base',
           href: `/project/${projectId}/knowledge-base`,
           icon: BookOpen
+        },
+        {
+          title: 'Voice Studio',
+          href: `/project/${projectId}/voice-studio`,
+          icon: Mic2
         },
         {
           title: 'Talk to Knowledge Base',
