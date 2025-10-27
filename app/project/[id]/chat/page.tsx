@@ -51,7 +51,7 @@ const ChatPage = () => {
   const [isTextOnlyMode, setIsTextOnlyMode] = useState(true)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const { toasts, removeToast, error: showError, success: showSuccess, info: showInfo } = useToast()
-
+  console.log('expert ::::',expert)
   useEffect(() => {
     if (expertId) {
       fetchExpert()

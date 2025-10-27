@@ -3,7 +3,7 @@
 import React, { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAppSelector, useAppDispatch } from '@/store/hooks'
-import { loadUserFromStorage } from '@/store/slices/authSlice'
+import { loadUserFromStorage, fetchCurrentUser } from '@/store/slices/authSlice'
 
 interface ProtectedRouteProps {
   children: React.ReactNode
@@ -12,12 +12,17 @@ interface ProtectedRouteProps {
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const router = useRouter()
   const dispatch = useAppDispatch()
-  const { isAuthenticated, isLoading } = useAppSelector((state) => state.auth)
+  const { isAuthenticated, isLoading, token } = useAppSelector((state) => state.auth)
 
   useEffect(() => {
-    // Load user from storage on mount
+    // Load user from storage first (for immediate UI)
     dispatch(loadUserFromStorage())
-  }, [dispatch])
+    
+    // Then fetch fresh user data from API
+    if (token || localStorage.getItem('dilan_ai_token')) {
+      dispatch(fetchCurrentUser())
+    }
+  }, [dispatch, token])
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {

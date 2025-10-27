@@ -4,19 +4,24 @@ import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useAppDispatch, useAppSelector } from '@/store/hooks'
-import { logout, loadUserFromStorage } from '@/store/slices/authSlice'
+import { logout, loadUserFromStorage, fetchCurrentUser } from '@/store/slices/authSlice'
 import { Menu, X } from 'lucide-react'
 
 const Header = () => {
   const router = useRouter()
   const dispatch = useAppDispatch()
-  const { user, isAuthenticated } = useAppSelector((state) => state.auth)
+  const { user, isAuthenticated, token } = useAppSelector((state) => state.auth)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   useEffect(() => {
-    // Load user from localStorage on component mount
+    // Load user from localStorage first (for immediate UI)
     dispatch(loadUserFromStorage())
-  }, [dispatch])
+    
+    // Then fetch fresh user data from API
+    if (token || localStorage.getItem('dilan_ai_token')) {
+      dispatch(fetchCurrentUser())
+    }
+  }, [dispatch, token])
 
   const handleLogout = () => {
     dispatch(logout())
