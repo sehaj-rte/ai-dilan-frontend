@@ -292,6 +292,7 @@ export default function VoiceCloneLibrary({ projectId, refreshTrigger, selectedV
         <div className="fixed top-4 right-4 z-50 bg-blue-500 text-white px-6 py-3 rounded-lg shadow-lg flex items-center space-x-2 animate-in slide-in-from-right duration-300">
           <Loader2 className="w-5 h-5 animate-spin" />
           <span>🎵 Generating voice preview... This may take a moment</span>
+          
         </div>
       )}
       
