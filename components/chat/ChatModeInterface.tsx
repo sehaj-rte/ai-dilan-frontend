@@ -19,11 +19,19 @@ import {
   X
 } from 'lucide-react'
 
+interface Citation {
+  id: number
+  filename: string
+  chunk_index: number
+  relevance: number
+}
+
 interface ChatMessage {
   id: string
   type: 'user' | 'agent'
   text: string
   timestamp: Date
+  citations?: Citation[]
 }
 
 interface ChatModeInterfaceProps {
@@ -33,6 +41,7 @@ interface ChatModeInterfaceProps {
   onError?: (error: string) => void
   onStatusChange?: (status: 'disconnected' | 'connecting' | 'connected') => void
   className?: string
+  dynamicVariables?: Record<string, any>
 }
 
 const ChatModeInterface: React.FC<ChatModeInterfaceProps> = ({
@@ -41,7 +50,8 @@ const ChatModeInterface: React.FC<ChatModeInterfaceProps> = ({
   textOnly = false,
   onError,
   onStatusChange,
-  className = ''
+  className = '',
+  dynamicVariables
 }) => {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [inputText, setInputText] = useState('')
@@ -56,6 +66,23 @@ const ChatModeInterface: React.FC<ChatModeInterfaceProps> = ({
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  const parseCitationsFromText = (text: string): { cleanText: string; citations: Citation[] } => {
+    const citationRegex = /\[CITATIONS_DATA\]([\s\S]*?)\[\/CITATIONS_DATA\]/
+    const match = text.match(citationRegex)
+    
+    if (match) {
+      try {
+        const citations = JSON.parse(match[1]) as Citation[]
+        const cleanText = text.replace(citationRegex, '').trim()
+        return { cleanText, citations }
+      } catch (e) {
+        console.error('Failed to parse citations:', e)
+      }
+    }
+    
+    return { cleanText: text, citations: [] }
   }
 
   useEffect(() => {
@@ -75,12 +102,18 @@ const ChatModeInterface: React.FC<ChatModeInterfaceProps> = ({
       
       const overrides = textOnly ? {} : { conversation: { text_only: true } }
 
+      // Prepare request body with overrides and dynamic variables
+      const requestBody: any = { overrides }
+      if (dynamicVariables) {
+        requestBody.dynamic_variables = dynamicVariables
+      }
+
       const response = await fetch(`${API_URL}${endpoint}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ overrides })
+        body: JSON.stringify(requestBody)
       })
 
       if (!response.ok) {
@@ -122,6 +155,11 @@ const ChatModeInterface: React.FC<ChatModeInterfaceProps> = ({
           if (data.type === 'agent_response' && data.agent_response_event?.agent_response) {
             const responseText = data.agent_response_event.agent_response
             
+            // 🔍 DEBUG: Log the full response to see if citations are included
+            console.log('📝 Full agent response received:', responseText)
+            console.log('📏 Response length:', responseText.length)
+            console.log('📚 Contains citations?', responseText.includes('📚 **Sources:**'))
+            
             // Filter out generic greeting messages for better UX
             const isGenericGreeting = responseText.toLowerCase().includes('knowledge') && 
                                     responseText.toLowerCase().includes('assistant') &&
@@ -129,12 +167,16 @@ const ChatModeInterface: React.FC<ChatModeInterfaceProps> = ({
                                     messages.length === 0
             
             if (!isGenericGreeting) {
+              // Parse citations from response
+              const { cleanText, citations } = parseCitationsFromText(responseText)
+              
               // Handle agent response from agent_response_event structure
               const agentMessage: ChatMessage = {
                 id: `agent-${Date.now()}`,
                 type: 'agent',
-                text: responseText,
-                timestamp: new Date()
+                text: cleanText,
+                timestamp: new Date(),
+                citations: citations.length > 0 ? citations : undefined
               }
               setMessages(prev => [...prev, agentMessage])
             }
@@ -142,6 +184,11 @@ const ChatModeInterface: React.FC<ChatModeInterfaceProps> = ({
           } else if (data.type === 'agent_response' && data.agent_response) {
             const responseText = data.agent_response
             
+            // 🔍 DEBUG: Log the full response to see if citations are included
+            console.log('📝 Full agent response received:', responseText)
+            console.log('📏 Response length:', responseText.length)
+            console.log('📚 Contains citations?', responseText.includes('📚 **Sources:**'))
+            
             // Filter out generic greeting messages for better UX
             const isGenericGreeting = responseText.toLowerCase().includes('knowledge') && 
                                     responseText.toLowerCase().includes('assistant') &&
@@ -149,12 +196,16 @@ const ChatModeInterface: React.FC<ChatModeInterfaceProps> = ({
                                     messages.length === 0
             
             if (!isGenericGreeting) {
+              // Parse citations from response
+              const { cleanText, citations } = parseCitationsFromText(responseText)
+              
               // Handle direct agent response structure
               const agentMessage: ChatMessage = {
                 id: `agent-${Date.now()}`,
                 type: 'agent',
-                text: responseText,
-                timestamp: new Date()
+                text: cleanText,
+                timestamp: new Date(),
+                citations: citations.length > 0 ? citations : undefined
               }
               setMessages(prev => [...prev, agentMessage])
             }
@@ -287,6 +338,11 @@ const ChatModeInterface: React.FC<ChatModeInterfaceProps> = ({
     return timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   }
 
+  // Utility function to create citation data for dynamic variables
+  const createCitationData = (citations: Citation[]) => {
+    return JSON.stringify(citations)
+  }
+
   return (
     <Card className={`flex flex-col h-full max-h-full ${className}`}>
       <CardHeader className="flex-shrink-0 pb-3">
@@ -390,6 +446,35 @@ const ChatModeInterface: React.FC<ChatModeInterfaceProps> = ({
                   )}
                   <div className="flex-1">
                     <p className="text-sm whitespace-pre-wrap">{message.text}</p>
+                    
+                    {/* Citations Display */}
+                    {message.citations && message.citations.length > 0 && (
+                      <div className="mt-3 pt-2 border-t border-gray-200">
+                        <div className="flex items-center space-x-1 mb-2">
+                          <svg className="h-3 w-3 text-gray-500" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M4 4a2 2 0 012-2h8a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 0v12h8V4H6z" clipRule="evenodd" />
+                          </svg>
+                          <span className="text-xs font-medium text-gray-600">Sources</span>
+                        </div>
+                        <div className="space-y-1">
+                          {message.citations.map((citation) => (
+                            <div
+                              key={citation.id}
+                              className="flex items-center justify-between text-xs bg-gray-50 rounded px-2 py-1 hover:bg-gray-100 transition-colors cursor-pointer"
+                            >
+                              <div className="flex items-center space-x-2 flex-1 min-w-0">
+                                <span className="flex-shrink-0 w-4 h-4 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-xs font-medium">
+                                  {citation.id}
+                                </span>
+                                <span className="text-gray-700 truncate">{citation.filename}</span>
+                              </div>
+                              <span className="text-gray-500 ml-2 flex-shrink-0">{citation.relevance}%</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
                     <p className={`text-xs mt-1 ${
                       message.type === 'user' ? 'text-blue-200' : 'text-gray-500'
                     }`}>
