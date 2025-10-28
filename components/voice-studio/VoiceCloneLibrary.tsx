@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react'
 import { API_URL } from '@/lib/config'
 import { fetchWithAuth, getAuthHeaders } from '@/lib/api-client'
-import { Mic2, Calendar, User, Loader2, AlertCircle, Play, Pause, Check, CheckCircle } from 'lucide-react'
+import { Mic2, Calendar, User, Loader2, AlertCircle, Play, Pause, Check, CheckCircle, Trash2, X } from 'lucide-react'
 
 interface VoiceClone {
   id: string
@@ -35,12 +35,14 @@ export default function VoiceCloneLibrary({ projectId, refreshTrigger, selectedV
   const [playingVoice, setPlayingVoice] = useState<string | null>(null)
   const [audioLoading, setAudioLoading] = useState<string | null>(null)
   const [audioRefs, setAudioRefs] = useState<{ [key: string]: HTMLAudioElement }>({})
-  const [previewText, setPreviewText] = useState("Hello there! This is a demonstration of my cloned voice. I can speak naturally, clearly, and with emotion. Imagine using this voice for your videos, podcasts, or interactive projects.");
+  const [previewText, setPreviewText] = useState("Hello! This is a quick voice preview.");
   const [selectingVoice, setSelectingVoice] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [preparingVoices, setPreparingVoices] = useState<Set<string>>(new Set())
   const [preparingTimers, setPreparingTimers] = useState<{ [key: string]: NodeJS.Timeout }>({})
+  const [confirmDelete, setConfirmDelete] = useState<{ voiceId: string, name: string } | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   // Auto-dismiss error message after 5 seconds
   useEffect(() => {
@@ -51,6 +53,45 @@ export default function VoiceCloneLibrary({ projectId, refreshTrigger, selectedV
       return () => clearTimeout(timer)
     }
   }, [errorMessage])
+
+  const refetchVoices = async () => {
+    try {
+      const response = await fetchWithAuth(`${API_URL}/voice-clone/list?expert_id=${projectId}`, {
+        headers: getAuthHeaders(),
+      })
+      if (!response.ok) throw new Error('Failed to fetch voice clones')
+      const data = await response.json()
+      if (data.success) setVoiceClones(data.voice_clones || [])
+    } catch (e) {
+      console.error('Error refetching voices:', e)
+    }
+  }
+
+  const handleDeleteVoice = async () => {
+    if (!confirmDelete) return
+    const { voiceId, name } = confirmDelete
+    try {
+      setDeleting(true)
+      setErrorMessage(null)
+      const response = await fetchWithAuth(`${API_URL}/voice-clone/${voiceId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      })
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}))
+        throw new Error(err?.detail || err?.error || 'Failed to delete voice')
+      }
+      setSuccessMessage(`🗑️ Deleted voice "${name}" successfully`)
+      await refetchVoices()
+    } catch (e: any) {
+      console.error('Error deleting voice:', e)
+      setErrorMessage(e?.message || 'Failed to delete voice')
+    } finally {
+      setConfirmDelete(null)
+      setTimeout(() => setSuccessMessage(null), 3000)
+      setDeleting(false)
+    }
+  }
 
   // Fetch voice clones for this project
   useEffect(() => {
@@ -279,6 +320,30 @@ export default function VoiceCloneLibrary({ projectId, refreshTrigger, selectedV
 
   return (
     <div className="bg-white rounded-lg shadow-sm p-6">
+      {/* Delete Confirmation Modal */}
+      {confirmDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40" onClick={() => { if (!deleting) setConfirmDelete(null) }} />
+          <div className="relative bg-white rounded-lg shadow-xl w-full max-w-md mx-4 p-6">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center space-x-2">
+                <Trash2 className="w-5 h-5 text-red-600" />
+                <h3 className="text-lg font-semibold text-gray-900">Delete Voice</h3>
+              </div>
+              <button onClick={() => !deleting && setConfirmDelete(null)} disabled={deleting} className="text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"><X className="w-5 h-5" /></button>
+            </div>
+            <p className="mt-3 text-sm text-gray-700">
+              Are you sure you want to permanently delete the voice "{confirmDelete.name}"? This will remove it from ElevenLabs and your library. This action cannot be undone.
+            </p>
+            <div className="mt-5 flex items-center justify-end space-x-3">
+              <button onClick={() => setConfirmDelete(null)} disabled={deleting} className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed">Cancel</button>
+              <button onClick={handleDeleteVoice} disabled={deleting} className="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center">
+                {deleting ? (<><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Deleting...</>) : 'Delete'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Success Toast */}
       {successMessage && (
         <div className="fixed top-4 right-4 z-50 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg flex items-center space-x-2 animate-in slide-in-from-right duration-300">
@@ -480,6 +545,16 @@ export default function VoiceCloneLibrary({ projectId, refreshTrigger, selectedV
                           Use Voice
                         </button>
                       )}
+
+                      {/* Delete Voice Button */}
+                      <button
+                        onClick={() => setConfirmDelete({ voiceId: voiceClone.voice_id, name: voiceClone.name })}
+                        className="flex items-center px-3 py-2 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 transition-colors text-sm ml-2"
+                        title="Delete this voice"
+                      >
+                        <Trash2 className="w-4 h-4 mr-1" />
+                        Delete
+                      </button>
                     </>
                   )}
                   
