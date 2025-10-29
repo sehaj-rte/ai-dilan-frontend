@@ -25,11 +25,11 @@ import {
 } from 'lucide-react'
 
 const sidebarItems = [
-  {
-    title: 'All Agents',
-    href: '/projects',
-    icon: Home
-  },
+  // {
+  //   title: 'All Agents',
+  //   href: '/projects',
+  //   icon: Home
+  // },
   {
     title: 'Knowledge Base',
     href: '/dashboard/knowledge-base',
@@ -89,10 +89,16 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, projectId }) => {
           href: `/project/${projectId}/knowledge-base`,
           icon: BookOpen
         },
+        
         {
           title: 'Voice Studio',
           href: `/project/${projectId}/voice-studio`,
           icon: Mic2
+        },
+        {
+          title: 'Test Knowledge Base',
+          href: `/project/${projectId}/chat`,
+          icon: MessageSquare
         },
         {
           title: 'Profile Settings',
@@ -104,16 +110,12 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, projectId }) => {
           href: `/project/${projectId}/publish-manager`,
           icon: Share2
         },
-        {
-          title: 'Talk to Knowledge Base',
-          href: `/project/${projectId}/chat`,
-          icon: MessageSquare
-        },
-        {
-          title: 'All Agents',
-          href: '/projects',
-          icon: Home
-        }
+       
+        // {
+        //   title: 'All Agents',
+        //   href: '/projects',
+        //   icon: Home
+        // }
       ]
     }
     return sidebarItems

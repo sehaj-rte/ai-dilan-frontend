@@ -348,7 +348,7 @@ const ProjectsPage = () => {
           </p>
           
           {/* Search Bar */}
-          {projects.length > 0 && (
+          {/* {projects.length > 0 && (
             <div className="max-w-md mx-auto mb-8">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
@@ -361,20 +361,20 @@ const ProjectsPage = () => {
                 />
               </div>
             </div>
-          )}
+          )} */}
         </div>
 
     
 
         {/* Create New Project Button */}
-        <div className="text-center mb-12">
+        {/* <div className="text-center mb-12">
           <Link href="/projects/create">
             <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition-all duration-200">
               <Plus className="mr-3 h-6 w-6" />
               Create New Avatar
             </Button>
           </Link>
-        </div>
+        </div> */}
 
         {/* Projects Grid */}
         {loadingProjects ? (
@@ -407,7 +407,8 @@ const ProjectsPage = () => {
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className="flex justify-center">
+            <div className="w-full max-w-sm">
             {filteredProjects.map((project) => (
               <Card 
                 key={project.id} 
@@ -487,98 +488,27 @@ const ProjectsPage = () => {
                       </div>
                     )}
                     
-                    {/* Action Buttons */}
-                    <div className="grid grid-cols-2 gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="w-full"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          handleProjectClick(project.id)
-                        }}
-                      >
-                        <Play className="h-3 w-3 mr-1" />
-                        Open
-                      </Button>
-                      
-                      {/* Publish/Unpublish Button */}
-                      <Button 
-                        variant={publications[project.id]?.is_published ? "outline" : "default"}
-                        size="sm"
-                        className={`w-full ${
-                          publications[project.id]?.is_published 
-                            ? 'text-orange-600 hover:text-orange-700 hover:bg-orange-50' 
-                            : 'bg-green-600 hover:bg-green-700 text-white'
-                        }`}
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          if (publications[project.id]?.is_published) {
-                            handleUnpublishProject(project.id)
-                          } else {
-                            handlePublishProject(project.id)
-                          }
-                        }}
-                        disabled={publishingProject === project.id}
-                      >
-                        {publishingProject === project.id ? (
-                          <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-current"></div>
-                        ) : publications[project.id]?.is_published ? (
-                          <>
-                            <Share2 className="h-3 w-3 mr-1" />
-                            Unpublish
-                          </>
-                        ) : (
-                          <>
-                            <Globe className="h-3 w-3 mr-1" />
-                            Publish
-                          </>
-                        )}
-                      </Button>
-                      
-                      {/* Settings Button */}
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        className="w-full"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          router.push(`/dashboard/agents/${project.id}/settings`)
-                        }}
-                      >
-                        <Settings className="h-3 w-3 mr-1" />
-                        Settings
-                      </Button>
-                      
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setShowDeleteConfirm(project.id)
-                        }}
-                        className="text-red-600 hover:text-red-700 hover:bg-red-50 w-full"
-                        disabled={deletingProject === project.id}
-                      >
-                        {deletingProject === project.id ? (
-                          <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-red-600"></div>
-                        ) : (
-                          <>
-                            <Trash2 className="h-3 w-3 mr-1" />
-                            Delete
-                          </>
-                        )}
-                      </Button>
-                    </div>
+                    {/* Enter Button */}
+                    <Button 
+                      className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleProjectClick(project.id)
+                      }}
+                    >
+                      <Play className="h-4 w-4 mr-2" />
+                      Enter
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
             ))}
+            </div>
           </div>
         )}
 
         {/* Quick Stats */}
-        {projects.length > 0 && (
+        {/* {projects.length > 0 && (
           <div className="mt-16 text-center">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-2xl mx-auto">
               <div className="bg-white rounded-lg p-6 shadow-sm border">
@@ -599,7 +529,7 @@ const ProjectsPage = () => {
               </div>
             </div>
           </div>
-        )}
+        )} */}
       </div>
       
       {/* Delete Confirmation Modal */}
