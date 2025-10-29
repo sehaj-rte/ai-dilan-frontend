@@ -24,7 +24,9 @@ import {
   FileText,
   Database,
   Zap,
-  BarChart3
+  BarChart3,
+  Globe,
+  Share2
 } from 'lucide-react'
 
 interface Project {
@@ -35,6 +37,8 @@ interface Project {
   elevenlabs_agent_id: string
   is_active: boolean
   created_at: string
+  is_published?: boolean
+  publication_slug?: string
 }
 
 interface KnowledgeBaseStats {
@@ -61,6 +65,9 @@ const ProjectsPage = () => {
   const [searchTerm, setSearchTerm] = useState('')
   const [knowledgeBaseStats, setKnowledgeBaseStats] = useState<KnowledgeBaseStats | null>(null)
   const [loadingKBStats, setLoadingKBStats] = useState(false)
+  const [publishingProject, setPublishingProject] = useState<string | null>(null)
+  const [publications, setPublications] = useState<{[key: string]: any}>({})
+  const [showPublishModal, setShowPublishModal] = useState<string | null>(null)
 
   useEffect(() => {
     // Fetch fresh user data on page load
@@ -175,6 +182,105 @@ const ProjectsPage = () => {
   const handleProjectClick = (projectId: string) => {
     router.push(`/project/${projectId}`)
   }
+
+  // Fetch publication status for a project
+  const fetchPublicationStatus = async (projectId: string) => {
+    try {
+      const response = await fetchWithAuth(`${API_URL}/publishing/experts/${projectId}/publication`, {
+        headers: getAuthHeaders(),
+      })
+      const data = await response.json()
+      
+      if (data.success && data.publication) {
+        setPublications(prev => ({
+          ...prev,
+          [projectId]: data.publication
+        }))
+        return data.publication
+      }
+      return null
+    } catch (error) {
+      console.error('Error fetching publication status:', error)
+      return null
+    }
+  }
+
+  // Handle publishing a project
+  const handlePublishProject = async (projectId: string) => {
+    try {
+      setPublishingProject(projectId)
+      
+      // First check if publication exists
+      const existingPublication = await fetchPublicationStatus(projectId)
+      
+      if (existingPublication) {
+        // If publication exists, just publish it
+        const response = await fetchWithAuth(`${API_URL}/publishing/experts/${projectId}/publish`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+        })
+        const data = await response.json()
+        
+        if (data.success) {
+          // Update local state
+          setPublications(prev => ({
+            ...prev,
+            [projectId]: { ...prev[projectId], is_published: true }
+          }))
+          alert('Project published successfully!')
+        } else {
+          alert('Failed to publish project: ' + data.error)
+        }
+      } else {
+        // If no publication exists, redirect to publishing setup
+        router.push(`/dashboard/experts/${projectId}/publish`)
+      }
+    } catch (error) {
+      console.error('Error publishing project:', error)
+      alert('Error publishing project. Please try again.')
+    } finally {
+      setPublishingProject(null)
+      setShowPublishModal(null)
+    }
+  }
+
+  // Handle unpublishing a project
+  const handleUnpublishProject = async (projectId: string) => {
+    try {
+      setPublishingProject(projectId)
+      
+      const response = await fetchWithAuth(`${API_URL}/publishing/experts/${projectId}/unpublish`, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+      })
+      const data = await response.json()
+      
+      if (data.success) {
+        // Update local state
+        setPublications(prev => ({
+          ...prev,
+          [projectId]: { ...prev[projectId], is_published: false }
+        }))
+        alert('Project unpublished successfully!')
+      } else {
+        alert('Failed to unpublish project: ' + data.error)
+      }
+    } catch (error) {
+      console.error('Error unpublishing project:', error)
+      alert('Error unpublishing project. Please try again.')
+    } finally {
+      setPublishingProject(null)
+    }
+  }
+
+  // Load publication statuses when projects are loaded
+  useEffect(() => {
+    if (projects.length > 0) {
+      projects.forEach(project => {
+        fetchPublicationStatus(project.id)
+      })
+    }
+  }, [projects])
 
   // Filter projects based on search term
   const filteredProjects = projects.filter(project =>
@@ -367,12 +473,26 @@ const ProjectsPage = () => {
                       {new Date(project.created_at).toLocaleDateString()}
                     </div>
                     
+                    {/* Publication Status */}
+                    {publications[project.id] && (
+                      <div className="flex items-center justify-center mb-3">
+                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                          publications[project.id].is_published 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-yellow-100 text-yellow-800'
+                        }`}>
+                          <Globe className="h-3 w-3 mr-1" />
+                          {publications[project.id].is_published ? 'Published' : 'Draft'}
+                        </span>
+                      </div>
+                    )}
+                    
                     {/* Action Buttons */}
-                    <div className="flex space-x-2">
+                    <div className="grid grid-cols-2 gap-2">
                       <Button 
                         variant="outline" 
                         size="sm" 
-                        className="flex-1"
+                        className="w-full"
                         onClick={(e) => {
                           e.stopPropagation()
                           handleProjectClick(project.id)
@@ -381,6 +501,55 @@ const ProjectsPage = () => {
                         <Play className="h-3 w-3 mr-1" />
                         Open
                       </Button>
+                      
+                      {/* Publish/Unpublish Button */}
+                      <Button 
+                        variant={publications[project.id]?.is_published ? "outline" : "default"}
+                        size="sm"
+                        className={`w-full ${
+                          publications[project.id]?.is_published 
+                            ? 'text-orange-600 hover:text-orange-700 hover:bg-orange-50' 
+                            : 'bg-green-600 hover:bg-green-700 text-white'
+                        }`}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          if (publications[project.id]?.is_published) {
+                            handleUnpublishProject(project.id)
+                          } else {
+                            handlePublishProject(project.id)
+                          }
+                        }}
+                        disabled={publishingProject === project.id}
+                      >
+                        {publishingProject === project.id ? (
+                          <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-current"></div>
+                        ) : publications[project.id]?.is_published ? (
+                          <>
+                            <Share2 className="h-3 w-3 mr-1" />
+                            Unpublish
+                          </>
+                        ) : (
+                          <>
+                            <Globe className="h-3 w-3 mr-1" />
+                            Publish
+                          </>
+                        )}
+                      </Button>
+                      
+                      {/* Settings Button */}
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        className="w-full"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          router.push(`/dashboard/agents/${project.id}/settings`)
+                        }}
+                      >
+                        <Settings className="h-3 w-3 mr-1" />
+                        Settings
+                      </Button>
+                      
                       <Button 
                         variant="outline" 
                         size="sm"
@@ -388,13 +557,16 @@ const ProjectsPage = () => {
                           e.stopPropagation()
                           setShowDeleteConfirm(project.id)
                         }}
-                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50 w-full"
                         disabled={deletingProject === project.id}
                       >
                         {deletingProject === project.id ? (
                           <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-red-600"></div>
                         ) : (
-                          <Trash2 className="h-3 w-3" />
+                          <>
+                            <Trash2 className="h-3 w-3 mr-1" />
+                            Delete
+                          </>
                         )}
                       </Button>
                     </div>

@@ -57,6 +57,25 @@ const AvatarSettingsModal: React.FC<AvatarSettingsModalProps> = ({ isOpen, onClo
   const [previewUrl, setPreviewUrl] = useState<string | null>(null)
   const [selectedFile, setSelectedFile] = useState<File | null>(null)
 
+  // Update profile state when user data changes (e.g., after loadUserFromStorage)
+  React.useEffect(() => {
+    if (user) {
+      setProfile({
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        full_name: user.full_name || '',
+        bio: user.bio || '',
+        avatar_url: user.avatar_url || '',
+        is_active: user.is_active
+      })
+      
+      if (user.avatar_url) {
+        setPreviewUrl(convertS3UrlToProxy(user.avatar_url))
+      }
+    }
+  }, [user])
+
   // Load user profile when modal opens
   React.useEffect(() => {
     if (isOpen && user) {
