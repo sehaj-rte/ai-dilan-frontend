@@ -242,7 +242,7 @@ export default function VoiceCloneModal({ isOpen, onClose, projectId, onSuccess 
               <Mic2 className="w-6 h-6 text-purple-600" />
             </div>
             <div>
-              <h2 className="text-xl font-semibold text-gray-900">Create Voice Clone</h2>
+              <h2 className="text-xl font-semibold text-gray-900">Create Voice</h2>
               <p className="text-sm text-gray-600">Generate a custom voice for your expert</p>
             </div>
           </div>
@@ -496,7 +496,7 @@ export default function VoiceCloneModal({ isOpen, onClose, projectId, onSuccess 
               ) : (
                 <>
                   <Mic2 className="w-4 h-4" />
-                  <span>Create Voice Clone</span>
+                  <span>Create Voice</span>
                 </>
               )}
             </button>

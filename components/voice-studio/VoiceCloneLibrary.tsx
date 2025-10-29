@@ -26,9 +26,10 @@ interface VoiceCloneLibraryProps {
   refreshTrigger?: number
   selectedVoiceId?: string
   onVoiceSelected?: (voiceId: string, voiceName: string) => void
+  onVoiceCountChange?: (count: number) => void
 }
 
-export default function VoiceCloneLibrary({ projectId, refreshTrigger, selectedVoiceId, onVoiceSelected }: VoiceCloneLibraryProps) {
+export default function VoiceCloneLibrary({ projectId, refreshTrigger, selectedVoiceId, onVoiceSelected, onVoiceCountChange }: VoiceCloneLibraryProps) {
   const [voiceClones, setVoiceClones] = useState<VoiceClone[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -61,7 +62,15 @@ export default function VoiceCloneLibrary({ projectId, refreshTrigger, selectedV
       })
       if (!response.ok) throw new Error('Failed to fetch voice clones')
       const data = await response.json()
-      if (data.success) setVoiceClones(data.voice_clones || [])
+      if (data.success) {
+        const newVoiceClones = data.voice_clones || []
+        setVoiceClones(newVoiceClones)
+        
+        // Notify parent component of voice count change
+        if (onVoiceCountChange) {
+          onVoiceCountChange(newVoiceClones.length)
+        }
+      }
     } catch (e) {
       console.error('Error refetching voices:', e)
     }
@@ -142,6 +151,11 @@ export default function VoiceCloneLibrary({ projectId, refreshTrigger, selectedV
           }
           
           setVoiceClones(newVoiceClones)
+          
+          // Notify parent component of voice count change
+          if (onVoiceCountChange) {
+            onVoiceCountChange(newVoiceClones.length)
+          }
         } else {
           throw new Error(data.error || 'Failed to load voice clones')
         }
@@ -363,7 +377,7 @@ export default function VoiceCloneLibrary({ projectId, refreshTrigger, selectedV
       
       <div className="flex items-center space-x-3 mb-6">
         <Mic2 className="w-6 h-6 text-purple-600" />
-        <h2 className="text-xl font-semibold text-gray-900">Voice Clone Library</h2>
+        <h2 className="text-xl font-semibold text-gray-900">Voice Library</h2>
         <span className="px-2 py-1 bg-purple-100 text-purple-700 text-sm rounded-full">
           {voiceClones.length} {voiceClones.length === 1 ? 'clone' : 'clones'}
         </span>
@@ -546,15 +560,17 @@ export default function VoiceCloneLibrary({ projectId, refreshTrigger, selectedV
                         </button>
                       )}
 
-                      {/* Delete Voice Button */}
-                      <button
-                        onClick={() => setConfirmDelete({ voiceId: voiceClone.voice_id, name: voiceClone.name })}
-                        className="flex items-center px-3 py-2 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 transition-colors text-sm ml-2"
-                        title="Delete this voice"
-                      >
-                        <Trash2 className="w-4 h-4 mr-1" />
-                        Delete
-                      </button>
+                      {/* Delete Voice Button - Hide for default voice */}
+                      {voiceClone.voice_id !== 'EXAVITQu4vr4xnSDxMaL' && (
+                        <button
+                          onClick={() => setConfirmDelete({ voiceId: voiceClone.voice_id, name: voiceClone.name })}
+                          className="flex items-center px-3 py-2 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 transition-colors text-sm ml-2"
+                          title="Delete this voice"
+                        >
+                          <Trash2 className="w-4 h-4 mr-1" />
+                          Delete
+                        </button>
+                      )}
                     </>
                   )}
                   

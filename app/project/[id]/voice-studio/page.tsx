@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation'
 import DashboardLayout from '@/components/dashboard/DashboardLayout'
 import VoiceCloneLibrary from '@/components/voice-studio/VoiceCloneLibrary'
 import VoiceCloneModal from '@/components/voice-studio/VoiceCloneModal'
+import VoicePreview from '@/components/voice-studio/VoicePreview'
 import { API_URL } from '@/lib/config'
 import { fetchWithAuth, getAuthHeaders } from '@/lib/api-client'
 import { Mic2, Plus, Loader2, AlertCircle, User } from 'lucide-react'
@@ -27,6 +28,7 @@ export default function VoiceStudioPage() {
   const [error, setError] = useState<string | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [refreshLibrary, setRefreshLibrary] = useState(0)
+  const [voiceCount, setVoiceCount] = useState(0)
 
   // Fetch expert details
   useEffect(() => {
@@ -63,6 +65,10 @@ export default function VoiceStudioPage() {
 
   const handleModalSuccess = () => {
     setRefreshLibrary(prev => prev + 1)
+  }
+
+  const handleVoiceCountChange = (count: number) => {
+    setVoiceCount(count)
   }
 
   const handleVoiceSelected = async (voiceId: string, voiceName: string) => {
@@ -122,17 +128,19 @@ export default function VoiceStudioPage() {
                
                 <div>
                   <h1 className="text-2xl font-bold text-gray-900">Voice Studio</h1>
-                  <p className="text-gray-600">Create custom voice clones for {expert.name}</p>
+                  <p className="text-gray-600">Create custom voice for {expert.name}</p>
                 </div>
               </div>
 
-              <button
-                onClick={() => setIsModalOpen(true)}
-                className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all shadow-lg hover:shadow-xl"
-              >
-                <Plus className="w-5 h-5" />
-                <span>Create Voice Clone</span>
-              </button>
+              {voiceCount === 1 && (
+                <button
+                  onClick={() => setIsModalOpen(true)}
+                  className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all shadow-lg hover:shadow-xl"
+                >
+                  <Plus className="w-5 h-5" />
+                  <span>Create Voice</span>
+                </button>
+              )}
             </div>
 
             {/* Current Voice Status */}
@@ -151,12 +159,18 @@ export default function VoiceStudioPage() {
             )} */}
           </div>
 
+          {/* Voice Preview Section - Only show if no voices in library */}
+          {/* {voiceCount === 0 && (
+            <VoicePreview expertId={projectId} />
+          )} */}
+
           {/* Voice Clone Library */}
           <VoiceCloneLibrary
             projectId={projectId}
             refreshTrigger={refreshLibrary}
             selectedVoiceId={expert?.voice_id}
             onVoiceSelected={handleVoiceSelected}
+            onVoiceCountChange={handleVoiceCountChange}
           />
 
           {/* Voice Clone Modal */}
