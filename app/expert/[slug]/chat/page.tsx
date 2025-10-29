@@ -36,6 +36,15 @@ const ExpertChatPage = () => {
   const dispatch = useDispatch()
   const slug = params.slug as string
   
+  const convertS3UrlToProxy = (s3Url: string): string => {
+    if (!s3Url) return s3Url as any
+    const match = s3Url.match(/https:\/\/ai-dilan\.s3\.[^/]+\.amazonaws\.com\/(.+)/)
+    if (match) {
+      return `${API_URL}/images/avatar/full/${match[1]}`
+    }
+    return s3Url
+  }
+
   // Auth state from Redux
   const { user, isAuthenticated } = useSelector((state: RootState) => state.auth)
   
@@ -86,7 +95,10 @@ const ExpertChatPage = () => {
         const res = await fetch(`${API_URL}/publishing/public/expert/${slug}`)
         const data = await res.json()
         if (data.success) {
-          setExpert(data.expert)
+          setExpert({
+            ...data.expert,
+            avatar_url: data.expert?.avatar_url ? convertS3UrlToProxy(data.expert.avatar_url) : null
+          })
           setPublication(data.publication)
           loadConversations(data.expert.id)
           // Auto-connect immediately
@@ -495,8 +507,17 @@ const ExpertChatPage = () => {
         {/* Header */}
         <div className="border-b bg-white px-6 py-4 flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            {expert?.avatar_url && (
-              <img src={expert.avatar_url} className="w-10 h-10 rounded-full object-cover" alt={expert.name} />
+            {expert?.avatar_url ? (
+              <img 
+                src={expert.avatar_url} 
+                className="w-10 h-10 rounded-full object-cover" 
+                alt={expert.name} 
+                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+              />
+            ) : (
+              <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
+                <User className="h-5 w-5 text-gray-500" />
+              </div>
             )}
             <div>
               <h2 className="font-semibold text-gray-900">{expert?.name}</h2>

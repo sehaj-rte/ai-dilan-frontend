@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { API_URL } from '@/lib/config'
 import { fetchWithAuth, getAuthHeaders } from '@/lib/api-client'
+import { ToastContainer, useToast } from '@/components/ui/toast'
 
 interface Expert {
   id: string
@@ -31,6 +32,7 @@ const ProfileSettingsPage = () => {
   const params = useParams()
   const projectId = params.id as string
   const { user } = useAppSelector((state) => state.auth)
+  const { toasts, removeToast, success: showSuccess, error: showError, warning: showWarning } = useToast()
 
   const [expert, setExpert] = useState<Expert | null>(null)
   const [loading, setLoading] = useState(true)
@@ -85,7 +87,7 @@ const ProfileSettingsPage = () => {
           description: expertData.expert.description || '',
           avatar_url: expertData.expert.avatar_url || ''
         })
-        setAvatarPreview(expertData.expert.avatar_url || null)
+        setAvatarPreview(expertData.expert.avatar_url ? convertS3UrlToProxy(expertData.expert.avatar_url) : null)
       }
     } catch (error) {
       console.error('Error fetching expert data:', error)
@@ -100,13 +102,13 @@ const ProfileSettingsPage = () => {
       
       // Check file size (5MB max)
       if (file.size > 5 * 1024 * 1024) {
-        alert('File size exceeds 5MB limit')
+        showWarning('Image must be smaller than 5MB', 'File too large')
         return
       }
       
       // Check file type
       if (!file.type.startsWith('image/')) {
-        alert('Please select an image file')
+        showWarning('Please select a valid image file', 'Invalid file type')
         return
       }
       
@@ -114,9 +116,9 @@ const ProfileSettingsPage = () => {
       
       reader.onloadend = () => {
         setAvatarPreview(reader.result as string)
-        // Extract base64 data (remove data URL prefix)
-        const base64Data = (reader.result as string).split(',')[1]
-        setSettingsForm({ ...settingsForm, avatar_url: base64Data })
+        // Keep full data URL (backend expects the data:image/... prefix)
+        const fullDataUrl = reader.result as string
+        setSettingsForm({ ...settingsForm, avatar_url: fullDataUrl })
       }
       
       reader.readAsDataURL(file)
@@ -155,14 +157,14 @@ const ProfileSettingsPage = () => {
       const data = await response.json()
       
       if (data.success) {
-        alert('Settings saved successfully!')
+        showSuccess('Your profile settings have been saved.', 'Saved successfully')
         fetchExpertData() // Refresh data
       } else {
-        alert('Failed to save settings: ' + (data.error || data.detail))
+        showError(data.error || data.detail || 'Failed to save settings', 'Save failed')
       }
     } catch (error) {
       console.error('Error saving settings:', error)
-      alert('Error saving settings. Please try again.')
+      showError('Error saving settings. Please try again.', 'Unexpected error')
     } finally {
       setIsSaving(false)
     }
@@ -180,63 +182,12 @@ const ProfileSettingsPage = () => {
 
   return (
     <DashboardLayout>
+      <ToastContainer toasts={toasts} onClose={removeToast} />
       <div className="max-w-4xl mx-auto p-6">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Profile Settings</h1>
           <p className="text-gray-600 mt-2">Configure your expert's profile information</p>
         </div>
-
-        {/* User Profile Card */}
-        {user && (
-          <Card className="shadow-lg mb-6">
-            <CardHeader>
-              <CardTitle className="flex items-center text-xl">
-                <User className="h-5 w-5 mr-2 text-purple-600" />
-                Your Account
-              </CardTitle>
-              <CardDescription>
-                Your personal user profile information
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center space-x-4">
-                {/* User Avatar */}
-                <div className="relative">
-                  {user.avatar_url ? (
-                    <img
-                      src={convertS3UrlToProxy(user.avatar_url)}
-                      alt="User avatar"
-                      className="w-16 h-16 rounded-full object-cover border-2 border-purple-200"
-                      onError={(e) => {
-                        // Fallback to default icon if image fails to load
-                        const target = e.target as HTMLImageElement
-                        target.style.display = 'none'
-                        const fallback = target.nextElementSibling as HTMLElement
-                        if (fallback) fallback.style.display = 'flex'
-                      }}
-                    />
-                  ) : null}
-                  <div 
-                    className={`w-16 h-16 rounded-full bg-gradient-to-br from-purple-100 to-blue-100 flex items-center justify-center border-2 border-purple-200 ${user.avatar_url ? 'hidden' : ''}`}
-                  >
-                    <User className="h-8 w-8 text-purple-600" />
-                  </div>
-                </div>
-
-                {/* User Info */}
-                <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-gray-900">
-                    {user.full_name || user.username}
-                  </h3>
-                  <p className="text-sm text-gray-600">{user.email}</p>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Manage your personal avatar in the top-right menu
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
 
         {/* Expert Profile Card */}
         <Card className="shadow-lg">

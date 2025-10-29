@@ -29,6 +29,7 @@ interface ChatMessage {
 interface ChatModeInterfaceProps {
   expertId: string
   expertName?: string
+  expertAvatarUrl?: string
   textOnly?: boolean
   onError?: (error: string) => void
   onStatusChange?: (status: 'disconnected' | 'connecting' | 'connected') => void
@@ -38,6 +39,7 @@ interface ChatModeInterfaceProps {
 const ChatModeInterface: React.FC<ChatModeInterfaceProps> = ({
   expertId,
   expertName = 'AI Agent',
+  expertAvatarUrl,
   textOnly = false,
   onError,
   onStatusChange,
@@ -48,11 +50,16 @@ const ChatModeInterface: React.FC<ChatModeInterfaceProps> = ({
   const [isConnected, setIsConnected] = useState(false)
   const [isConnecting, setIsConnecting] = useState(false)
   const [isWaitingForResponse, setIsWaitingForResponse] = useState(false)
+  const [isReconnecting, setIsReconnecting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [ws, setWs] = useState<WebSocket | null>(null)
   const [conversationId, setConversationId] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const lastSignedUrlRef = useRef<string | null>(null)
+  const shouldReconnectRef = useRef<boolean>(true)
+  const reconnectAttemptsRef = useRef<number>(0)
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -61,6 +68,20 @@ const ChatModeInterface: React.FC<ChatModeInterfaceProps> = ({
   useEffect(() => {
     scrollToBottom()
   }, [messages])
+
+  // Cleanup on unmount: clear heartbeat and close WS
+  useEffect(() => {
+    return () => {
+      shouldReconnectRef.current = false
+      if (heartbeatIntervalRef.current) {
+        clearInterval(heartbeatIntervalRef.current)
+        heartbeatIntervalRef.current = null
+      }
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        try { ws.close(1000, 'Component unmounted') } catch {}
+      }
+    }
+  }, [ws])
 
   const createChatSession = async () => {
     try {
@@ -113,6 +134,18 @@ const ChatModeInterface: React.FC<ChatModeInterfaceProps> = ({
         setIsConnecting(false)
         setError(null)
         onStatusChange?.('connected')
+        setIsReconnecting(false)
+        heartbeatIntervalRef.current && clearInterval(heartbeatIntervalRef.current)
+        heartbeatIntervalRef.current = setInterval(() => {
+          if (websocket.readyState === WebSocket.OPEN) {
+            try {
+              websocket.send(JSON.stringify({ type: 'ping' }))
+            } catch (e) {
+              console.error('Heartbeat failed:', e)
+            }
+          }
+        }, 30000)
+        reconnectAttemptsRef.current = 0
         resolve(websocket)
       }
 
@@ -129,46 +162,80 @@ const ChatModeInterface: React.FC<ChatModeInterfaceProps> = ({
           
           console.log('Received WebSocket message:', data)
           
+          // Helper to detect and filter generic greetings
+          const isGreeting = (text: string) => {
+            const t = text.toLowerCase()
+            return (
+              t.includes("how i can assist") ||
+              t.includes("how can i assist") ||
+              t.includes("how can i help") ||
+              t.includes("how i can help") ||
+              t.includes("hi i'm") ||
+              t.includes("hello i'm")
+            )
+          }
+
+          const shouldAddMessage = (text: string) => {
+            if (isGreeting(text)) {
+              // drop all greetings, or if already have an agent message with same text
+              const lastAgent = [...messages].reverse().find(m => m.type === 'agent')
+              if (!lastAgent) return false
+              return lastAgent.text.trim() !== text.trim()
+            }
+            return true
+          }
+
           // Handle different message types from ElevenLabs
           if (data.type === 'agent_response' && data.agent_response_event?.agent_response) {
             const responseText = data.agent_response_event.agent_response
-            
-            // Filter out generic greeting messages for better UX
-            const isGenericGreeting = responseText.toLowerCase().includes('knowledge') && 
-                                    responseText.toLowerCase().includes('assistant') &&
-                                    responseText.length < 200 && 
-                                    messages.length === 0
-            
-            if (!isGenericGreeting) {
-              // Handle agent response from agent_response_event structure
+            setMessages(prev => {
+              // suppress duplicate greetings using latest prev state
+              const t = responseText.toLowerCase()
+              const isGreeting = (
+                t.includes('how i can assist') ||
+                t.includes('how can i assist') ||
+                t.includes('how can i help') ||
+                t.includes('how i can help') ||
+                t.includes("hi i'm") ||
+                t.includes("hello i'm")
+              )
+              if (isGreeting) {
+                const lastAgent = [...prev].reverse().find(m => m.type === 'agent')
+                if (!lastAgent || lastAgent.text.trim() === responseText.trim()) return prev
+              }
               const agentMessage: ChatMessage = {
                 id: `agent-${Date.now()}`,
                 type: 'agent',
                 text: responseText,
                 timestamp: new Date()
               }
-              setMessages(prev => [...prev, agentMessage])
-            }
+              return [...prev, agentMessage]
+            })
             setIsWaitingForResponse(false)
           } else if (data.type === 'agent_response' && data.agent_response) {
             const responseText = data.agent_response
-            
-            // Filter out generic greeting messages for better UX
-            const isGenericGreeting = responseText.toLowerCase().includes('knowledge') && 
-                                    responseText.toLowerCase().includes('assistant') &&
-                                    responseText.length < 200 && 
-                                    messages.length === 0
-            
-            if (!isGenericGreeting) {
-              // Handle direct agent response structure
+            setMessages(prev => {
+              const t = responseText.toLowerCase()
+              const isGreeting = (
+                t.includes('how i can assist') ||
+                t.includes('how can i assist') ||
+                t.includes('how can i help') ||
+                t.includes('how i can help') ||
+                t.includes("hi i'm") ||
+                t.includes("hello i'm")
+              )
+              if (isGreeting) {
+                const lastAgent = [...prev].reverse().find(m => m.type === 'agent')
+                if (!lastAgent || lastAgent.text.trim() === responseText.trim()) return prev
+              }
               const agentMessage: ChatMessage = {
                 id: `agent-${Date.now()}`,
                 type: 'agent',
                 text: responseText,
                 timestamp: new Date()
               }
-              setMessages(prev => [...prev, agentMessage])
-            }
+              return [...prev, agentMessage]
+            })
             setIsWaitingForResponse(false)
           } else if (data.type === 'user_transcript' && data.user_transcript) {
             // Handle user transcript (if needed)
@@ -186,19 +253,45 @@ const ChatModeInterface: React.FC<ChatModeInterfaceProps> = ({
         console.error('Chat WebSocket error:', error)
         setError('Connection error occurred')
         onError?.('WebSocket connection error')
-        reject(error)
+
+        try { websocket.close() } catch {}
       }
 
       websocket.onclose = (event) => {
         console.log('Chat WebSocket closed:', event.code, event.reason)
         setIsConnected(false)
-        setIsConnecting(false)
+        // if we plan to reconnect, mark reconnecting to avoid showing Disconnected/Start Chat
+        if (shouldReconnectRef.current && lastSignedUrlRef.current) {
+          setIsReconnecting(true)
+          setIsConnecting(true)
+        } else {
+          setIsConnecting(false)
+        }
         setIsWaitingForResponse(false)
         onStatusChange?.('disconnected')
+        if (heartbeatIntervalRef.current) {
+          clearInterval(heartbeatIntervalRef.current)
+          heartbeatIntervalRef.current = null
+        }
         
-        if (event.code !== 1000) { // Not a normal closure
-          setError('Connection lost')
-          onError?.('Connection lost')
+        // Persisted reconnect: try to reconnect to the SAME signed_url without creating a new session
+        if (event.code !== 1000 && shouldReconnectRef.current && lastSignedUrlRef.current) {
+          setError('Connection lost. Reconnecting...')
+          onError?.('Connection lost. Reconnecting...')
+          const attempt = reconnectAttemptsRef.current + 1
+          reconnectAttemptsRef.current = attempt
+          // Exponential backoff with max 30s
+          const delay = Math.min(1000 * Math.pow(2, attempt - 1), 30000)
+          setTimeout(async () => {
+            if (!shouldReconnectRef.current) return
+            try {
+              const ws2 = await connectWebSocket(lastSignedUrlRef.current!)
+              setWs(ws2)
+              setError(null)
+            } catch (e) {
+              // will trigger onclose again and backoff will increase
+            }
+          }, delay)
         }
       }
     })
@@ -214,22 +307,13 @@ const ChatModeInterface: React.FC<ChatModeInterfaceProps> = ({
       setConversationId(sessionData.conversation_id)
 
       // Connect WebSocket
+      lastSignedUrlRef.current = sessionData.signed_url
+      shouldReconnectRef.current = true
+      reconnectAttemptsRef.current = 0
       const websocket = await connectWebSocket(sessionData.signed_url)
       setWs(websocket)
 
-      // Clear messages - no initial greeting, direct conversation
-      setMessages([])
-      
-      // Send a silent initialization message to prepare the agent
-      // This helps avoid the generic greeting response
-      setTimeout(() => {
-        if (websocket.readyState === WebSocket.OPEN) {
-          websocket.send(JSON.stringify({
-            type: 'conversation_initiation',
-            mode: 'direct'
-          }))
-        }
-      }, 500)
+      // Preserve messages; avoid sending any client-side initiation that could trigger greetings
 
     } catch (error: any) {
       console.error('Failed to start chat session:', error)
@@ -238,18 +322,6 @@ const ChatModeInterface: React.FC<ChatModeInterfaceProps> = ({
       setIsConnecting(false)
       onStatusChange?.('disconnected')
     }
-  }
-
-  const endChatSession = () => {
-    if (ws) {
-      ws.close(1000, 'User ended session')
-      setWs(null)
-    }
-    setIsConnected(false)
-    setIsConnecting(false)
-    setIsWaitingForResponse(false)
-    setConversationId(null)
-    onStatusChange?.('disconnected')
   }
 
   const sendMessage = () => {
@@ -298,6 +370,23 @@ const ChatModeInterface: React.FC<ChatModeInterfaceProps> = ({
     return timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   }
 
+  // End chat handler (restore - used by End Chat button)
+  const endChatSession = () => {
+    shouldReconnectRef.current = false
+    if (ws) {
+      try { ws.close(1000, 'User ended session') } catch {}
+      setWs(null)
+    }
+    setIsConnected(false)
+    setIsConnecting(false)
+    setIsWaitingForResponse(false)
+    onStatusChange?.('disconnected')
+    if (heartbeatIntervalRef.current) {
+      clearInterval(heartbeatIntervalRef.current)
+      heartbeatIntervalRef.current = null
+    }
+  }
+
   return (
     <Card className={`flex flex-col h-full max-h-full ${className}`}>
       <CardHeader className="flex-shrink-0 pb-3">
@@ -314,15 +403,15 @@ const ChatModeInterface: React.FC<ChatModeInterfaceProps> = ({
           
           {/* Connection Status */}
           <div className="flex items-center space-x-2">
-            {isConnecting && <Loader2 className="h-4 w-4 animate-spin text-blue-500" />}
-            {isConnected && <Wifi className="h-4 w-4 text-green-500" />}
-            {!isConnected && !isConnecting && <WifiOff className="h-4 w-4 text-gray-400" />}
+            {(isConnecting || isReconnecting) && <Loader2 className="h-4 w-4 animate-spin text-blue-500" />}
+            {isConnected && !isReconnecting && <Wifi className="h-4 w-4 text-green-500" />}
+            {!isConnected && !isConnecting && !isReconnecting && <WifiOff className="h-4 w-4 text-gray-400" />}
             <span className={`text-sm font-medium ${
-              isConnected ? 'text-green-600' : 
-              isConnecting ? 'text-blue-600' : 
+              isConnected && !isReconnecting ? 'text-green-600' : 
+              (isConnecting || isReconnecting) ? 'text-blue-600' : 
               'text-gray-500'
             }`}>
-              {isConnecting ? 'Connecting...' : isConnected ? 'Connected' : 'Disconnected'}
+              {isReconnecting ? 'Reconnecting...' : isConnecting ? 'Connecting...' : isConnected ? 'Connected' : 'Disconnected'}
             </span>
           </div>
         </div>
@@ -370,7 +459,16 @@ const ChatModeInterface: React.FC<ChatModeInterfaceProps> = ({
           
           {messages.length === 0 && isConnected && (
             <div className="flex flex-col items-center justify-center h-full text-center space-y-3">
-              <Bot className="h-12 w-12 text-blue-500" />
+              {expertAvatarUrl ? (
+                <img
+                  src={expertAvatarUrl}
+                  alt={expertName}
+                  className="h-12 w-12 rounded-full object-cover"
+                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+                />
+              ) : (
+                <Bot className="h-12 w-12 text-blue-500" />
+              )}
               <div>
                 <p className="text-gray-700 font-medium">Ask me anything!</p>
                 <p className="text-sm text-gray-500">
@@ -394,7 +492,18 @@ const ChatModeInterface: React.FC<ChatModeInterfaceProps> = ({
               >
                 <div className="flex items-start space-x-2">
                   {message.type === 'agent' && (
-                    <Bot className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                    <>
+                      {expertAvatarUrl ? (
+                        <img
+                          src={expertAvatarUrl}
+                          alt={expertName}
+                          className="h-6 w-6 rounded-full object-cover flex-shrink-0"
+                          onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+                        />
+                      ) : (
+                        <Bot className="h-6 w-6 flex-shrink-0" />
+                      )}
+                    </>
                   )}
                   {message.type === 'user' && (
                     <User className="h-4 w-4 mt-0.5 flex-shrink-0" />
@@ -414,17 +523,24 @@ const ChatModeInterface: React.FC<ChatModeInterfaceProps> = ({
           
           {/* Loading indicator when waiting for response */}
           {isWaitingForResponse && (
-            <div className="flex justify-start">
-              <div className="bg-gray-100 rounded-lg px-3 py-2">
-                <div className="flex items-center space-x-2">
-                  <Bot className="h-4 w-4 text-gray-500" />
-                  <div className="flex space-x-1">
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                  </div>
-                  <span className="text-xs text-gray-500">Thinking...</span>
+            <div className="flex items-center gap-3">
+              {expertAvatarUrl ? (
+                <img
+                  src={expertAvatarUrl}
+                  alt={expertName}
+                  className="h-8 w-8 rounded-full object-cover"
+                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+                />
+              ) : (
+                <Bot className="h-8 w-8 text-gray-500" />
+              )}
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1">
+                  <div className="w-2.5 h-2.5 bg-gray-400 rounded-full animate-bounce"></div>
+                  <div className="w-2.5 h-2.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.12s' }}></div>
+                  <div className="w-2.5 h-2.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.24s' }}></div>
                 </div>
+                <span className="text-sm text-gray-500">Typing...</span>
               </div>
             </div>
           )}
@@ -436,7 +552,7 @@ const ChatModeInterface: React.FC<ChatModeInterfaceProps> = ({
         <div className="flex-shrink-0 space-y-3">
           {/* Connection Controls */}
           <div className="flex space-x-2">
-            {!isConnected ? (
+            {!isConnected && !isReconnecting ? (
               <Button
                 onClick={startChatSession}
                 disabled={isConnecting}
@@ -448,6 +564,11 @@ const ChatModeInterface: React.FC<ChatModeInterfaceProps> = ({
                   <MessageSquare className="h-4 w-4 mr-2" />
                 )}
                 {isConnecting ? 'Connecting...' : 'Start Chat'}
+              </Button>
+            ) : !isConnected && isReconnecting ? (
+              <Button disabled className="flex-1" variant="outline">
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Reconnecting...
               </Button>
             ) : (
               <>

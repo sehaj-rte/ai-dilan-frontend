@@ -33,6 +33,15 @@ const ExpertCallPage = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  const convertS3UrlToProxy = (s3Url: string): string => {
+    if (!s3Url) return s3Url as any
+    const match = s3Url.match(/https:\/\/ai-dilan\.s3\.[^/]+\.amazonaws\.com\/(.+)/)
+    if (match) {
+      return `${API_URL}/images/avatar/full/${match[1]}`
+    }
+    return s3Url
+  }
+
   const {
     state,
     startConversation,
@@ -59,7 +68,10 @@ const ExpertCallPage = () => {
       const data = await response.json()
       
       if (data.success) {
-        setExpert(data.expert)
+        setExpert({
+          ...data.expert,
+          avatar_url: data.expert?.avatar_url ? convertS3UrlToProxy(data.expert.avatar_url) : null
+        })
         setPublication(data.publication)
       } else {
         setError('Expert not found or not published')
@@ -145,13 +157,14 @@ const ExpertCallPage = () => {
                 <ArrowLeft className="h-6 w-6" />
               </button>
               <div className="flex items-center space-x-2">
-                {expert?.avatar_url && (
+                {expert?.avatar_url ? (
                   <img
                     src={expert.avatar_url}
                     alt={expert.name}
                     className="w-8 h-8 rounded-full object-cover"
+                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
                   />
-                )}
+                ) : null}
                 <span className="font-semibold text-gray-900">{expert?.name}</span>
               </div>
             </div>
@@ -183,6 +196,7 @@ const ExpertCallPage = () => {
                 src={expert.avatar_url}
                 alt={expert.name}
                 className="w-48 h-48 rounded-full mx-auto object-cover shadow-2xl border-8 border-white ring-4 ring-gray-100"
+                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
               />
             ) : (
               <div className="w-48 h-48 rounded-full mx-auto flex items-center justify-center bg-gray-200 text-gray-600 text-6xl font-bold shadow-2xl border-8 border-white ring-4 ring-gray-100">

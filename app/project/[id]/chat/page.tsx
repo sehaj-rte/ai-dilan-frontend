@@ -302,6 +302,7 @@ const ChatPage = () => {
             <ChatModeInterface
               expertId={expertId}
               expertName={expert.name}
+              expertAvatarUrl={expert.avatar_url || undefined}
               textOnly={true}
               onError={handleVoiceError}
               className="h-full"

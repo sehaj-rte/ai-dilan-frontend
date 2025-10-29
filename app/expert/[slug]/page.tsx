@@ -82,6 +82,15 @@ const PublicExpertPage = () => {
   const [error, setError] = useState<string | null>(null)
   const [showFullDescription, setShowFullDescription] = useState(false)
 
+  const convertS3UrlToProxy = (s3Url: string): string => {
+    if (!s3Url) return s3Url
+    const match = s3Url.match(/https:\/\/ai-dilan\.s3\.[^/]+\.amazonaws\.com\/(.+)/)
+    if (match) {
+      return `${API_URL}/images/avatar/full/${match[1]}`
+    }
+    return s3Url
+  }
+
   useEffect(() => {
     console.log("slug", slug)
     fetchExpertData()
@@ -95,7 +104,10 @@ const PublicExpertPage = () => {
       const data = await response.json()
       
       if (data.success) {
-        setExpert(data.expert)
+        setExpert({
+          ...data.expert,
+          avatar_url: data.expert?.avatar_url ? convertS3UrlToProxy(data.expert.avatar_url) : null
+        })
         setPublication(data.publication)
         setContentSections(data.content_sections || [])
         setTemplate(data.template)
@@ -185,11 +197,23 @@ const PublicExpertPage = () => {
           {/* Expert Avatar */}
           <div className="mb-6">
             {expert.avatar_url ? (
-              <img
-                src={expert.avatar_url}
-                alt={expert.name}
-                className="w-32 h-32 rounded-full mx-auto object-cover shadow-lg"
-              />
+              <div className="relative">
+                <img
+                  src={expert.avatar_url}
+                  alt={expert.name}
+                  className="w-32 h-32 rounded-full mx-auto object-cover shadow-lg"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none'
+                    const fallback = e.currentTarget.parentElement?.querySelector('.avatar-fallback') as HTMLElement
+                    if (fallback) fallback.style.display = 'flex'
+                  }}
+                />
+                <div 
+                  className="avatar-fallback w-32 h-32 rounded-full mx-auto hidden items-center justify-center bg-gray-200 text-gray-600 text-4xl font-bold shadow-lg"
+                >
+                  {expert.name.charAt(0)}
+                </div>
+              </div>
             ) : (
               <div className="w-32 h-32 rounded-full mx-auto flex items-center justify-center bg-gray-200 text-gray-600 text-4xl font-bold shadow-lg">
                 {expert.name.charAt(0)}

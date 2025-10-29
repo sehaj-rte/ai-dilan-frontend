@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { useAppSelector, useAppDispatch } from '@/store/hooks'
+import { fetchCurrentUser } from '@/store/slices/authSlice'
 import { API_URL } from '@/lib/config'
 import { fetchWithAuth, getAuthHeaders, getAuthHeadersForFormData } from '@/lib/api-client'
 import { 
@@ -172,6 +173,9 @@ const AvatarSettingsModal: React.FC<AvatarSettingsModalProps> = ({ isOpen, onClo
         if (data.avatar_url) {
           setPreviewUrl(convertS3UrlToProxy(data.avatar_url))
         }
+        
+        // Refresh auth store with latest user (full name, avatar, etc.)
+        dispatch(fetchCurrentUser())
       } else {
         setError(data.error || 'Failed to upload avatar')
       }
@@ -205,8 +209,8 @@ const AvatarSettingsModal: React.FC<AvatarSettingsModalProps> = ({ isOpen, onClo
       if (data.success) {
         setSuccess('Profile updated successfully!')
         
-        // Update the auth store with new user data
-        // You might want to dispatch an action to update the user in the store
+        // Refresh the auth store so updated full_name reflects immediately
+        dispatch(fetchCurrentUser())
         setTimeout(() => {
           setSuccess(null)
           onClose()

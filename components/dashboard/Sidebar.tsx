@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { cn } from '@/lib/utils'
 import { useAppSelector, useAppDispatch } from '@/store/hooks'
-import { logout } from '@/store/slices/authSlice'
+import { logout, loadUserFromStorage, fetchCurrentUser } from '@/store/slices/authSlice'
 import { API_URL } from '@/lib/config'
 import { fetchWithAuth, getAuthHeaders } from '@/lib/api-client'
 import {
@@ -48,11 +48,20 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, projectId }) => {
   const dispatch = useAppDispatch()
   const { user } = useAppSelector((state) => state.auth)
   const [projectName, setProjectName] = useState<string>('')
-  
+
   // Debug: Log user data
   useEffect(() => {
     console.log('👤 User data in Sidebar:', user)
   }, [user])
+
+  // Ensure we have the freshest user profile when sidebar mounts
+  useEffect(() => {
+    dispatch(loadUserFromStorage())
+    const token = typeof window !== 'undefined' ? localStorage.getItem('dilan_ai_token') : null
+    if (token) {
+      dispatch(fetchCurrentUser())
+    }
+  }, [dispatch])
 
   // Fetch project name when projectId is available
   useEffect(() => {
@@ -102,12 +111,12 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, projectId }) => {
         },
         {
           title: 'Profile Settings',
-          href: `/project/${projectId}/settings-manager`,
+          href: `/project/${projectId}/profile-settings`,
           icon: User
         },
         {
           title: 'Publish Manager',
-          href: `/project/${projectId}/publish-manager`,
+          href: `/project/${projectId}/publish`,
           icon: Share2
         },
        
@@ -159,7 +168,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, projectId }) => {
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
               <span className="text-white font-semibold text-sm">
-                {user.username?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase() || 'U'}
+                {(user.full_name?.charAt(0) || user.username?.charAt(0) || user.email?.charAt(0) || 'U').toUpperCase()}
               </span>
             </div>
             <div className="flex-1 min-w-0">
@@ -178,7 +187,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, projectId }) => {
       <nav className="flex-1 px-4 py-4 space-y-1">
         {dynamicSidebarItems.map((item) => {
           const Icon = item.icon
-          const isActive = pathname === item.href
+          const isActive = pathname?.startsWith(item.href)
           
           return (
             <Link

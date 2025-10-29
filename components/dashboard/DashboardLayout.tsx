@@ -5,7 +5,7 @@ import { usePathname } from 'next/navigation'
 import Sidebar from './Sidebar'
 import AvatarSettingsModal from './AvatarSettingsModal'
 import { useAppSelector, useAppDispatch } from '@/store/hooks'
-import { loadUserFromStorage } from '@/store/slices/authSlice'
+import { loadUserFromStorage, fetchCurrentUser } from '@/store/slices/authSlice'
 import { Menu, X, User, Settings, FileText, Database, Zap, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { API_URL } from '@/lib/config'
@@ -40,9 +40,13 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, customHeade
   const dispatch = useAppDispatch()
   const pathname = usePathname()
   
-  // Load user from localStorage on mount
+  // Load user from localStorage, then refresh from API if token exists
   useEffect(() => {
     dispatch(loadUserFromStorage())
+    const token = localStorage.getItem('dilan_ai_token')
+    if (token) {
+      dispatch(fetchCurrentUser())
+    }
   }, [dispatch])
   
   // Extract projectId from URL if we're in a project context
