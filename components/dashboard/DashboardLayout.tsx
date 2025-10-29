@@ -4,7 +4,8 @@ import React, { useState, useEffect } from 'react'
 import { usePathname } from 'next/navigation'
 import Sidebar from './Sidebar'
 import AvatarSettingsModal from './AvatarSettingsModal'
-import { useAppSelector } from '@/store/hooks'
+import { useAppSelector, useAppDispatch } from '@/store/hooks'
+import { loadUserFromStorage } from '@/store/slices/authSlice'
 import { Menu, X, User, Settings, FileText, Database, Zap, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { API_URL } from '@/lib/config'
@@ -36,7 +37,13 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, customHeade
   const [loadingKBStats, setLoadingKBStats] = useState(false)
   const [projectName, setProjectName] = useState<string>('Dashboard')
   const { user } = useAppSelector((state) => state.auth)
+  const dispatch = useAppDispatch()
   const pathname = usePathname()
+  
+  // Load user from localStorage on mount
+  useEffect(() => {
+    dispatch(loadUserFromStorage())
+  }, [dispatch])
   
   // Extract projectId from URL if we're in a project context
   const projectId = React.useMemo(() => {
