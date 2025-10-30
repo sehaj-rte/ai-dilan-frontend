@@ -79,15 +79,25 @@ const ProfileSettingsPage = () => {
       })
       const expertData = await expertResponse.json()
       
+      console.log('📥 Fetched expert data:', expertData)
+      
       if (expertData.success && expertData.expert) {
         setExpert(expertData.expert)
+        
+        const avatarUrl = expertData.expert.avatar_url || ''
+        console.log('🖼️ Expert avatar_url from server:', avatarUrl)
+        
         setSettingsForm({
           name: expertData.expert.name || '',
           headline: expertData.expert.headline || '',
           description: expertData.expert.description || '',
-          avatar_url: expertData.expert.avatar_url || ''
+          avatar_url: avatarUrl
         })
-        setAvatarPreview(expertData.expert.avatar_url ? convertS3UrlToProxy(expertData.expert.avatar_url) : null)
+        
+        // Add cache-busting parameter to force browser to reload image
+        const proxyUrl = avatarUrl ? `${convertS3UrlToProxy(avatarUrl)}?t=${Date.now()}` : null
+        console.log('🖼️ Setting avatar preview to:', proxyUrl)
+        setAvatarPreview(proxyUrl)
       }
     } catch (error) {
       console.error('Error fetching expert data:', error)
@@ -103,26 +113,41 @@ const ProfileSettingsPage = () => {
       // Check file size (5MB max)
       if (file.size > 5 * 1024 * 1024) {
         showWarning('Image must be smaller than 5MB', 'File too large')
+        e.target.value = '' // Reset input
         return
       }
       
       // Check file type
       if (!file.type.startsWith('image/')) {
         showWarning('Please select a valid image file', 'Invalid file type')
+        e.target.value = '' // Reset input
         return
       }
       
       const reader = new FileReader()
       
       reader.onloadend = () => {
-        setAvatarPreview(reader.result as string)
-        // Keep full data URL (backend expects the data:image/... prefix)
         const fullDataUrl = reader.result as string
-        setSettingsForm({ ...settingsForm, avatar_url: fullDataUrl })
+        console.log('📸 Avatar preview updated:', fullDataUrl.substring(0, 50) + '...')
+        console.log('📸 Full data URL length:', fullDataUrl.length)
+        setAvatarPreview(fullDataUrl)
+        setSettingsForm(prev => {
+          const updated = { ...prev, avatar_url: fullDataUrl }
+          console.log('📸 Settings form updated with avatar')
+          return updated
+        })
+      }
+      
+      reader.onerror = () => {
+        showError('Failed to read image file', 'Upload error')
+        e.target.value = '' // Reset input
       }
       
       reader.readAsDataURL(file)
     }
+    
+    // Reset input value to allow selecting the same file again
+    e.target.value = ''
   }
 
   const handleSettingsSave = async () => {
@@ -142,8 +167,17 @@ const ProfileSettingsPage = () => {
       
       // Add avatar if it exists (as base64)
       if (settingsForm.avatar_url) {
+        console.log('💾 Saving avatar, data length:', settingsForm.avatar_url.length)
+        console.log('💾 Avatar data preview:', settingsForm.avatar_url.substring(0, 100))
         updateData.avatar_base64 = settingsForm.avatar_url
+      } else {
+        console.log('⚠️ No avatar data to save')
       }
+      
+      console.log('📤 Sending update data:', {
+        ...updateData,
+        avatar_base64: updateData.avatar_base64 ? `[${updateData.avatar_base64.length} chars]` : undefined
+      })
       
       const response = await fetchWithAuth(`${API_URL}/experts/${projectId}`, {
         method: 'PUT',
@@ -155,10 +189,11 @@ const ProfileSettingsPage = () => {
       })
       
       const data = await response.json()
+      console.log('📥 Server response:', data)
       
       if (data.success) {
         showSuccess('Your profile settings have been saved.', 'Saved successfully')
-        fetchExpertData() // Refresh data
+        await fetchExpertData() // Refresh data
       } else {
         showError(data.error || data.detail || 'Failed to save settings', 'Save failed')
       }
@@ -210,6 +245,12 @@ const ProfileSettingsPage = () => {
                       src={avatarPreview} 
                       alt="Expert preview" 
                       className="w-24 h-24 rounded-full object-cover border-2 border-gray-300"
+                      onLoad={() => console.log('✅ Avatar image loaded successfully')}
+                      onError={(e) => {
+                        console.error('❌ Avatar image failed to load:', avatarPreview)
+                        // Fallback to default icon on error
+                        setAvatarPreview(null)
+                      }}
                     />
                   ) : (
                     <div className="w-24 h-24 rounded-full bg-gray-200 flex items-center justify-center border-2 border-gray-300">
@@ -242,16 +283,16 @@ const ProfileSettingsPage = () => {
                   <input
                     id="avatar-upload"
                     type="file"
-                    accept="image/*"
+                    accept="image/png,image/jpeg,image/jpg,image/gif,image/avif,image/webp"
                     onChange={handleAvatarChange}
                     className="block w-full text-sm text-gray-500
                       file:mr-4 file:py-2 file:px-4
                       file:rounded-md file:border-0
                       file:text-sm file:font-medium
                       file:bg-blue-50 file:text-blue-700
-                      hover:file:bg-blue-100"
+                      hover:file:bg-blue-100 cursor-pointer"
                   />
-                  <p className="text-xs text-gray-500 mt-1">PNG, JPG, GIF up to 5MB</p>
+                  <p className="text-xs text-gray-500 mt-1">PNG, JPG, GIF, AVIF, WebP up to 5MB</p>
                   {avatarPreview && (
                     <button 
                       type="button"
