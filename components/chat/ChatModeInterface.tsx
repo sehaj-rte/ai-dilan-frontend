@@ -16,7 +16,9 @@ import {
   MessageCircle,
   Bot,
   User,
-  X
+  X,
+  Copy,
+  Check
 } from 'lucide-react'
 
 interface ChatMessage {
@@ -34,6 +36,37 @@ interface ChatModeInterfaceProps {
   onError?: (error: string) => void
   onStatusChange?: (status: 'disconnected' | 'connecting' | 'connected') => void
   className?: string
+}
+
+// Copy Button Component
+const CopyButton: React.FC<{ text: string }> = ({ text }) => {
+  const [copied, setCopied] = useState(false)
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000) // Reset after 2 seconds
+    } catch (err) {
+      console.error('Failed to copy text: ', err)
+    }
+  }
+
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      onClick={handleCopy}
+      className="h-6 w-6 p-0 opacity-70 hover:opacity-100 transition-opacity duration-200 hover:bg-gray-100 dark:hover:bg-gray-800"
+      title={copied ? "Copied!" : "Copy message"}
+    >
+      {copied ? (
+        <Check className="h-3 w-3 text-green-500" />
+      ) : (
+        <Copy className="h-3 w-3 text-gray-500" />
+      )}
+    </Button>
+  )
 }
 
 const ChatModeInterface: React.FC<ChatModeInterfaceProps> = ({
@@ -435,7 +468,7 @@ const ChatModeInterface: React.FC<ChatModeInterfaceProps> = ({
               className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               <div
-                className={`max-w-[80%] rounded-lg px-3 py-2 ${
+                className={`group max-w-[80%] rounded-lg px-3 py-2 ${
                   message.type === 'user'
                     ? 'bg-blue-600 text-white'
                     : 'bg-gray-100 text-gray-900'
@@ -461,11 +494,14 @@ const ChatModeInterface: React.FC<ChatModeInterfaceProps> = ({
                   )}
                   <div className="flex-1">
                     <p className="text-sm whitespace-pre-wrap">{message.text}</p>
-                    <p className={`text-xs mt-1 ${
-                      message.type === 'user' ? 'text-blue-200' : 'text-gray-500'
-                    }`}>
-                      {formatTime(message.timestamp)}
-                    </p>
+                    <div className="flex items-center justify-between mt-1">
+                      <p className={`text-xs ${
+                        message.type === 'user' ? 'text-blue-200' : 'text-gray-500'
+                      }`}>
+                        {formatTime(message.timestamp)}
+                      </p>
+                      <CopyButton text={message.text} />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -564,10 +600,10 @@ const ChatModeInterface: React.FC<ChatModeInterfaceProps> = ({
         </div>
 
         {/* Info Text */}
-        <div className="text-xs text-gray-500 text-center">
+        <div className="text-xs pt-1 text-gray-500 text-center">
           {isConnected ? (
             <span className="text-green-600">
-              ✅ Connected • Searching only completed documents in your knowledge base
+              ✅ Connected
             </span>
           ) : (
             <span>
