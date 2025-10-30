@@ -8,7 +8,7 @@ import VoiceCloneModal from '@/components/voice-studio/VoiceCloneModal'
 import VoicePreview from '@/components/voice-studio/VoicePreview'
 import { API_URL } from '@/lib/config'
 import { fetchWithAuth, getAuthHeaders } from '@/lib/api-client'
-import { Mic2, Plus, Loader2, AlertCircle, User } from 'lucide-react'
+import { Mic2, Plus, Loader2, AlertCircle, User, X, CheckCircle } from 'lucide-react'
 
 interface Expert {
   id: string
@@ -29,6 +29,8 @@ export default function VoiceStudioPage() {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [refreshLibrary, setRefreshLibrary] = useState(0)
   const [voiceCount, setVoiceCount] = useState(0)
+  const [showToast, setShowToast] = useState(false)
+  const [toastMessage, setToastMessage] = useState('')
 
   // Fetch expert details
   useEffect(() => {
@@ -69,6 +71,22 @@ export default function VoiceStudioPage() {
 
   const handleVoiceCountChange = (count: number) => {
     setVoiceCount(count)
+  }
+
+  const showToastMessage = (message: string) => {
+    setToastMessage(message)
+    setShowToast(true)
+    setTimeout(() => {
+      setShowToast(false)
+    }, 3000) // Hide after 3 seconds
+  }
+
+  const handleCreateVoiceClick = () => {
+    if (voiceCount >= 3) {
+      showToastMessage('Reached Limit. Delete old voices to create new ones.')
+    } else {
+      setIsModalOpen(true)
+    }
   }
 
   const handleVoiceSelected = async (voiceId: string, voiceName: string) => {
@@ -132,15 +150,13 @@ export default function VoiceStudioPage() {
                 </div>
               </div>
 
-              {voiceCount === 1 && (
-                <button
-                  onClick={() => setIsModalOpen(true)}
-                  className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all shadow-lg hover:shadow-xl"
-                >
-                  <Plus className="w-5 h-5" />
-                  <span>Create Voice</span>
-                </button>
-              )}
+              <button
+                onClick={handleCreateVoiceClick}
+                className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all shadow-lg hover:shadow-xl"
+              >
+                <Plus className="w-5 h-5" />
+                <span>Create Voice</span>
+              </button>
             </div>
 
             {/* Current Voice Status */}
@@ -181,6 +197,22 @@ export default function VoiceStudioPage() {
             onSuccess={handleModalSuccess}
           />
         </div>
+
+        {/* Toast Notification */}
+        {showToast && (
+          <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-top-2 duration-300">
+            <div className="bg-blue-600 text-white px-6 py-4 rounded-lg shadow-lg flex items-center space-x-3 max-w-sm">
+              <AlertCircle className="w-5 h-5 flex-shrink-0" />
+              <span className="text-sm font-medium">{toastMessage}</span>
+              <button
+                onClick={() => setShowToast(false)}
+                className="ml-2 text-white hover:text-blue-200 transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </DashboardLayout>
   )

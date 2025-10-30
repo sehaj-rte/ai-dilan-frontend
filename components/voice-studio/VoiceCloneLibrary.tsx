@@ -560,12 +560,17 @@ export default function VoiceCloneLibrary({ projectId, refreshTrigger, selectedV
                         </button>
                       )}
 
-                      {/* Delete Voice Button - Hide for default voice */}
+                      {/* Delete Voice Button - Hide for default voice and disable for selected voice */}
                       {voiceClone.voice_id !== 'EXAVITQu4vr4xnSDxMaL' && (
                         <button
-                          onClick={() => setConfirmDelete({ voiceId: voiceClone.voice_id, name: voiceClone.name })}
-                          className="flex items-center px-3 py-2 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 transition-colors text-sm ml-2"
-                          title="Delete this voice"
+                          onClick={() => selectedVoiceId !== voiceClone.voice_id && setConfirmDelete({ voiceId: voiceClone.voice_id, name: voiceClone.name })}
+                          disabled={selectedVoiceId === voiceClone.voice_id}
+                          className={`flex items-center px-3 py-2 rounded-lg transition-colors text-sm ml-2 ${
+                            selectedVoiceId === voiceClone.voice_id
+                              ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                              : 'bg-red-50 text-red-700 hover:bg-red-100'
+                          }`}
+                          title={selectedVoiceId === voiceClone.voice_id ? "Cannot delete selected voice" : "Delete this voice"}
                         >
                           <Trash2 className="w-4 h-4 mr-1" />
                           Delete
