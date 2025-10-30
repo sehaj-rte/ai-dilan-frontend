@@ -89,6 +89,7 @@ const ChatModeInterface: React.FC<ChatModeInterfaceProps> = ({
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const keepAliveIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -105,6 +106,10 @@ const ChatModeInterface: React.FC<ChatModeInterfaceProps> = ({
         clearInterval(heartbeatIntervalRef.current)
         heartbeatIntervalRef.current = null
       }
+      if (keepAliveIntervalRef.current) {
+        clearInterval(keepAliveIntervalRef.current)
+        keepAliveIntervalRef.current = null
+      }
       if (ws && ws.readyState === WebSocket.OPEN) {
         try { ws.close(1000, 'Component unmounted') } catch {}
       }
@@ -117,15 +122,19 @@ const ChatModeInterface: React.FC<ChatModeInterfaceProps> = ({
       setError(null)
       onStatusChange?.('connecting')
 
-      // Use chat-session endpoint for text-only mode, or session endpoint with overrides
-      const endpoint = textOnly 
-        ? `/conversation/chat-session/${expertId}`
-        : `/conversation/session/${expertId}`
+      // Always use chat-session endpoint for text-only mode with higher concurrency
+      const endpoint = `/conversation/chat-session/${expertId}`
       
       // Always send text_only override to ensure text-only mode
-      const overrides = { conversation: { text_only: true } }
+      // Add inactivity_timeout parameter for longer sessions (max 180 seconds)
+      const overrides = { 
+        conversation: { 
+          text_only: true,
+          inactivity_timeout: 180 // 3 minutes maximum
+        } 
+      }
 
-      console.log(`✅ Creating ${textOnly ? 'text-only' : 'conversation'} session with overrides:`, overrides)
+      console.log(`✅ Creating text-only chat session with overrides:`, overrides)
 
       const response = await fetch(`${API_URL}${endpoint}`, {
         method: 'POST',
@@ -162,17 +171,22 @@ const ChatModeInterface: React.FC<ChatModeInterfaceProps> = ({
         setIsConnecting(false)
         setError(null)
         onStatusChange?.('connected')
-        heartbeatIntervalRef.current && clearInterval(heartbeatIntervalRef.current)
-        heartbeatIntervalRef.current = setInterval(() => {
+        // Keep-alive mechanism for Agents Platform: Send empty text message every 18 seconds
+        // This resets the 20-second context timeout according to Agents Platform docs
+        keepAliveIntervalRef.current = setInterval(() => {
           if (websocket.readyState === WebSocket.OPEN) {
             try {
-              websocket.send(JSON.stringify({ type: 'ping' }))
+              // Send empty text message using Agents Platform UserMessage format
+              websocket.send(JSON.stringify({
+                type: 'user_message',
+                text: ''
+              }))
+              console.log('🔄 Keep-alive message sent (empty text for Agents Platform)')
             } catch (e) {
-              console.error('Heartbeat failed:', e)
+              console.error('Keep-alive failed:', e)
             }
           }
-        }, 30000)
-        resolve(websocket)
+        }, 18000) // 18 seconds - safely under the 20s context timeout
       }
 
       websocket.onmessage = (event) => {
@@ -188,9 +202,15 @@ const ChatModeInterface: React.FC<ChatModeInterfaceProps> = ({
           
           console.log('Received WebSocket message:', data)
           
-          // Handle different message types from ElevenLabs
+          // Handle different message types from ElevenLabs Agents Platform
           if (data.type === 'agent_response' && data.agent_response_event?.agent_response) {
             const responseText = data.agent_response_event.agent_response
+            
+            // Filter out keep-alive responses (empty responses from Agents Platform)
+            if (responseText.trim() === '') {
+              console.log('🔄 Filtered out keep-alive response (empty text)')
+              return
+            }
             
             // Filter out generic greeting messages for better UX
             const isGenericGreeting = responseText.toLowerCase().includes('knowledge') && 
@@ -211,6 +231,12 @@ const ChatModeInterface: React.FC<ChatModeInterfaceProps> = ({
             setIsWaitingForResponse(false)
           } else if (data.type === 'agent_response' && data.agent_response) {
             const responseText = data.agent_response
+            
+            // Filter out keep-alive responses (empty responses from Agents Platform)
+            if (responseText.trim() === '') {
+              console.log('🔄 Filtered out keep-alive response (empty text)')
+              return
+            }
             
             // Filter out generic greeting messages for better UX
             const isGenericGreeting = responseText.toLowerCase().includes('knowledge') && 
@@ -322,6 +348,10 @@ const ChatModeInterface: React.FC<ChatModeInterfaceProps> = ({
     if (heartbeatIntervalRef.current) {
       clearInterval(heartbeatIntervalRef.current)
       heartbeatIntervalRef.current = null
+    }
+    if (keepAliveIntervalRef.current) {
+      clearInterval(keepAliveIntervalRef.current)
+      keepAliveIntervalRef.current = null
     }
   }
 
