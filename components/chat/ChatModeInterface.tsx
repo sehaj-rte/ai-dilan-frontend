@@ -32,7 +32,7 @@ import {
   Check,
   FileText,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
   Mic,
   MicOff
 } from 'lucide-react'
@@ -1048,8 +1048,6 @@ const ChatModeInterface: React.FC<ChatModeInterfaceProps> = ({
             {speechError}
           </div>
         )}
-
-        {/* Info Text */}
         <div className="text-xs pt-1 text-gray-500 text-center">
           {isConnected ? (
             textOnly ? (
@@ -1061,6 +1059,7 @@ const ChatModeInterface: React.FC<ChatModeInterfaceProps> = ({
                 ✅ Connected via ElevenLabs
               </span>
             )
+          ) : null}
           {isListening ? (
             <span className="text-blue-600 animate-pulse">
               🎤 Listening... Speak now
