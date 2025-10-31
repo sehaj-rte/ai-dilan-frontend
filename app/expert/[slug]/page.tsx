@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import SpeechToTextInput from '@/components/ui/speech-to-text-input'
 import { API_URL } from '@/lib/config'
 import { 
   MessageCircle, 
@@ -18,7 +19,8 @@ import {
   Play,
   Globe,
   Calendar,
-  Eye
+  Eye,
+  Send
 } from 'lucide-react'
 
 interface Expert {
@@ -81,6 +83,7 @@ const PublicExpertPage = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showFullDescription, setShowFullDescription] = useState(false)
+  const [questionText, setQuestionText] = useState('')
 
   const convertS3UrlToProxy = (s3Url: string): string => {
     if (!s3Url) return s3Url
@@ -130,6 +133,21 @@ const PublicExpertPage = () => {
   const handleStartCall = () => {
     // Redirect to call interface with slug
     router.push(`/expert/${slug}/call`)
+  }
+
+  const handleQuestionSubmit = () => {
+    if (questionText.trim()) {
+      // Redirect to chat with the question as a parameter
+      const encodedQuestion = encodeURIComponent(questionText.trim())
+      router.push(`/expert/${slug}/chat?question=${encodedQuestion}`)
+    }
+  }
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      handleQuestionSubmit()
+    }
   }
 
   const getPricingDisplay = () => {
@@ -289,19 +307,39 @@ const PublicExpertPage = () => {
           </div>
 
           
-          {/* Ask Question Input */}
+          {/* Ask Question Input with Speech-to-Text */}
           <div className="mt-12 pt-8 border-t border-gray-200">
-            <div className="relative">
-              <input
-                type="text"
-                placeholder={`Ask ${expert.name} a question`}
-                className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
-              />
-              <button className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
-                </svg>
-              </button>
+            <div className="space-y-3">
+              <h3 className="text-lg font-semibold text-gray-900 text-center">
+                Ask {expert.name} a Question
+              </h3>
+              <p className="text-sm text-gray-600 text-center">
+                Type your question or use the microphone to speak
+              </p>
+              <div className="w-full max-w-md mx-auto">
+                <SpeechToTextInput
+                  value={questionText}
+                  onChange={setQuestionText}
+                  onKeyPress={handleKeyPress}
+                  placeholder={`Ask ${expert.name} a question...`}
+                  className="text-base"
+                  showMicButton={true}
+                />
+                <div className="mt-3 flex justify-center">
+                  <Button
+                    onClick={handleQuestionSubmit}
+                    disabled={!questionText.trim()}
+                    size="lg"
+                    className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-2 rounded-full"
+                  >
+                    <Send className="h-4 w-4 mr-2" />
+                    Send Question
+                  </Button>
+                </div>
+              </div>
+              <p className="text-xs text-gray-500 text-center">
+                Press Enter to send or click the send button
+              </p>
             </div>
           </div>
         </div>

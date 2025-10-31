@@ -513,9 +513,13 @@ const AddContentModal: React.FC<AddContentModalProps> = ({
               defaultFolderId={selectedFolderId}
               hideFolderSelector={true}
               agentId={agentId}
-              onTranscriptionComplete={() => {
+              onTranscriptionComplete={(result) => {
+                console.log('🔄 AddContentModal: Transcription completed, calling parent callback')
                 onTranscriptionComplete()
-                onClose()
+                // Add a small delay before closing to ensure the file list refreshes
+                setTimeout(() => {
+                  onClose()
+                }, 500)
               }} 
             />
           </div>

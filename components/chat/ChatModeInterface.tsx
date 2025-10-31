@@ -1,8 +1,17 @@
 'use client'
 
 import React, { useState, useEffect, useRef } from 'react'
+
+// Web Speech API type declarations
+declare global {
+  interface Window {
+    SpeechRecognition: any
+    webkitSpeechRecognition: any
+  }
+}
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { API_URL } from '@/lib/config'
@@ -24,6 +33,8 @@ import {
   FileText,
   ChevronDown,
   ChevronUp
+  Mic,
+  MicOff
 } from 'lucide-react'
 
 interface ChatMessage {
@@ -105,8 +116,16 @@ const ChatModeInterface: React.FC<ChatModeInterfaceProps> = ({
   const [sessionId, setSessionId] = useState<string | null>(null) // For OpenAI chat
   const [expandedCitations, setExpandedCitations] = useState<Set<string>>(new Set())
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
+  const inputRef = useRef<HTMLTextAreaElement>(null)
   const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  
+  // Speech Recognition States
+  const [isListening, setIsListening] = useState(false)
+  const [speechSupported, setSpeechSupported] = useState(false)
+  const [speechError, setSpeechError] = useState<string | null>(null)
+  const [interimText, setInterimText] = useState('')
+  const [finalText, setFinalText] = useState('')
+  const recognitionRef = useRef<any>(null)
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -115,6 +134,118 @@ const ChatModeInterface: React.FC<ChatModeInterfaceProps> = ({
   useEffect(() => {
     scrollToBottom()
   }, [messages])
+
+  // Reset textarea height when input is cleared
+  useEffect(() => {
+    if (inputText === '' && inputRef.current) {
+      inputRef.current.style.height = 'auto'
+    }
+  }, [inputText])
+
+  // Initialize Speech Recognition
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
+      if (SpeechRecognition) {
+        setSpeechSupported(true)
+        const recognition = new SpeechRecognition()
+        
+        // Mobile-specific optimizations from demo
+        const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+        
+        if (isMobile) {
+          recognition.continuous = false  // Better for mobile battery
+          recognition.interimResults = true  // Still show real-time results
+        } else {
+          recognition.continuous = true   // Keep listening continuously on desktop
+          recognition.interimResults = true
+        }
+        
+        recognition.lang = 'en-US'
+        recognition.maxAlternatives = 1
+
+        recognition.onstart = () => {
+          setIsListening(true)
+          setSpeechError(null)
+          setInterimText('')
+          setFinalText('')
+        }
+
+        recognition.onresult = (event: any) => {
+          let interimTranscript = ''
+          let finalTranscript = ''
+
+          // Process all results to get both final and interim text
+          for (let i = 0; i < event.results.length; i++) {
+            const transcript = event.results[i][0].transcript
+            if (event.results[i].isFinal) {
+              finalTranscript += transcript
+            } else {
+              interimTranscript += transcript
+            }
+          }
+
+          // Combine final and interim for real-time display
+          const completeTranscript = finalTranscript + interimTranscript
+
+          if (completeTranscript.trim()) {
+            // Update input immediately with both final and interim results
+            setInputText(completeTranscript.trim())
+            
+            // Keep cursor at end and auto-resize
+            if (inputRef.current) {
+              const textarea = inputRef.current
+              setTimeout(() => {
+                textarea.selectionStart = textarea.selectionEnd = textarea.value.length
+                // Auto-resize for speech input
+                textarea.style.height = 'auto'
+                textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px'
+              }, 0)
+            }
+          }
+        }
+
+        recognition.onerror = (event: any) => {
+          console.error('Speech recognition error:', event.error)
+          setIsListening(false)
+          
+          // Handle specific errors like in the demo
+          switch (event.error) {
+            case 'not-allowed':
+              setSpeechError('Microphone access denied. Please allow microphone access and try again.')
+              break
+            case 'no-speech':
+              setSpeechError('No speech detected. Please speak clearly into your microphone.')
+              break
+            case 'network':
+              setSpeechError('Network error. Please check your internet connection and try again.')
+              break
+            case 'aborted':
+              setSpeechError('')
+              break
+            default:
+              setSpeechError('Voice recognition error. Please try again.')
+          }
+        }
+
+        recognition.onend = () => {
+          setIsListening(false)
+          setInterimText('')
+        }
+
+        recognitionRef.current = recognition
+      } else {
+        setSpeechSupported(false)
+        console.warn('Speech Recognition not supported in this browser')
+      }
+    }
+
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop()
+      }
+    }
+  }, [])
 
   // Cleanup on unmount: clear heartbeat and close WS
   useEffect(() => {
@@ -125,6 +256,9 @@ const ChatModeInterface: React.FC<ChatModeInterfaceProps> = ({
       }
       if (ws && ws.readyState === WebSocket.OPEN) {
         try { ws.close(1000, 'Component unmounted') } catch {}
+      }
+      if (recognitionRef.current) {
+        recognitionRef.current.stop()
       }
     }
   }, [ws])
@@ -527,6 +661,61 @@ const ChatModeInterface: React.FC<ChatModeInterfaceProps> = ({
       e.preventDefault()
       sendMessage()
     }
+    // Allow Shift+Enter for new lines in multiline input
+  }
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    // Only allow manual typing when not listening
+    if (!isListening) {
+      setInputText(e.target.value)
+      
+      // Auto-resize textarea
+      const textarea = e.target
+      textarea.style.height = 'auto'
+      textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px'
+    }
+  }
+
+  const startListening = async () => {
+    if (recognitionRef.current && speechSupported) {
+      try {
+        // Check microphone permission first like in the demo
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+          // Stop the stream immediately as we'll use Speech Recognition API
+          stream.getTracks().forEach(track => track.stop())
+        } catch (permissionError) {
+          console.error('Microphone permission denied:', permissionError)
+          setSpeechError('Microphone access is required for voice recording. Please allow microphone access and try again.')
+          return
+        }
+
+        recognitionRef.current.start()
+        setSpeechError(null)
+      } catch (error) {
+        console.error('Error starting speech recognition:', error)
+        setSpeechError('Failed to start speech recognition')
+      }
+    }
+  }
+
+  const stopListening = () => {
+    if (recognitionRef.current && isListening) {
+      try {
+        recognitionRef.current.stop()
+      } catch (error) {
+        console.log('Speech recognition already stopped')
+      }
+      setInterimText('')
+    }
+  }
+
+  const toggleListening = () => {
+    if (isListening) {
+      stopListening()
+    } else {
+      startListening()
+    }
   }
 
   const clearChat = () => {
@@ -812,15 +1001,32 @@ const ChatModeInterface: React.FC<ChatModeInterfaceProps> = ({
           {/* Message Input */}
           {isConnected && (
             <div className="flex space-x-2">
-              <Input
+              <Textarea
                 ref={inputRef}
                 value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
+                onChange={handleInputChange}
                 onKeyPress={handleKeyPress}
-                placeholder="Ask me anything directly..."
+                placeholder={isListening ? "🎤 Listening... speak now" : "Ask me anything directly... (Shift+Enter for new line)"}
                 disabled={!isConnected}
-                className="flex-1"
+                className={`flex-1 min-h-[40px] max-h-[120px] resize-none ${isListening ? 'ring-2 ring-blue-500 bg-blue-50' : ''}`}
+                rows={1}
               />
+              {speechSupported && (
+                <Button
+                  onClick={toggleListening}
+                  disabled={!isConnected}
+                  size="sm"
+                  variant={isListening ? "destructive" : "outline"}
+                  className={isListening ? "animate-pulse" : ""}
+                  title={isListening ? "Stop listening" : "Start voice input"}
+                >
+                  {isListening ? (
+                    <MicOff className="h-4 w-4" />
+                  ) : (
+                    <Mic className="h-4 w-4" />
+                  )}
+                </Button>
+              )}
               <Button
                 onClick={sendMessage}
                 disabled={!inputText.trim() || !isConnected || isWaitingForResponse}
@@ -836,6 +1042,13 @@ const ChatModeInterface: React.FC<ChatModeInterfaceProps> = ({
           )}
         </div>
 
+        {/* Speech Error Display */}
+        {speechError && (
+          <div className="text-xs text-red-500 text-center py-1">
+            {speechError}
+          </div>
+        )}
+
         {/* Info Text */}
         <div className="text-xs pt-1 text-gray-500 text-center">
           {isConnected ? (
@@ -848,6 +1061,14 @@ const ChatModeInterface: React.FC<ChatModeInterfaceProps> = ({
                 ✅ Connected via ElevenLabs
               </span>
             )
+          {isListening ? (
+            <span className="text-blue-600 animate-pulse">
+              🎤 Listening... Speak now
+            </span>
+          ) : isConnected ? (
+            <span className="text-green-600">
+              ✅ Connected {speechSupported && '• Voice input available'}
+            </span>
           ) : (
             <span>
               Only fully processed documents (✓ Completed status) will be used to answer your questions
