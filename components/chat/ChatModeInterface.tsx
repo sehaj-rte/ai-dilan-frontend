@@ -15,6 +15,8 @@ import { Textarea } from '@/components/ui/textarea'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { API_URL } from '@/lib/config'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { 
   MessageSquare, 
   Send, 
@@ -28,6 +30,9 @@ import {
   X,
   Copy,
   Check,
+  FileText,
+  ChevronDown,
+  ChevronUp
   Mic,
   MicOff
 } from 'lucide-react'
@@ -37,6 +42,17 @@ interface ChatMessage {
   type: 'user' | 'agent'
   text: string
   timestamp: Date
+  toolCalls?: Array<{
+    function: string
+    query: string
+    results_count: number
+  }>
+  sources?: Array<{
+    source: string
+    score: number
+    page?: number
+    text?: string
+  }>
 }
 
 interface ChatModeInterfaceProps {
@@ -97,6 +113,8 @@ const ChatModeInterface: React.FC<ChatModeInterfaceProps> = ({
   const [error, setError] = useState<string | null>(null)
   const [ws, setWs] = useState<WebSocket | null>(null)
   const [conversationId, setConversationId] = useState<string | null>(null)
+  const [sessionId, setSessionId] = useState<string | null>(null) // For OpenAI chat
+  const [expandedCitations, setExpandedCitations] = useState<Set<string>>(new Set())
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null)
@@ -407,7 +425,53 @@ const ChatModeInterface: React.FC<ChatModeInterfaceProps> = ({
     })
   }
 
+  const startOpenAIChatSession = async () => {
+    try {
+      setIsConnecting(true)
+      setError(null)
+      onStatusChange?.('connecting')
+
+      const response = await fetch(`${API_URL}/openai-chat/session/create`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ expert_id: expertId })
+      })
+
+      if (!response.ok) {
+        throw new Error(`Failed to create session: ${response.statusText}`)
+      }
+
+      const data = await response.json()
+      
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to create session')
+      }
+
+      setSessionId(data.session_id)
+      setIsConnected(true)
+      setIsConnecting(false)
+      setMessages([])
+      onStatusChange?.('connected')
+      
+      console.log('✅ OpenAI chat session created:', data.session_id)
+
+    } catch (error: any) {
+      console.error('Error creating OpenAI session:', error)
+      setError(error.message || 'Failed to create session')
+      onError?.(error.message || 'Failed to create session')
+      setIsConnecting(false)
+      onStatusChange?.('disconnected')
+    }
+  }
+
   const startChatSession = async () => {
+    // Use OpenAI for text-only mode, ElevenLabs for voice
+    if (textOnly) {
+      return startOpenAIChatSession()
+    }
+
     try {
       setIsConnecting(true)
       setError(null)
@@ -443,7 +507,36 @@ const ChatModeInterface: React.FC<ChatModeInterfaceProps> = ({
     }
   }
 
+  const endOpenAIChatSession = async () => {
+    if (!sessionId) return
+
+    try {
+      await fetch(`${API_URL}/openai-chat/session/end`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ session_id: sessionId })
+      })
+    } catch (error) {
+      console.error('Error ending OpenAI session:', error)
+    }
+
+    setSessionId(null)
+    setIsConnected(false)
+    setIsConnecting(false)
+    setIsWaitingForResponse(false)
+    setMessages([])
+    onStatusChange?.('disconnected')
+  }
+
   const endChatSession = () => {
+    // Use OpenAI for text-only mode, ElevenLabs for voice
+    if (textOnly && sessionId) {
+      endOpenAIChatSession()
+      return
+    }
+
     if (ws) {
       ws.close(1000, 'User ended session')
       setWs(null)
@@ -459,7 +552,80 @@ const ChatModeInterface: React.FC<ChatModeInterfaceProps> = ({
     }
   }
 
+  const sendOpenAIMessage = async () => {
+    if (!inputText.trim() || !sessionId || !isConnected || isWaitingForResponse) return
+
+    const userMessage: ChatMessage = {
+      id: `user-${Date.now()}`,
+      type: 'user',
+      text: inputText.trim(),
+      timestamp: new Date()
+    }
+
+    // Add user message to chat
+    setMessages(prev => [...prev, userMessage])
+    setIsWaitingForResponse(true)
+    const messageText = inputText.trim()
+    setInputText('')
+
+    try {
+      const response = await fetch(`${API_URL}/openai-chat/message/send`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          session_id: sessionId,
+          message: messageText,
+          model: 'gpt-4o-mini'
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error(`Failed to send message: ${response.statusText}`)
+      }
+
+      const data = await response.json()
+      
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to get response')
+      }
+
+      console.log('📚 Response data:', data)
+      console.log('📄 Sources received:', data.sources)
+
+      // Add agent response
+      const agentMessage: ChatMessage = {
+        id: `agent-${Date.now()}`,
+        type: 'agent',
+        text: data.response,
+        timestamp: new Date(),
+        toolCalls: data.tool_calls_made,
+        sources: data.sources || []
+      }
+      
+      console.log('💬 Agent message with sources:', agentMessage)
+
+      setMessages(prev => [...prev, agentMessage])
+      setIsWaitingForResponse(false)
+
+    } catch (error: any) {
+      console.error('Error sending OpenAI message:', error)
+      setError('Failed to send message')
+      onError?.('Failed to send message')
+      setIsWaitingForResponse(false)
+    }
+
+    inputRef.current?.focus()
+  }
+
   const sendMessage = () => {
+    // Use OpenAI for text-only mode, ElevenLabs for voice
+    if (textOnly && sessionId) {
+      sendOpenAIMessage()
+      return
+    }
+
     if (!inputText.trim() || !ws || !isConnected || isWaitingForResponse) return
 
     const userMessage: ChatMessage = {
@@ -682,7 +848,78 @@ const ChatModeInterface: React.FC<ChatModeInterfaceProps> = ({
                     <User className="h-4 w-4 mt-0.5 flex-shrink-0" />
                   )}
                   <div className="flex-1">
-                    <p className="text-sm whitespace-pre-wrap">{message.text}</p>
+                    <div className={`text-sm prose prose-sm max-w-none ${
+                      message.type === 'user' 
+                        ? 'prose-invert prose-headings:text-white prose-p:text-white prose-strong:text-white prose-li:text-white prose-code:text-blue-100' 
+                        : 'prose-gray prose-headings:text-gray-900 prose-p:text-gray-900'
+                    }`}>
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {message.text}
+                      </ReactMarkdown>
+                    </div>
+                    
+                    {/* Show tool calls if any (OpenAI knowledge base search) */}
+                    {message.toolCalls && message.toolCalls.length > 0 && (
+                      <div className="mt-2 pt-2 border-t border-gray-300">
+                        <p className="text-xs text-gray-600 flex items-center gap-1">
+                          <MessageSquare className="h-3 w-3" />
+                          Searched knowledge base: {message.toolCalls[0].results_count} results found
+                        </p>
+                      </div>
+                    )}
+                    
+                    {/* Show citations if sources were used */}
+                    {message.sources && message.sources.length > 0 && (
+                      <div className="mt-2">
+                        <button
+                          onClick={() => {
+                            const newExpanded = new Set(expandedCitations)
+                            if (newExpanded.has(message.id)) {
+                              newExpanded.delete(message.id)
+                            } else {
+                              newExpanded.add(message.id)
+                            }
+                            setExpandedCitations(newExpanded)
+                          }}
+                          className="flex items-center gap-1.5 text-xs text-gray-600 hover:text-gray-900 transition-colors py-1"
+                        >
+                          <FileText className="h-3.5 w-3.5" />
+                          <span className="font-medium">Citations</span>
+                          {expandedCitations.has(message.id) ? (
+                            <ChevronUp className="h-3.5 w-3.5" />
+                          ) : (
+                            <ChevronDown className="h-3.5 w-3.5" />
+                          )}
+                        </button>
+                        
+                        {expandedCitations.has(message.id) && (
+                          <div className="mt-2 bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+                            <div className="divide-y divide-gray-100">
+                              {message.sources.map((source, idx) => (
+                                <div 
+                                  key={idx}
+                                  className="group p-3 hover:bg-gray-50 transition-colors"
+                                >
+                                  <div className="flex items-start justify-between gap-2 mb-1">
+                                    <div className="flex-1">
+                                      <span className="text-xs font-medium text-gray-900">
+                                        {source.source}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  {source.text && (
+                                    <div className="text-xs text-gray-600 leading-relaxed mt-1.5 line-clamp-2">
+                                      {source.text}...
+                                    </div>
+                                  )}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    
                     <div className="flex items-center justify-between mt-1">
                       <p className={`text-xs ${
                         message.type === 'user' ? 'text-blue-200' : 'text-gray-500'
@@ -814,6 +1051,16 @@ const ChatModeInterface: React.FC<ChatModeInterfaceProps> = ({
 
         {/* Info Text */}
         <div className="text-xs pt-1 text-gray-500 text-center">
+          {isConnected ? (
+            textOnly ? (
+              <span className="text-green-600">
+                ✅ Using OpenAI with knowledge base search • Cost-effective mode
+              </span>
+            ) : (
+              <span className="text-green-600">
+                ✅ Connected via ElevenLabs
+              </span>
+            )
           {isListening ? (
             <span className="text-blue-600 animate-pulse">
               🎤 Listening... Speak now

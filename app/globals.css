@@ -143,3 +143,89 @@ a {
 .btn-secondary {
   @apply bg-white text-gray-900 font-semibold py-3 px-6 rounded-lg border border-gray-200 hover:bg-gray-50 transition-all duration-300 transform hover:scale-105 shadow-md hover:shadow-lg;
 }
+
+/* Markdown styling for chat messages */
+.prose {
+  @apply text-sm;
+}
+
+.prose p {
+  @apply my-2;
+}
+
+.prose p:first-child {
+  @apply mt-0;
+}
+
+.prose p:last-child {
+  @apply mb-0;
+}
+
+.prose ul, .prose ol {
+  @apply my-2 pl-4;
+}
+
+.prose li {
+  @apply my-1;
+}
+
+.prose code {
+  @apply bg-gray-100 px-1.5 py-0.5 rounded text-xs font-mono;
+}
+
+.prose pre {
+  @apply bg-gray-900 text-gray-100 p-3 rounded-lg my-2 overflow-x-auto;
+}
+
+.prose pre code {
+  @apply bg-transparent p-0 text-sm;
+}
+
+.prose strong {
+  @apply font-semibold;
+}
+
+.prose em {
+  @apply italic;
+}
+
+.prose h1, .prose h2, .prose h3, .prose h4, .prose h5, .prose h6 {
+  @apply font-semibold mt-3 mb-2;
+}
+
+.prose h1 {
+  @apply text-lg;
+}
+
+.prose h2 {
+  @apply text-base;
+}
+
+.prose h3 {
+  @apply text-sm;
+}
+
+.prose blockquote {
+  @apply border-l-4 border-gray-300 pl-3 italic my-2;
+}
+
+.prose a {
+  @apply text-blue-600 hover:underline;
+}
+
+/* Prose invert for user messages (white text on blue background) */
+.prose-invert code {
+  @apply bg-blue-700 text-blue-100;
+}
+
+.prose-invert pre {
+  @apply bg-blue-900 text-blue-50;
+}
+
+.prose-invert blockquote {
+  @apply border-blue-300;
+}
+
+.prose-invert a {
+  @apply text-blue-200 hover:text-blue-100;
+}
