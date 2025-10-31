@@ -82,7 +82,7 @@ export default function VoiceStudioPage() {
   }
 
   const handleCreateVoiceClick = () => {
-    if (voiceCount >= 3) {
+    if (voiceCount >= 6) {
       showToastMessage('Reached Limit. Delete old voices to create new ones.')
     } else {
       setIsModalOpen(true)

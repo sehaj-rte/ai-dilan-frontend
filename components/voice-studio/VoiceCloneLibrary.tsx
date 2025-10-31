@@ -36,7 +36,7 @@ export default function VoiceCloneLibrary({ projectId, refreshTrigger, selectedV
   const [playingVoice, setPlayingVoice] = useState<string | null>(null)
   const [audioLoading, setAudioLoading] = useState<string | null>(null)
   const [audioRefs, setAudioRefs] = useState<{ [key: string]: HTMLAudioElement }>({})
-  const [previewText, setPreviewText] = useState("Hello! This is a quick voice preview.");
+  const [previewText, setPreviewText] = useState("Hey there! This is a quick voice preview just to give you an idea of how everything sounds — tone, pacing, and clarity. I’ll keep it short, but this should help you get a feel for the overall vibe.");
   const [selectingVoice, setSelectingVoice] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
