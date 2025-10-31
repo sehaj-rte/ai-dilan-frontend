@@ -26,6 +26,11 @@ interface ChatMessage {
   type: 'user' | 'agent'
   text: string
   timestamp: Date
+  toolCalls?: Array<{
+    function: string
+    query: string
+    results_count: number
+  }>
 }
 
 interface ChatModeInterfaceProps {
@@ -86,6 +91,7 @@ const ChatModeInterface: React.FC<ChatModeInterfaceProps> = ({
   const [error, setError] = useState<string | null>(null)
   const [ws, setWs] = useState<WebSocket | null>(null)
   const [conversationId, setConversationId] = useState<string | null>(null)
+  const [sessionId, setSessionId] = useState<string | null>(null) // For OpenAI chat
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null)
@@ -273,7 +279,53 @@ const ChatModeInterface: React.FC<ChatModeInterfaceProps> = ({
     })
   }
 
+  const startOpenAIChatSession = async () => {
+    try {
+      setIsConnecting(true)
+      setError(null)
+      onStatusChange?.('connecting')
+
+      const response = await fetch(`${API_URL}/openai-chat/session/create`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ expert_id: expertId })
+      })
+
+      if (!response.ok) {
+        throw new Error(`Failed to create session: ${response.statusText}`)
+      }
+
+      const data = await response.json()
+      
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to create session')
+      }
+
+      setSessionId(data.session_id)
+      setIsConnected(true)
+      setIsConnecting(false)
+      setMessages([])
+      onStatusChange?.('connected')
+      
+      console.log('✅ OpenAI chat session created:', data.session_id)
+
+    } catch (error: any) {
+      console.error('Error creating OpenAI session:', error)
+      setError(error.message || 'Failed to create session')
+      onError?.(error.message || 'Failed to create session')
+      setIsConnecting(false)
+      onStatusChange?.('disconnected')
+    }
+  }
+
   const startChatSession = async () => {
+    // Use OpenAI for text-only mode, ElevenLabs for voice
+    if (textOnly) {
+      return startOpenAIChatSession()
+    }
+
     try {
       setIsConnecting(true)
       setError(null)
@@ -309,7 +361,36 @@ const ChatModeInterface: React.FC<ChatModeInterfaceProps> = ({
     }
   }
 
+  const endOpenAIChatSession = async () => {
+    if (!sessionId) return
+
+    try {
+      await fetch(`${API_URL}/openai-chat/session/end`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ session_id: sessionId })
+      })
+    } catch (error) {
+      console.error('Error ending OpenAI session:', error)
+    }
+
+    setSessionId(null)
+    setIsConnected(false)
+    setIsConnecting(false)
+    setIsWaitingForResponse(false)
+    setMessages([])
+    onStatusChange?.('disconnected')
+  }
+
   const endChatSession = () => {
+    // Use OpenAI for text-only mode, ElevenLabs for voice
+    if (textOnly && sessionId) {
+      endOpenAIChatSession()
+      return
+    }
+
     if (ws) {
       ws.close(1000, 'User ended session')
       setWs(null)
@@ -325,7 +406,74 @@ const ChatModeInterface: React.FC<ChatModeInterfaceProps> = ({
     }
   }
 
+  const sendOpenAIMessage = async () => {
+    if (!inputText.trim() || !sessionId || !isConnected || isWaitingForResponse) return
+
+    const userMessage: ChatMessage = {
+      id: `user-${Date.now()}`,
+      type: 'user',
+      text: inputText.trim(),
+      timestamp: new Date()
+    }
+
+    // Add user message to chat
+    setMessages(prev => [...prev, userMessage])
+    setIsWaitingForResponse(true)
+    const messageText = inputText.trim()
+    setInputText('')
+
+    try {
+      const response = await fetch(`${API_URL}/openai-chat/message/send`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          session_id: sessionId,
+          message: messageText,
+          model: 'gpt-4o-mini'
+        })
+      })
+
+      if (!response.ok) {
+        throw new Error(`Failed to send message: ${response.statusText}`)
+      }
+
+      const data = await response.json()
+      
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to get response')
+      }
+
+      // Add agent response
+      const agentMessage: ChatMessage = {
+        id: `agent-${Date.now()}`,
+        type: 'agent',
+        text: data.response,
+        timestamp: new Date(),
+        toolCalls: data.tool_calls_made
+      }
+
+      setMessages(prev => [...prev, agentMessage])
+      setIsWaitingForResponse(false)
+
+    } catch (error: any) {
+      console.error('Error sending OpenAI message:', error)
+      setError('Failed to send message')
+      onError?.('Failed to send message')
+      setIsWaitingForResponse(false)
+    }
+
+    inputRef.current?.focus()
+  }
+
   const sendMessage = () => {
+    // Use OpenAI for text-only mode, ElevenLabs for voice
+    if (textOnly && sessionId) {
+      sendOpenAIMessage()
+      return
+    }
+
     if (!inputText.trim() || !ws || !isConnected || isWaitingForResponse) return
 
     const userMessage: ChatMessage = {
@@ -494,6 +642,17 @@ const ChatModeInterface: React.FC<ChatModeInterfaceProps> = ({
                   )}
                   <div className="flex-1">
                     <p className="text-sm whitespace-pre-wrap">{message.text}</p>
+                    
+                    {/* Show tool calls if any (OpenAI knowledge base search) */}
+                    {message.toolCalls && message.toolCalls.length > 0 && (
+                      <div className="mt-2 pt-2 border-t border-gray-300">
+                        <p className="text-xs text-gray-600 flex items-center gap-1">
+                          <MessageSquare className="h-3 w-3" />
+                          Searched knowledge base: {message.toolCalls[0].results_count} results found
+                        </p>
+                      </div>
+                    )}
+                    
                     <div className="flex items-center justify-between mt-1">
                       <p className={`text-xs ${
                         message.type === 'user' ? 'text-blue-200' : 'text-gray-500'
@@ -602,9 +761,15 @@ const ChatModeInterface: React.FC<ChatModeInterfaceProps> = ({
         {/* Info Text */}
         <div className="text-xs pt-1 text-gray-500 text-center">
           {isConnected ? (
-            <span className="text-green-600">
-              ✅ Connected
-            </span>
+            textOnly ? (
+              <span className="text-green-600">
+                ✅ Using OpenAI with knowledge base search • Cost-effective mode
+              </span>
+            ) : (
+              <span className="text-green-600">
+                ✅ Connected via ElevenLabs
+              </span>
+            )
           ) : (
             <span>
               Only fully processed documents (✓ Completed status) will be used to answer your questions
