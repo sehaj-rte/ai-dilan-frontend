@@ -159,39 +159,37 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, customHeade
                 </button>
                 
                 <div className="flex items-center space-x-3">
-                  {/* Knowledge Base Statistics */}
-                  {knowledgeBaseStats && (
-                    <div className="flex items-center gap-3">
-                      {/* Word Count Badge */}
-                      <div 
-                        className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 rounded-lg border border-blue-100 cursor-help hover:bg-blue-100 transition-colors" 
-                        title={`Total words in Pinecone: ${knowledgeBaseStats.total_word_count.toLocaleString()} words`}
-                      >
-                        <FileText className="h-4 w-4 text-blue-600" />
-                        <span className="text-blue-700 font-semibold text-sm">{knowledgeBaseStats.total_word_count_formatted}</span>
-                        <span className="text-blue-600 text-xs font-medium">words</span>
-                      </div>
-                      
-                      {/* Memory Usage Badge */}
-                      <div 
-                        className="flex items-center gap-2 px-3 py-1.5 bg-purple-50 rounded-lg border border-purple-100 cursor-help hover:bg-purple-100 transition-colors" 
-                        title={`Pinecone storage: ${knowledgeBaseStats.memory_usage_formatted}`}
-                      >
-                        <Database className="h-4 w-4 text-purple-600" />
-                        <span className="text-purple-700 font-semibold text-sm">{knowledgeBaseStats.memory_usage_formatted}</span>
-                      </div>
-                      
-                      {/* Vector Count Badge */}
-                      <div 
-                        className="flex items-center gap-2 px-3 py-1.5 bg-green-50 rounded-lg border border-green-100 cursor-help hover:bg-green-100 transition-colors" 
-                        title={`Total vectors: ${knowledgeBaseStats.total_vectors.toLocaleString()} chunks`}
-                      >
-                        <Zap className="h-4 w-4 text-green-600" />
-                        <span className="text-green-700 font-semibold text-sm">{knowledgeBaseStats.total_vectors.toLocaleString()}</span>
-                        <span className="text-green-600 text-xs font-medium">vectors</span>
-                      </div>
+                  {/* Knowledge Base Statistics - Static Values */}
+                  <div className="flex items-center gap-3">
+                    {/* Word Count Badge */}
+                    <div 
+                      className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 rounded-lg border border-blue-100 cursor-help hover:bg-blue-100 transition-colors" 
+                      title="Total words in Pinecone: 30,800,000 words"
+                    >
+                      <FileText className="h-4 w-4 text-blue-600" />
+                      <span className="text-blue-700 font-semibold text-sm">30.8M</span>
+                      <span className="text-blue-600 text-xs font-medium">words</span>
                     </div>
-                  )}
+                    
+                    {/* Memory Usage Badge */}
+                    <div 
+                      className="flex items-center gap-2 px-3 py-1.5 bg-purple-50 rounded-lg border border-purple-100 cursor-help hover:bg-purple-100 transition-colors" 
+                      title="Pinecone storage: 3.6 GB"
+                    >
+                      <Database className="h-4 w-4 text-purple-600" />
+                      <span className="text-purple-700 font-semibold text-sm">3.6 GB</span>
+                    </div>
+                    
+                    {/* Vector Count Badge */}
+                    <div 
+                      className="flex items-center gap-2 px-3 py-1.5 bg-green-50 rounded-lg border border-green-100 cursor-help hover:bg-green-100 transition-colors" 
+                      title="Total vectors: 306,839 chunks"
+                    >
+                      <Zap className="h-4 w-4 text-green-600" />
+                      <span className="text-green-700 font-semibold text-sm">306,839</span>
+                      <span className="text-green-600 text-xs font-medium">vectors</span>
+                    </div>
+                  </div>
                   
                   {/* Loading indicator for KB stats */}
                   {loadingKBStats && (
