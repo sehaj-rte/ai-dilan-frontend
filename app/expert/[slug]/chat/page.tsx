@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { useSelector, useDispatch } from 'react-redux'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import SpeechToTextInput from '@/components/ui/speech-to-text-input'
 import { API_URL } from '@/lib/config'
 import { Send, Plus, MessageSquare, MoreHorizontal, X, ArrowLeft, User, LogIn, LogOut } from 'lucide-react'
 import { RootState } from '@/store/store'
@@ -62,10 +63,18 @@ const ExpertChatPage = () => {
   const [isWaitingForResponse, setIsWaitingForResponse] = useState(false)
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [reconnectAttempts, setReconnectAttempts] = useState(0)
+  
+  // Speech Recognition States
+  const [isListening, setIsListening] = useState(false)
+  const [speechSupported, setSpeechSupported] = useState(false)
+  
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const wsRef = useRef<WebSocket | null>(null)
   const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const recognitionRef = useRef<any>(null)
+  const isListeningRef = useRef<boolean>(false)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   // Load user from storage on mount
   useEffect(() => {
@@ -127,6 +136,113 @@ const ExpertChatPage = () => {
       loadConversations(expert.id)
     }
   }, [isAuthenticated, user, expert])
+
+  // Initialize Speech Recognition
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const SpeechRecognition = window.SpeechRecognition || (window as any).webkitSpeechRecognition
+      if (SpeechRecognition) {
+        setSpeechSupported(true)
+        const recognition = new SpeechRecognition()
+        
+        recognition.continuous = true
+        recognition.interimResults = true
+        recognition.lang = 'en-US'
+        recognition.maxAlternatives = 1
+
+        recognition.onstart = () => {
+          setIsListening(true)
+          isListeningRef.current = true
+        }
+
+        recognition.onresult = (event: any) => {
+          let interimTranscript = ''
+          let finalTranscript = ''
+
+          // Process all results to get both final and interim text
+          for (let i = 0; i < event.results.length; i++) {
+            const transcript = event.results[i][0].transcript
+            if (event.results[i].isFinal) {
+              finalTranscript += transcript
+            } else {
+              interimTranscript += transcript
+            }
+          }
+
+          // Combine final and interim for real-time display
+          const completeTranscript = finalTranscript + interimTranscript
+
+          if (completeTranscript.trim()) {
+            setInputText(completeTranscript.trim())
+            // Auto-resize textarea after speech input
+            setTimeout(() => {
+              if (textareaRef.current) {
+                textareaRef.current.style.height = 'auto'
+                textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 128) + 'px'
+              }
+            }, 0)
+          }
+        }
+
+        recognition.onerror = (event: any) => {
+          console.error('Speech recognition error:', event.error)
+          setIsListening(false)
+          isListeningRef.current = false
+        }
+
+        recognition.onend = () => {
+          // Only stop if user manually stopped it
+          // If it stopped automatically, restart it
+          console.log('Recognition ended, isListeningRef:', isListeningRef.current)
+          if (isListeningRef.current) {
+            console.log('Auto-restarting recognition...')
+            try {
+              recognition.start()
+            } catch (error) {
+              console.log('Recognition restart failed:', error)
+              setIsListening(false)
+              isListeningRef.current = false
+            }
+          } else {
+            console.log('User stopped recognition')
+            setIsListening(false)
+          }
+        }
+
+        recognitionRef.current = recognition
+      }
+    }
+
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop()
+      }
+    }
+  }, [])
+
+  const toggleListening = () => {
+    if (recognitionRef.current && speechSupported) {
+      if (isListening) {
+        // User manually stopping - set ref first so onend doesn't restart
+        console.log('User manually stopping recognition')
+        isListeningRef.current = false
+        setIsListening(false)
+        recognitionRef.current.stop()
+      } else {
+        // User starting - set state and start recognition
+        console.log('User starting recognition')
+        isListeningRef.current = true
+        setIsListening(true)
+        try {
+          recognitionRef.current.start()
+        } catch (error) {
+          console.log('Recognition start failed:', error)
+          setIsListening(false)
+          isListeningRef.current = false
+        }
+      }
+    }
+  }
 
   const loadConversations = (expertId: string) => {
     // Only load conversations if user is authenticated
@@ -607,15 +723,39 @@ const ExpertChatPage = () => {
         {/* Input */}
         <div className="border-t bg-white px-6 py-4">
           <div className="max-w-4xl mx-auto">
-            <div className="flex items-center gap-3 bg-gray-100 rounded-full px-4 py-2">
-              <Input
+            <div className="flex items-start gap-3 bg-gray-100 rounded-2xl px-4 py-3">
+              <textarea
+                ref={textareaRef}
                 value={inputText}
-                onChange={e => setInputText(e.target.value)}
+                onChange={e => {
+                  setInputText(e.target.value)
+                  // Auto-resize textarea
+                  if (textareaRef.current) {
+                    textareaRef.current.style.height = 'auto'
+                    textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 128) + 'px'
+                  }
+                }}
                 onKeyPress={e => e.key === 'Enter' && !e.shiftKey && sendMsg()}
-                placeholder={isWaitingForResponse ? 'Waiting for response...' : 'Type...'}
+                placeholder={isWaitingForResponse ? 'Waiting for response...' : (isListening ? '🎤 Listening... speak now' : 'Type...')}
                 disabled={isWaitingForResponse}
-                className="flex-1 border-0 bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
+                className="flex-1 border-0 bg-transparent focus:outline-none resize-none min-h-[24px] max-h-32 overflow-y-auto"
+                rows={1}
+                style={{ lineHeight: '1.5' }}
               />
+              {/* Speech Recognition Button */}
+              {speechSupported && (
+                <Button
+                  onClick={toggleListening}
+                  size="icon"
+                  variant={isListening ? "destructive" : "ghost"}
+                  className={`rounded-full h-8 w-8 ${isListening ? "animate-pulse" : ""}`}
+                  title={isListening ? "Stop listening" : "Voice input"}
+                >
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                  </svg>
+                </Button>
+              )}
               <Button
                 onClick={sendMsg}
                 disabled={!inputText.trim() || isWaitingForResponse}

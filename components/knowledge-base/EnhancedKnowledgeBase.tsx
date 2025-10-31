@@ -326,6 +326,8 @@ const EnhancedKnowledgeBase = ({ projectId }: EnhancedKnowledgeBaseProps = {}) =
   }, [files, selectedFolderFilterId, pagination.currentPage, searchQuery, selectedStatusFilter])
 
   const fetchFiles = async (folderId: string | null = selectedFolderFilterId, page: number = 1, search: string = searchQuery, statusFilter: StatusFilter = selectedStatusFilter, silent: boolean = false) => {
+    console.log('🔄 EnhancedKnowledgeBase: fetchFiles called', { folderId, page, search, statusFilter, silent })
+    
     // Create request signature for deduplication
     const requestParams = JSON.stringify({ folderId, page, search, statusFilter, perPage: pagination.perPage })
     
@@ -1213,7 +1215,13 @@ const EnhancedKnowledgeBase = ({ projectId }: EnhancedKnowledgeBaseProps = {}) =
         isOpen={isAddContentModalOpen}
         onClose={() => setIsAddContentModalOpen(false)}
         onFileUpload={handleFileUpload}
-        onTranscriptionComplete={fetchFiles}
+        onTranscriptionComplete={() => {
+          console.log('🔄 EnhancedKnowledgeBase: onTranscriptionComplete called, refreshing files')
+          // Force refresh by clearing the deduplication cache
+          requestInProgressRef.current = false
+          lastRequestParamsRef.current = ''
+          fetchFiles()
+        }}
         selectedFolderId={selectedFolderId}
         setSelectedFolderId={setSelectedFolderId}
         agentId={projectId}
