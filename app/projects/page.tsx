@@ -428,7 +428,13 @@ const ProjectsPage = () => {
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          <div className={`grid gap-6 ${
+            filteredProjects.length === 1 
+              ? 'grid-cols-1 max-w-md mx-auto' 
+              : filteredProjects.length === 2 
+              ? 'grid-cols-1 md:grid-cols-2 max-w-3xl mx-auto' 
+              : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
+          }`}>
             {filteredProjects.map((project) => {
               console.log('📋 Rendering project:', project.name, 'ID:', project.id)
               return (
