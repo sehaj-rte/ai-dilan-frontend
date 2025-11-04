@@ -150,6 +150,23 @@ const DocumentContentViewer: React.FC<DocumentContentViewerProps> = ({
     }
   }
 
+  const handleDownload = () => {
+    if (!document) return
+
+    const token = localStorage.getItem('dilan_ai_token')
+    
+    if (!token) {
+      alert('Please log in to download files')
+      return
+    }
+
+    // Create download URL with token as query parameter
+    const downloadUrl = `${API_URL}/knowledge-base/files/${document.id}/download?token=${encodeURIComponent(token)}`
+    
+    // Open in new window to trigger download
+    window.open(downloadUrl, '_blank')
+  }
+
   if (!documentId) {
     return null
   }
@@ -247,7 +264,7 @@ const DocumentContentViewer: React.FC<DocumentContentViewerProps> = ({
           </div>
           
           <div className="flex space-x-2">
-            <Button variant="outline" size="sm">
+            <Button variant="outline" size="sm" onClick={handleDownload}>
               <Download className="h-4 w-4 mr-2" />
               Download
             </Button>

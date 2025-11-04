@@ -26,7 +26,8 @@ import {
   Zap,
   BarChart3,
   Globe,
-  Share2
+  Share2,
+  Shield
 } from 'lucide-react'
 
 interface Project {
@@ -39,6 +40,7 @@ interface Project {
   created_at: string
   is_published?: boolean
   publication_slug?: string
+  user_id?: string  // For super admin to see owner
 }
 
 interface KnowledgeBaseStats {
@@ -180,6 +182,7 @@ const ProjectsPage = () => {
   }
 
   const handleProjectClick = (projectId: string) => {
+    console.log('🔍 Clicking project with ID:', projectId)
     router.push(`/project/${projectId}`)
   }
 
@@ -189,6 +192,12 @@ const ProjectsPage = () => {
       const response = await fetchWithAuth(`${API_URL}/publishing/experts/${projectId}/publication`, {
         headers: getAuthHeaders(),
       })
+      
+      // Silently handle 404s - they just mean no publication exists
+      if (response.status === 404) {
+        return null
+      }
+      
       const data = await response.json()
       
       if (data.success && data.publication) {
@@ -200,7 +209,7 @@ const ProjectsPage = () => {
       }
       return null
     } catch (error) {
-      console.error('Error fetching publication status:', error)
+      // Silently handle errors - don't spam console
       return null
     }
   }
@@ -274,13 +283,17 @@ const ProjectsPage = () => {
   }
 
   // Load publication statuses when projects are loaded
+  // Only fetch for user's own projects, not for super admin viewing others' projects
   useEffect(() => {
-    if (projects.length > 0) {
+    if (projects.length > 0 && user) {
       projects.forEach(project => {
-        fetchPublicationStatus(project.id)
+        // Only fetch publication status for user's own projects
+        if (!project.user_id || project.user_id === user.id) {
+          fetchPublicationStatus(project.id)
+        }
       })
     }
-  }, [projects])
+  }, [projects, user])
 
   // Filter projects based on search term
   const filteredProjects = projects.filter(project =>
@@ -291,8 +304,16 @@ const ProjectsPage = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
       <div className="container mx-auto px-4 py-8">
-        {/* Top Bar with Logout */}
-        <div className="flex justify-end mb-6">
+        {/* Top Bar with Super Admin and Logout */}
+        <div className="flex justify-end mb-6 space-x-3">
+          {/* Super Admin Badge - View only, not clickable */}
+          {user?.role === 'super_admin' && (
+            <div className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-md border border-red-600 cursor-default">
+              <Shield className="h-4 w-4" />
+              <span className="font-medium">Super Admin</span>
+            </div>
+          )}
+          
           <Button
             onClick={handleLogout}
             variant="outline"
@@ -407,9 +428,10 @@ const ProjectsPage = () => {
             )}
           </div>
         ) : (
-          <div className="flex justify-center">
-            <div className="w-full max-w-sm">
-            {filteredProjects.map((project) => (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {filteredProjects.map((project) => {
+              console.log('📋 Rendering project:', project.name, 'ID:', project.id)
+              return (
               <Card 
                 key={project.id} 
                 className="hover:shadow-xl transition-all duration-300 cursor-pointer group border-2 hover:border-blue-200"
@@ -451,6 +473,17 @@ const ProjectsPage = () => {
                     <h3 className="text-lg font-bold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors">
                       {project.name}
                     </h3>
+                    
+                    {/* Super Admin Badge - Show if viewing someone else's expert */}
+                    {user?.role === 'super_admin' && project.user_id && project.user_id !== user.id && (
+                      <div className="flex items-center justify-center mb-2">
+                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                          <Shield className="h-3 w-3 mr-1" />
+                          Viewing as Admin
+                        </span>
+                      </div>
+                    )}
+                    
                     {project.description && (
                       <p className="text-sm text-gray-600 mb-4 line-clamp-2">
                         {project.description}
@@ -502,8 +535,8 @@ const ProjectsPage = () => {
                   </div>
                 </CardContent>
               </Card>
-            ))}
-            </div>
+              )
+            })}
           </div>
         )}
 
