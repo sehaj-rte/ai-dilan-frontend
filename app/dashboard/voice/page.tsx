@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import DashboardLayout from '@/components/dashboard/DashboardLayout'
 import VoiceDetailsModal from '@/components/voice/VoiceDetailsModal'
 import VoiceTestingModal from '@/components/voice/VoiceTestingModal'
+import PVCTestModal from '@/components/voice/PVCTestModal'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -87,6 +88,7 @@ const VoiceStudioPage = () => {
   const [showDetailsModal, setShowDetailsModal] = useState(false)
   const [selectedTestVoice, setSelectedTestVoice] = useState<Voice | null>(null)
   const [showTestingModal, setShowTestingModal] = useState(false)
+  const [showPVCModal, setShowPVCModal] = useState(false)
   
   const audioRef = useRef<HTMLAudioElement | null>(null)
 
@@ -249,9 +251,18 @@ const VoiceStudioPage = () => {
               Discover and manage voices for your digital avatars
             </p>
           </div>
-          <div className="flex items-center gap-2 text-sm text-gray-500">
-            <Info className="h-4 w-4" />
-            <span>{totalCount} voices available</span>
+          <div className="flex items-center gap-3">
+            <Button
+              onClick={() => setShowPVCModal(true)}
+              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white"
+            >
+              <Mic className="h-4 w-4 mr-2" />
+              Professional Clone
+            </Button>
+            <div className="flex items-center gap-2 text-sm text-gray-500">
+              <Info className="h-4 w-4" />
+              <span>{totalCount} voices</span>
+            </div>
           </div>
         </div>
 
@@ -541,6 +552,17 @@ const VoiceStudioPage = () => {
         onClose={() => {
           setShowTestingModal(false)
           setSelectedTestVoice(null)
+        }}
+      />
+
+      {/* Professional Voice Clone Modal */}
+      <PVCTestModal
+        isOpen={showPVCModal}
+        onClose={() => setShowPVCModal(false)}
+        onSuccess={(voiceId, voiceName) => {
+          console.log('✅ PVC Created:', voiceId, voiceName)
+          // Refresh voices list
+          fetchVoices(true)
         }}
       />
     </DashboardLayout>
