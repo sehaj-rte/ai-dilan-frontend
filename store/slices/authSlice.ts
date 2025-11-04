@@ -10,6 +10,7 @@ interface User {
   bio?: string
   avatar_url?: string
   is_active: boolean
+  role?: string  // user, admin, super_admin, auditor
 }
 
 interface AuthState {

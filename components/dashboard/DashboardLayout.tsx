@@ -6,7 +6,7 @@ import Sidebar from './Sidebar'
 import AvatarSettingsModal from './AvatarSettingsModal'
 import { useAppSelector, useAppDispatch } from '@/store/hooks'
 import { loadUserFromStorage, fetchCurrentUser } from '@/store/slices/authSlice'
-import { Menu, X, User, Settings, FileText, Database, Zap, Loader2 } from 'lucide-react'
+import { Menu, X, User, Settings, FileText, Database, Zap, Loader2, Shield } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { API_URL } from '@/lib/config'
 import { fetchWithAuth, getAuthHeaders } from '@/lib/api-client'
@@ -202,6 +202,16 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, customHeade
                 </div>
               </div>
               <div className="flex items-center space-x-4">
+                {/* Super Admin Text - Only show for super_admin role */}
+                {user?.role === 'super_admin' && (
+                  <div className="flex items-center space-x-2 px-3 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg cursor-default">
+                    <Shield className="h-4 w-4" />
+                    <span className="text-sm font-medium">
+                      Super Admin
+                    </span>
+                  </div>
+                )}
+                
                 {/* Avatar Settings Button */}
                 <Button
                   onClick={() => setAvatarSettingsOpen(true)}

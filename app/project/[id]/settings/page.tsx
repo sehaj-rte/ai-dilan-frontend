@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import DashboardLayout from '@/components/dashboard/DashboardLayout'
+import AdminBanner from '@/components/super-admin/AdminBanner'
+import { useAppSelector } from '@/store/hooks'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
@@ -29,6 +31,7 @@ interface Expert {
   description: string
   voice_id?: string
   voice_name?: string
+  user_id?: string
   created_at: string
   updated_at: string
   selected_files?: string[]
@@ -54,12 +57,16 @@ const ProjectSettingsPage = () => {
   const params = useParams()
   const router = useRouter()
   const projectId = params.id as string
+  const { user } = useAppSelector((state) => state.auth)
   
   const [expert, setExpert] = useState<Expert | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  
+  // Check if super admin viewing someone else's expert
+  const isAdminViewing = user?.role === 'super_admin' && expert && expert.user_id !== user.id
   
   // Form state
   const [formData, setFormData] = useState({
@@ -228,6 +235,15 @@ const ProjectSettingsPage = () => {
 
   return (
     <DashboardLayout>
+      {/* Admin Banner */}
+      {isAdminViewing && expert && (
+        <AdminBanner
+          expertName={expert.name}
+          expertId={expert.id}
+          ownerEmail={expert.user_id}
+        />
+      )}
+      
       <div className="max-w-4xl mx-auto p-6 space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">

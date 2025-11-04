@@ -55,7 +55,10 @@ const ExpertPublishingPage = () => {
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    fetchExpertAndPublication()
+    if (expertId) {
+      fetchExpertAndPublication()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [expertId])
 
   const fetchExpertAndPublication = async () => {
@@ -183,14 +186,11 @@ const ExpertPublishingPage = () => {
     }
   }
 
-  const handleVisibilityChange = async (visibility: 'public' | 'private') => {
+  const handleVisibilityChange = (visibility: 'public' | 'private') => {
     if (publication) {
       handleInputChange('visibility', visibility)
-      
-      // If setting to public, also publish
-      if (visibility === 'public') {
-        await handlePublishToggle(true)
-      }
+      // Note: User must click Save button to persist changes
+      // No auto-save to prevent continuous API calls
     }
   }
 
