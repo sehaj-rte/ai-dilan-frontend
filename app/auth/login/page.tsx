@@ -1,22 +1,30 @@
 'use client'
 
 import React, { useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useAppSelector } from '@/store/hooks'
 import LoginForm from '@/components/auth/LoginForm'
 
 export default function LoginPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { isAuthenticated } = useAppSelector((state) => state.auth)
+  
+  // Get redirect URL from query params
+  const redirectUrl = searchParams.get('redirect') || '/dashboard'
+
+  console.log('🔍 Login page - redirectUrl:', redirectUrl)
 
   useEffect(() => {
     if (isAuthenticated) {
-      router.push('/dashboard')
+      console.log('✅ Already authenticated, redirecting to:', redirectUrl)
+      router.push(redirectUrl)
     }
-  }, [isAuthenticated, router])
+  }, [isAuthenticated, router, redirectUrl])
 
   const handleLoginSuccess = () => {
-    router.push('/dashboard')
+    console.log('✅ Login successful, redirecting to:', redirectUrl)
+    router.push(redirectUrl)
   }
 
   return (

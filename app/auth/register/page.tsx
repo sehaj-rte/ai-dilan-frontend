@@ -1,22 +1,26 @@
 'use client'
 
 import React, { useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useAppSelector } from '@/store/hooks'
 import RegisterForm from '@/components/auth/RegisterForm'
 
 export default function RegisterPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { isAuthenticated } = useAppSelector((state) => state.auth)
+  
+  // Get redirect URL from query params
+  const redirectUrl = searchParams.get('redirect') || '/dashboard'
 
   useEffect(() => {
     if (isAuthenticated) {
-      router.push('/dashboard')
+      router.push(redirectUrl)
     }
-  }, [isAuthenticated, router])
+  }, [isAuthenticated, router, redirectUrl])
 
   const handleRegisterSuccess = () => {
-    router.push('/dashboard')
+    router.push(redirectUrl)
   }
 
   return (

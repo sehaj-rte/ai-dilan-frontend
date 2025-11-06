@@ -260,35 +260,6 @@ const ExpertCallPage = () => {
             )}
           </div>
 
-          {/* Volume Indicators - Only show when connected */}
-          {state.isConnected && (
-            <div className="max-w-md mx-auto space-y-4">
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-xs text-gray-500">
-                  <span>Input Level</span>
-                  <span>{Math.round(state.inputVolume * 100)}%</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div 
-                    className="bg-blue-500 h-2 rounded-full transition-all duration-100"
-                    style={{ width: `${state.inputVolume * 100}%` }}
-                  />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-xs text-gray-500">
-                  <span>Output Level</span>
-                  <span>{Math.round(state.outputVolume * 100)}%</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div 
-                    className="bg-green-500 h-2 rounded-full transition-all duration-100"
-                    style={{ width: `${state.outputVolume * 100}%` }}
-                  />
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </div>

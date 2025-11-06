@@ -1,13 +1,16 @@
 'use client'
 
 import React, { useState, useEffect, useRef } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { useParams, useRouter } from 'next/navigation'
 import { useSelector, useDispatch } from 'react-redux'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import SpeechToTextInput from '@/components/ui/speech-to-text-input'
 import { API_URL } from '@/lib/config'
-import { Send, Plus, MessageSquare, MoreHorizontal, X, ArrowLeft, User, LogIn, LogOut } from 'lucide-react'
+import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import { Send, Plus, MessageSquare, MoreHorizontal, X, ArrowLeft, User, LogIn, LogOut, FileText, ChevronDown, ChevronUp, Edit2, Copy, Check, ArrowUp } from 'lucide-react'
 import { RootState } from '@/store/store'
 import { logout, loadUserFromStorage } from '@/store/slices/authSlice'
 
@@ -16,6 +19,17 @@ interface ChatMessage {
   type: 'user' | 'agent'
   text: string
   timestamp: Date
+  toolCalls?: Array<{
+    function: string
+    query: string
+    results_count: number
+  }>
+  sources?: Array<{
+    source: string
+    score: number
+    page?: number
+    text?: string
+  }>
 }
 
 interface Conversation {
@@ -29,10 +43,12 @@ interface Publication {
   primary_color: string
   secondary_color: string
   theme: string
+  is_private: boolean
 }
 
 const ExpertChatPage = () => {
   const params = useParams()
+  const searchParams = useSearchParams()
   const router = useRouter()
   const dispatch = useDispatch()
   const slug = params.slug as string
@@ -53,28 +69,30 @@ const ExpertChatPage = () => {
   const [publication, setPublication] = useState<Publication | null>(null)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [inputText, setInputText] = useState('')
-  const [ws, setWs] = useState<WebSocket | null>(null)
+  const [sessionId, setSessionId] = useState<string | null>(null) // OpenAI session
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [currentConvId, setCurrentConvId] = useState<string | null>(null)
+  const [editingTitleId, setEditingTitleId] = useState<string | null>(null)
+  const [editingTitleText, setEditingTitleText] = useState('')
+  const [isLoadingConversation, setIsLoadingConversation] = useState(false)
   const [isConnected, setIsConnected] = useState(false)
   const [isConnecting, setIsConnecting] = useState(false)
   const [isLoadingExpert, setIsLoadingExpert] = useState(true)
   const [loadError, setLoadError] = useState(false)
   const [isWaitingForResponse, setIsWaitingForResponse] = useState(false)
+  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null)
   const [showAuthModal, setShowAuthModal] = useState(false)
-  const [reconnectAttempts, setReconnectAttempts] = useState(0)
+  const [expandedCitations, setExpandedCitations] = useState<Set<string>>(new Set())
   
   // Speech Recognition States
   const [isListening, setIsListening] = useState(false)
   const [speechSupported, setSpeechSupported] = useState(false)
   
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const wsRef = useRef<WebSocket | null>(null)
-  const heartbeatIntervalRef = useRef<NodeJS.Timeout | null>(null)
-  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null)
   const recognitionRef = useRef<any>(null)
   const isListeningRef = useRef<boolean>(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const shouldIgnoreRecognitionRef = useRef<boolean>(false)
 
   // Load user from storage on mount
   useEffect(() => {
@@ -84,14 +102,11 @@ const ExpertChatPage = () => {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
-      if (heartbeatIntervalRef.current) {
-        clearInterval(heartbeatIntervalRef.current)
+      if (sessionId) {
+        endChatSession()
       }
-      if (reconnectTimeoutRef.current) {
-        clearTimeout(reconnectTimeoutRef.current)
-      }
-      if (wsRef.current) {
-        wsRef.current.close()
+      if (recognitionRef.current) {
+        recognitionRef.current.stop()
       }
     }
   }, [])
@@ -109,9 +124,25 @@ const ExpertChatPage = () => {
             avatar_url: data.expert?.avatar_url ? convertS3UrlToProxy(data.expert.avatar_url) : null
           })
           setPublication(data.publication)
+          
+          // Debug logging
+          console.log('🔍 Publication data:', {
+            is_private: data.publication?.is_private,
+            isAuthenticated: isAuthenticated,
+            user: user
+          })
+          
+          // Check if publication is private and user is not authenticated
+          if (data.publication?.is_private && !isAuthenticated) {
+            console.log('🔒 Private publication - authentication required')
+            setIsLoadingExpert(false)
+            // Don't auto-connect, show auth modal instead
+            return
+          }
+          
           loadConversations(data.expert.id)
-          // Auto-connect immediately
-          await startNewChat(data.expert.id)
+          // Auto-connect immediately with OpenAI
+          await startOpenAIChatSession(data.expert.id)
           setIsLoadingExpert(false)
         } else {
           setLoadError(true)
@@ -124,7 +155,7 @@ const ExpertChatPage = () => {
       }
     }
     loadExpert()
-  }, [slug])
+  }, [slug, isAuthenticated])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -137,11 +168,41 @@ const ExpertChatPage = () => {
     }
   }, [isAuthenticated, user, expert])
 
+  // Restore last active conversation on page load (only for current session)
+  useEffect(() => {
+    if (expert && isAuthenticated && conversations.length > 0 && !currentConvId) {
+      const savedConvId = sessionStorage.getItem(`last_conversation_${expert.id}`)
+      if (savedConvId) {
+        const savedConv = conversations.find(c => c.id === savedConvId)
+        if (savedConv) {
+          setIsLoadingConversation(true)
+          loadConversation(savedConv).finally(() => {
+            setIsLoadingConversation(false)
+          })
+        }
+      }
+    }
+  }, [expert, isAuthenticated, conversations])
+  // Auto-send question from URL parameter
+  useEffect(() => {
+    const question = searchParams.get('q')
+    if (question && sessionId && isConnected && messages.length === 0) {
+      // Set the question in input and auto-send
+      setInputText(question)
+      // Wait a bit for state to update, then send
+      setTimeout(() => {
+        sendMsg()
+      }, 500)
+    }
+  }, [sessionId, isConnected, searchParams])
+
   // Initialize Speech Recognition
   useEffect(() => {
+    console.log('🎤 Initializing speech recognition...')
     if (typeof window !== 'undefined') {
       const SpeechRecognition = window.SpeechRecognition || (window as any).webkitSpeechRecognition
       if (SpeechRecognition) {
+        console.log('✅ Speech recognition API found')
         setSpeechSupported(true)
         const recognition = new SpeechRecognition()
         
@@ -151,11 +212,20 @@ const ExpertChatPage = () => {
         recognition.maxAlternatives = 1
 
         recognition.onstart = () => {
+          console.log('🎤 Recognition started')
           setIsListening(true)
           isListeningRef.current = true
         }
 
         recognition.onresult = (event: any) => {
+          console.log('🎤 Recognition result received')
+          
+          // Ignore results if we just sent a message
+          if (shouldIgnoreRecognitionRef.current) {
+            console.log('🎤 Ignoring recognition result (message was just sent)')
+            return
+          }
+          
           let interimTranscript = ''
           let finalTranscript = ''
 
@@ -221,212 +291,313 @@ const ExpertChatPage = () => {
   }, [])
 
   const toggleListening = () => {
+    console.log('🎤 Toggle listening clicked', { 
+      hasRecognition: !!recognitionRef.current, 
+      speechSupported, 
+      isListening 
+    })
+    
+    if (!speechSupported) {
+      alert('Speech recognition is not supported in your browser. Please use Chrome, Edge, or Safari.')
+      return
+    }
+    
     if (recognitionRef.current && speechSupported) {
       if (isListening) {
         // User manually stopping - set ref first so onend doesn't restart
-        console.log('User manually stopping recognition')
+        console.log('🛑 User manually stopping recognition')
         isListeningRef.current = false
         setIsListening(false)
         recognitionRef.current.stop()
       } else {
         // User starting - set state and start recognition
-        console.log('User starting recognition')
+        console.log('▶️ User starting recognition')
         isListeningRef.current = true
         setIsListening(true)
         try {
           recognitionRef.current.start()
+          console.log('✅ Recognition started successfully')
         } catch (error) {
-          console.log('Recognition start failed:', error)
+          console.error('❌ Recognition start failed:', error)
+          alert(`Failed to start voice recognition: ${error}`)
           setIsListening(false)
           isListeningRef.current = false
         }
       }
+    } else {
+      console.error('❌ Recognition not available', {
+        hasRecognition: !!recognitionRef.current,
+        speechSupported
+      })
     }
   }
 
-  const loadConversations = (expertId: string) => {
+  const loadConversations = async (expertId: string) => {
     // Only load conversations if user is authenticated
     if (!isAuthenticated || !user) {
+      console.log('❌ Cannot load conversations: Not authenticated')
       setConversations([])
       return
     }
     
-    const storageKey = `chat_history_${user.id}_${expertId}`
-    const stored = localStorage.getItem(storageKey)
-    if (stored) {
-      const parsed = JSON.parse(stored)
-      setConversations(parsed.map((c: any) => ({
-        ...c,
-        timestamp: new Date(c.timestamp),
-        messages: c.messages?.map((m: any) => ({ ...m, timestamp: new Date(m.timestamp) })) || []
-      })))
+    try {
+      const token = localStorage.getItem('dilan_ai_token')
+      console.log('📥 Loading conversations for expert:', expertId)
+      console.log('🔑 Token present:', !!token)
+      
+      const response = await fetch(`${API_URL}/chat-sessions/?expert_id=${expertId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+      
+      console.log('📡 Load conversations response status:', response.status)
+      
+      if (response.ok) {
+        const data = await response.json()
+        console.log('✅ Loaded conversations:', data.length, 'sessions')
+        // Convert API response to frontend format
+        setConversations(data.map((session: any) => ({
+          id: session.id,
+          title: session.title || 'New Conversation',
+          timestamp: new Date(session.updated_at),
+          messages: [] // Messages loaded separately when conversation is opened
+        })))
+      } else {
+        const errorText = await response.text()
+        console.error('❌ Failed to load conversations:', response.status, errorText)
+      }
+    } catch (error) {
+      console.error('❌ Exception in loadConversations:', error)
     }
   }
 
-  const saveConversations = (convos: Conversation[]) => {
-    // Only save conversations if user is authenticated
-    if (!isAuthenticated || !user || !expert) return
+  const generateSmartTitle = async (userMessage: string, agentResponse: string): Promise<string> => {
+    try {
+      // Use GPT to generate a concise title based on the conversation
+      const response = await fetch(`${API_URL}/openai-chat/generate-title`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          user_message: userMessage,
+          agent_response: agentResponse
+        })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        return data.title || 'New Conversation'
+      }
+    } catch (error) {
+      console.error('Failed to generate smart title:', error)
+    }
     
-    const storageKey = `chat_history_${user.id}_${expert.id}`
-    localStorage.setItem(storageKey, JSON.stringify(convos))
+    // Fallback to first 50 chars of user message
+    return userMessage.substring(0, 50) + (userMessage.length > 50 ? '...' : '')
+  }
+
+  const updateConversationTitle = async (sessionId: string, newTitle: string) => {
+    if (!isAuthenticated || !user) return
+    
+    try {
+      const token = localStorage.getItem('dilan_ai_token')
+      const response = await fetch(`${API_URL}/chat-sessions/${sessionId}/title`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ title: newTitle })
+      })
+      
+      if (response.ok) {
+        // Update local state
+        setConversations(prev => prev.map(conv => 
+          conv.id === sessionId ? { ...conv, title: newTitle } : conv
+        ))
+        console.log('✅ Title updated successfully')
+      }
+    } catch (error) {
+      console.error('Failed to update title:', error)
+    }
+  }
+
+  const saveConversation = async (title: string, firstMessage: ChatMessage) => {
+    // Only save conversations if user is authenticated
+    if (!isAuthenticated || !user || !expert) {
+      console.log('❌ Cannot save: Not authenticated or missing user/expert', { isAuthenticated, user: !!user, expert: !!expert })
+      return null
+    }
+    
+    try {
+      const token = localStorage.getItem('dilan_ai_token')
+      console.log('💾 Saving conversation:', { title, user_id: user.id, expert_id: expert.id })
+      console.log('🔑 Token present:', !!token)
+      
+      // Create new session
+      const sessionResponse = await fetch(`${API_URL}/chat-sessions/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          user_id: user.id,
+          expert_id: expert.id,
+          title: title
+        })
+      })
+      
+      console.log('📡 Session response status:', sessionResponse.status)
+      
+      if (sessionResponse.ok) {
+        const session = await sessionResponse.json()
+        console.log('✅ Session created:', session)
+        
+        // Save first message
+        const messageResponse = await fetch(`${API_URL}/chat-sessions/${session.id}/messages`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            session_id: session.id,
+            role: 'user',
+            content: firstMessage.text
+          })
+        })
+        
+        console.log('📡 Message response status:', messageResponse.status)
+        
+        if (messageResponse.ok) {
+          console.log('✅ First message saved')
+        } else {
+          const errorText = await messageResponse.text()
+          console.error('❌ Failed to save first message:', errorText)
+        }
+        
+        return session.id
+      } else {
+        const errorText = await sessionResponse.text()
+        console.error('❌ Failed to create session:', sessionResponse.status, errorText)
+      }
+    } catch (error) {
+      console.error('❌ Exception in saveConversation:', error)
+    }
+    return null
+  }
+  
+  const saveMessage = async (sessionId: string, role: 'user' | 'assistant', content: string) => {
+    if (!isAuthenticated || !user) {
+      console.log('❌ Cannot save message: Not authenticated')
+      return
+    }
+    
+    try {
+      const token = localStorage.getItem('dilan_ai_token')
+      console.log('💾 Saving message:', { sessionId, role, contentLength: content.length })
+      
+      const response = await fetch(`${API_URL}/chat-sessions/${sessionId}/messages`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          session_id: sessionId,
+          role: role,
+          content: content
+        })
+      })
+      
+      if (response.ok) {
+        console.log('✅ Message saved successfully')
+      } else {
+        const errorText = await response.text()
+        console.error('❌ Failed to save message:', response.status, errorText)
+      }
+    } catch (error) {
+      console.error('❌ Exception in saveMessage:', error)
+    }
   }
 
   const handleLogout = () => {
     dispatch(logout())
     setConversations([])
     setMessages([])
+    setCurrentConvId(null)
+    // Clear saved conversation
+    if (expert) {
+      sessionStorage.removeItem(`last_conversation_${expert.id}`)
+    }
   }
 
-  const startNewChat = async (expertId?: string) => {
+  const startOpenAIChatSession = async (expertId?: string) => {
     const id = expertId || expert?.id
     if (!id) return
-    
-    setIsConnecting(true)
-    setMessages([])
-    setCurrentConvId(null)
-    
+
     try {
-      const res = await fetch(`${API_URL}/conversation/chat-session/${id}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ overrides: { conversation: { text_only: true } } })
-      })
-      const data = await res.json()
-      if (data.success) {
-        connectWS(data.signed_url, data.conversation_id)
+      setIsConnecting(true)
+      setMessages([])
+      setCurrentConvId(null)
+      
+      // Clear saved conversation when starting new chat
+      if (expert) {
+        sessionStorage.removeItem(`last_conversation_${expert.id}`)
       }
-    } catch (error) {
-      console.error('Failed to start chat:', error)
+
+      const response = await fetch(`${API_URL}/openai-chat/session/create`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ expert_id: id })
+      })
+
+      if (!response.ok) {
+        throw new Error(`Failed to create session: ${response.statusText}`)
+      }
+
+      const data = await response.json()
+      
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to create session')
+      }
+
+      setSessionId(data.session_id)
+      setIsConnected(true)
+      setIsConnecting(false)
+      
+      console.log('✅ OpenAI chat session created:', data.session_id)
+
+    } catch (error: any) {
+      console.error('Error creating OpenAI session:', error)
       setIsConnecting(false)
     }
   }
 
-  const connectWS = (url: string, convId: string) => {
-    // Clear any existing connection
-    if (wsRef.current) {
-      wsRef.current.close()
-    }
-    if (heartbeatIntervalRef.current) {
-      clearInterval(heartbeatIntervalRef.current)
+  const endChatSession = async () => {
+    if (!sessionId) return
+
+    try {
+      await fetch(`${API_URL}/openai-chat/session/end`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ session_id: sessionId })
+      })
+    } catch (error) {
+      console.error('Error ending OpenAI session:', error)
     }
 
-    const websocket = new WebSocket(url)
-    wsRef.current = websocket
-    
-    websocket.onopen = () => {
-      console.log('WebSocket connected')
-      setIsConnected(true)
-      setIsConnecting(false)
-      setCurrentConvId(convId)
-      setReconnectAttempts(0)
-      
-      // Start heartbeat to keep connection alive
-      heartbeatIntervalRef.current = setInterval(() => {
-        if (websocket.readyState === WebSocket.OPEN) {
-          try {
-            websocket.send(JSON.stringify({ type: 'ping' }))
-          } catch (error) {
-            console.error('Heartbeat failed:', error)
-          }
-        }
-      }, 30000) // Send ping every 30 seconds
-      
-      // Trigger the agent to send its first greeting message
-      setTimeout(() => {
-        if (websocket.readyState === WebSocket.OPEN) {
-          // Send empty message to trigger agent's first response (greeting)
-          websocket.send(JSON.stringify({ 
-            type: 'conversation_initiation',
-            mode: 'greeting'
-          }))
-        }
-      }, 500)
-    }
-    
-    websocket.onmessage = (e) => {
-      try {
-        const d = JSON.parse(e.data)
-        
-        // Ignore audio and pong messages
-        if (d.type === 'audio' || d.type === 'pong') return
-        
-        if (d.type === 'agent_response' && d.agent_response_event?.agent_response) {
-          const text = d.agent_response_event.agent_response
-          
-          // Check if this is a greeting message
-          const lowerText = text.toLowerCase()
-          const isGreeting = (lowerText.includes('hi') || lowerText.includes('hello')) && 
-                            (lowerText.includes('how can i') || lowerText.includes('assist') || lowerText.includes('help you')) &&
-                            text.length < 200
-          
-          // ALWAYS show the first message (greeting)
-          // Skip greeting messages ONLY if there are already messages
-          if (messages.length === 0) {
-            // First message - always show it (this is the greeting)
-            addMessage('agent', text)
-          } else if (!isGreeting) {
-            // Subsequent messages - only show if it's NOT a greeting
-            addMessage('agent', text)
-          }
-          // If messages.length > 0 AND isGreeting = true, skip it (don't show duplicate greeting)
-          
-          setIsWaitingForResponse(false)
-        } else if (d.type === 'agent_response' && d.agent_response) {
-          const text = d.agent_response
-          
-          // Check if this is a greeting message
-          const lowerText = text.toLowerCase()
-          const isGreeting = (lowerText.includes('hi') || lowerText.includes('hello')) && 
-                            (lowerText.includes('how can i') || lowerText.includes('assist') || lowerText.includes('help you')) &&
-                            text.length < 200
-          
-          // ALWAYS show the first message (greeting)
-          // Skip greeting messages ONLY if there are already messages
-          if (messages.length === 0) {
-            // First message - always show it (this is the greeting)
-            addMessage('agent', text)
-          } else if (!isGreeting) {
-            // Subsequent messages - only show if it's NOT a greeting
-            addMessage('agent', text)
-          }
-          // If messages.length > 0 AND isGreeting = true, skip it (don't show duplicate greeting)
-          
-          setIsWaitingForResponse(false)
-        }
-      } catch (error) {
-        console.error('Error parsing WebSocket message:', error)
-      }
-    }
-    
-    websocket.onerror = (error) => {
-      console.error('WebSocket error:', error)
-      setIsWaitingForResponse(false)
-    }
-    
-    websocket.onclose = (event) => {
-      console.log('WebSocket closed:', event.code, event.reason)
-      setIsConnected(false)
-      setIsConnecting(false)
-      setIsWaitingForResponse(false)
-      
-      if (heartbeatIntervalRef.current) {
-        clearInterval(heartbeatIntervalRef.current)
-      }
-      
-      // Attempt to reconnect if not a normal closure and under max attempts
-      if (event.code !== 1000 && reconnectAttempts < 5) {
-        console.log(`Attempting to reconnect... (${reconnectAttempts + 1}/5)`)
-        setReconnectAttempts(prev => prev + 1)
-        
-        reconnectTimeoutRef.current = setTimeout(() => {
-          if (expert?.id) {
-            startNewChat(expert.id)
-          }
-        }, Math.min(1000 * Math.pow(2, reconnectAttempts), 10000)) // Exponential backoff, max 10s
-      }
-    }
-    
-    setWs(websocket)
+    setSessionId(null)
+    setIsConnected(false)
+    setIsConnecting(false)
+    setIsWaitingForResponse(false)
   }
 
   const addMessage = (type: 'user' | 'agent', text: string) => {
@@ -439,45 +610,182 @@ const ExpertChatPage = () => {
     setMessages(prev => [...prev, msg])
   }
 
-  const sendMsg = () => {
-    if (!inputText.trim() || !ws || !isConnected || isWaitingForResponse) return
+  const sendMsg = async () => {
+    if (!inputText.trim() || !sessionId || !isConnected || isWaitingForResponse) return
+
+    const userMessage: ChatMessage = {
+      id: `user-${Date.now()}`,
+      type: 'user',
+      text: inputText.trim(),
+      timestamp: new Date()
+    }
+
+    // Add user message to chat
+    setMessages(prev => [...prev, userMessage])
+    setIsWaitingForResponse(true)
+    const messageText = inputText.trim()
+    setInputText('')
     
-    // Check WebSocket state before sending
-    if (ws.readyState !== WebSocket.OPEN) {
-      console.error('WebSocket is not open. Current state:', ws.readyState)
-      setIsConnected(false)
-      return
+    // Stop voice recognition if active and prevent it from refilling input
+    if (isListening && recognitionRef.current) {
+      console.log('🛑 Stopping voice recognition after sending message')
+      shouldIgnoreRecognitionRef.current = true // Ignore any pending results
+      isListeningRef.current = false
+      setIsListening(false)
+      recognitionRef.current.stop()
+      
+      // Reset the ignore flag after a short delay
+      setTimeout(() => {
+        shouldIgnoreRecognitionRef.current = false
+      }, 500)
     }
     
-    try {
-      setIsWaitingForResponse(true)
-      ws.send(JSON.stringify({ type: 'user_message', text: inputText }))
-      addMessage('user', inputText)
-      
-      // Save to conversation history (only save first user message as title)
-      if (currentConvId && messages.length <= 1) { // 1 because greeting message exists
-        const newConv: Conversation = {
-          id: currentConvId,
-          title: inputText.substring(0, 30) + (inputText.length > 30 ? '...' : ''),
-          timestamp: new Date(),
-          messages: [{ id: Date.now().toString(), type: 'user', text: inputText, timestamp: new Date() }]
-        }
-        const updated = [newConv, ...conversations]
-        setConversations(updated)
-        saveConversations(updated)
+    // Reset textarea height
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto'
+    }
+
+    // Save to conversation history (create new session for first message)
+    let conversationId = currentConvId // Store current ID or create new one
+    
+    if (messages.length === 0 && !currentConvId) {
+      console.log('💾 Creating new conversation for first message')
+      // Use temporary title initially
+      const tempTitle = 'New Conversation'
+      const newSessionId = await saveConversation(tempTitle, userMessage)
+      if (newSessionId) {
+        console.log('✅ Conversation created with ID:', newSessionId)
+        conversationId = newSessionId // Store in local variable
+        setCurrentConvId(newSessionId)
+        // Reload conversations to show the new one
+        await loadConversations(expert.id)
+      } else {
+        console.log('❌ Failed to create conversation (user may not be authenticated)')
       }
+    } else if (currentConvId) {
+      // Save message to existing session
+      console.log('💾 Saving user message to existing conversation:', currentConvId)
+      await saveMessage(currentConvId, 'user', messageText)
+    } else {
+      console.log('⚠️ No conversation ID and not first message - message not saved')
+    }
+
+    try {
+      const response = await fetch(`${API_URL}/openai-chat/message/send`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          session_id: sessionId,
+          message: messageText,
+          model: 'gpt-4o-mini'
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ detail: response.statusText }))
+        console.error('❌ OpenAI API Error:', errorData)
+        throw new Error(`Failed to send message: ${errorData.detail || response.statusText}`)
+      }
+
+      const data = await response.json()
       
-      setInputText('')
-    } catch (error) {
-      console.error('Error sending message:', error)
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to get response')
+      }
+
+      // Add agent response with sources
+      const agentMessage: ChatMessage = {
+        id: `agent-${Date.now()}`,
+        type: 'agent',
+        text: data.response,
+        timestamp: new Date(),
+        toolCalls: data.tool_calls_made,
+        sources: data.sources || []
+      }
+
+      console.log('💬 Agent message with sources:', agentMessage)
+      setMessages(prev => [...prev, agentMessage])
+      
+      // Clear typing indicator immediately
       setIsWaitingForResponse(false)
-      setIsConnected(false)
+      
+      // Save agent response to database (in background)
+      if (conversationId) {
+        console.log('💾 Saving agent response to conversation:', conversationId)
+        saveMessage(conversationId, 'assistant', data.response).catch(err => 
+          console.error('❌ Failed to save agent message:', err)
+        )
+        
+        // Generate and update smart title for first exchange (when there's only 1 message before this response)
+        if (messages.length === 1) {
+          console.log('🏷️ Generating smart title for first exchange')
+          generateSmartTitle(messageText, data.response).then(smartTitle => {
+            console.log('✅ Smart title generated:', smartTitle)
+            updateConversationTitle(conversationId, smartTitle)
+          })
+        }
+        
+        // Update title if knowledge base was searched
+        if (data.tool_calls_made && data.tool_calls_made.length > 0) {
+          console.log('🔍 Knowledge base was searched, updating title')
+          generateSmartTitle(messageText, data.response).then(smartTitle => {
+            updateConversationTitle(conversationId, smartTitle)
+          })
+        }
+      } else {
+        console.log('⚠️ No conversation ID - agent response not saved to DB')
+      }
+
+    } catch (error: any) {
+      console.error('Error sending OpenAI message:', error)
+      setIsWaitingForResponse(false)
     }
   }
 
-  const loadConversation = (conv: Conversation) => {
-    setMessages(conv.messages)
-    setCurrentConvId(conv.id)
+  const loadConversation = async (conv: Conversation) => {
+    if (!isAuthenticated || !user) return
+    
+    try {
+      // Set current conversation immediately for instant highlight
+      
+      // Clear old messages immediately
+      setMessages([])
+      setCurrentConvId(conv.id)
+      
+      // Show loading state
+      setIsLoadingConversation(true)
+      
+      const token = localStorage.getItem('dilan_ai_token')
+      const response = await fetch(`${API_URL}/chat-sessions/${conv.id}/messages`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+      
+      if (response.ok) {
+        const messagesData = await response.json()
+        // Convert API messages to frontend format
+        const loadedMessages: ChatMessage[] = messagesData.map((msg: any) => ({
+          id: msg.id,
+          type: msg.role === 'user' ? 'user' : 'agent',
+          text: msg.content,
+          timestamp: new Date(msg.created_at)
+        }))
+        setMessages(loadedMessages)
+        
+        // Save to sessionStorage for persistence during current session only
+        if (expert) {
+          sessionStorage.setItem(`last_conversation_${expert.id}`, conv.id)
+        }
+      }
+    } catch (error) {
+      console.error('Failed to load conversation:', error)
+    } finally {
+      // Hide loading state
+      setIsLoadingConversation(false)
+    }
   }
 
   const groupConversations = () => {
@@ -501,6 +809,16 @@ const ExpertChatPage = () => {
   // Apply theme colors
   const primaryColor = publication?.primary_color || '#3B82F6'
   const secondaryColor = publication?.secondary_color || '#1E40AF'
+
+  // Redirect to login for private publications
+  if (!isLoadingExpert && publication?.is_private && !isAuthenticated) {
+    router.push(`/auth/login?redirect=/expert/${slug}/chat`)
+    return (
+      <div className="flex h-screen items-center justify-center bg-white">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
+      </div>
+    )
+  }
 
   // Show loading screen while loading expert or connecting
   if (isLoadingExpert || (isConnecting && !isConnected)) {
@@ -535,11 +853,11 @@ const ExpertChatPage = () => {
 
   return (
     <div className="flex h-screen bg-gray-50">
-      {/* Sidebar - Hidden for now */}
-      <div className="w-64 bg-gray-900 text-white flex-col hidden">
+      {/* Sidebar - Conversation History */}
+      <div className="w-64 bg-gray-900 text-white flex flex-col">
         <div className="p-3 border-b border-gray-700">
           <Button 
-            onClick={() => startNewChat()} 
+            onClick={() => startOpenAIChatSession()} 
             className="w-full text-white border"
             style={{ 
               backgroundColor: 'transparent', 
@@ -575,12 +893,52 @@ const ExpertChatPage = () => {
                   {grouped.today.map(c => (
                     <div
                       key={c.id}
-                      onClick={() => loadConversation(c)}
-                      className={`p-2 rounded cursor-pointer hover:bg-gray-800 flex items-center ${currentConvId === c.id ? '' : ''}`}
+                      className={`p-2 rounded hover:bg-gray-800 flex items-center group ${currentConvId === c.id ? '' : ''}`}
                       style={currentConvId === c.id ? { backgroundColor: primaryColor + '40' } : {}}
                     >
                       <MessageSquare className="h-4 w-4 mr-2 flex-shrink-0" />
-                      <span className="text-sm truncate">{c.title}</span>
+                      {editingTitleId === c.id ? (
+                        <input
+                          type="text"
+                          value={editingTitleText}
+                          onChange={(e) => setEditingTitleText(e.target.value)}
+                          onBlur={() => {
+                            if (editingTitleText.trim()) {
+                              updateConversationTitle(c.id, editingTitleText.trim())
+                            }
+                            setEditingTitleId(null)
+                          }}
+                          onKeyPress={(e) => {
+                            if (e.key === 'Enter') {
+                              if (editingTitleText.trim()) {
+                                updateConversationTitle(c.id, editingTitleText.trim())
+                              }
+                              setEditingTitleId(null)
+                            }
+                          }}
+                          className="flex-1 bg-gray-700 text-white text-sm px-2 py-1 rounded outline-none"
+                          autoFocus
+                        />
+                      ) : (
+                        <>
+                          <span 
+                            onClick={() => loadConversation(c)}
+                            className="text-sm truncate flex-1 cursor-pointer"
+                          >
+                            {c.title}
+                          </span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setEditingTitleId(c.id)
+                              setEditingTitleText(c.title)
+                            }}
+                            className="opacity-0 group-hover:opacity-100 ml-2 p-1 hover:bg-gray-700 rounded"
+                          >
+                            <Edit2 className="h-3 w-3" />
+                          </button>
+                        </>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -592,12 +950,52 @@ const ExpertChatPage = () => {
                   {grouped.yesterday.map(c => (
                     <div
                       key={c.id}
-                      onClick={() => loadConversation(c)}
-                      className={`p-2 rounded cursor-pointer hover:bg-gray-800 flex items-center ${currentConvId === c.id ? '' : ''}`}
+                      className={`p-2 rounded hover:bg-gray-800 flex items-center group ${currentConvId === c.id ? '' : ''}`}
                       style={currentConvId === c.id ? { backgroundColor: primaryColor + '40' } : {}}
                     >
                       <MessageSquare className="h-4 w-4 mr-2 flex-shrink-0" />
-                      <span className="text-sm truncate">{c.title}</span>
+                      {editingTitleId === c.id ? (
+                        <input
+                          type="text"
+                          value={editingTitleText}
+                          onChange={(e) => setEditingTitleText(e.target.value)}
+                          onBlur={() => {
+                            if (editingTitleText.trim()) {
+                              updateConversationTitle(c.id, editingTitleText.trim())
+                            }
+                            setEditingTitleId(null)
+                          }}
+                          onKeyPress={(e) => {
+                            if (e.key === 'Enter') {
+                              if (editingTitleText.trim()) {
+                                updateConversationTitle(c.id, editingTitleText.trim())
+                              }
+                              setEditingTitleId(null)
+                            }
+                          }}
+                          className="flex-1 bg-gray-700 text-white text-sm px-2 py-1 rounded outline-none"
+                          autoFocus
+                        />
+                      ) : (
+                        <>
+                          <span 
+                            onClick={() => loadConversation(c)}
+                            className="text-sm truncate flex-1 cursor-pointer"
+                          >
+                            {c.title}
+                          </span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setEditingTitleId(c.id)
+                              setEditingTitleText(c.title)
+                            }}
+                            className="opacity-0 group-hover:opacity-100 ml-2 p-1 hover:bg-gray-700 rounded"
+                          >
+                            <Edit2 className="h-3 w-3" />
+                          </button>
+                        </>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -642,7 +1040,7 @@ const ExpertChatPage = () => {
                   className={`w-2 h-2 rounded-full mr-2 ${isConnected ? 'animate-pulse' : ''}`}
                   style={{ backgroundColor: isConnected ? primaryColor : '#9CA3AF' }}
                 ></span>
-                {isConnecting ? 'Connecting...' : isConnected ? 'Online' : 'Disconnected'}
+                {isConnecting ? 'Connecting...' : isConnected ? 'Connected' : 'Disconnected'}
               </p>
             </div>
           </div>
@@ -693,26 +1091,194 @@ const ExpertChatPage = () => {
 
         {/* Messages */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          {/* Initial greeting when no messages */}
+          {messages.length === 0 && !isWaitingForResponse && (
+            <div className="flex flex-col items-center justify-center h-full text-center space-y-3">
+              {expert?.avatar_url ? (
+                <img
+                  src={expert.avatar_url}
+                  alt={expert.name}
+                  className="h-16 w-16 rounded-full object-cover"
+                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+                />
+              ) : (
+                <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center">
+                  <User className="h-8 w-8 text-gray-500" />
+                </div>
+              )}
+              <div>
+                <p className="text-gray-700 font-medium text-lg">Ask me anything!</p>
+                <p className="text-sm text-gray-500">
+                  I'm ready to help with your questions about {expert?.name || 'this expert'}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Loading conversation indicator */}
+          {isLoadingConversation && (
+            <div className="flex justify-center items-center py-12">
+              <div className="flex flex-col items-center gap-3">
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2" style={{ borderColor: primaryColor }}></div>
+                <p className="text-sm text-gray-500 font-medium">Loading conversation...</p>
+              </div>
+            </div>
+          )}
+
           {messages.map(m => (
-            <div key={m.id} className={`flex ${m.type === 'user' ? 'justify-end' : 'justify-start'}`}>
-              <div 
-                className={`max-w-2xl ${m.type === 'user' ? 'text-white' : 'bg-gray-100 text-gray-900'} rounded-2xl px-4 py-3`}
-                style={m.type === 'user' ? { backgroundColor: primaryColor } : {}}
-              >
-                <p className="text-sm whitespace-pre-wrap">{m.text}</p>
+            <div key={m.id} className={`flex ${m.type === 'user' ? 'justify-end' : 'justify-start'} mb-4`}>
+              <div className={`flex items-start gap-3 max-w-2xl ${m.type === 'user' ? 'flex-row-reverse' : ''}`}>
+                {/* Show avatar for agent messages */}
+                {m.type === 'agent' && (
+                  <>
+                    {expert?.avatar_url ? (
+                      <img
+                        src={expert.avatar_url}
+                        alt={expert.name}
+                        className="h-8 w-8 rounded-full object-cover flex-shrink-0"
+                        onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+                      />
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
+                        <User className="h-4 w-4 text-gray-500" />
+                      </div>
+                    )}
+                  </>
+                )}
+                
+                <div className="flex-1">
+                  <div 
+                    className={`${m.type === 'user' ? 'text-white' : 'bg-gray-100 text-gray-900'} rounded-2xl px-4 py-3`}
+                    style={m.type === 'user' ? { backgroundColor: primaryColor } : {}}
+                  >
+                    {m.type === 'user' ? (
+                      <p className="text-sm whitespace-pre-wrap">{m.text}</p>
+                    ) : (
+                    <div className="text-sm prose prose-sm max-w-none prose-gray prose-headings:text-gray-900 prose-p:text-gray-900 prose-strong:text-gray-900 prose-li:text-gray-900 prose-ul:my-2 prose-li:my-0">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                        {m.text}
+                      </ReactMarkdown>
+                    </div>
+                  )}
+                  
+                  {/* Show tool calls if any (OpenAI knowledge base search) */}
+                  {m.toolCalls && m.toolCalls.length > 0 && (
+                    <div className="mt-2 pt-2 border-t border-gray-300">
+                      <p className="text-xs text-gray-600 flex items-center gap-1">
+                        <MessageSquare className="h-3 w-3" />
+                        Searched knowledge base: {m.toolCalls[0].results_count} results found
+                      </p>
+                    </div>
+                  )}
+                  
+                  {/* Show citations if sources were used */}
+                  {m.sources && m.sources.length > 0 && (
+                    <div className="mt-2">
+                      <button
+                        onClick={() => {
+                          const newExpanded = new Set(expandedCitations)
+                          if (newExpanded.has(m.id)) {
+                            newExpanded.delete(m.id)
+                          } else {
+                            newExpanded.add(m.id)
+                          }
+                          setExpandedCitations(newExpanded)
+                        }}
+                        className="flex items-center gap-1.5 text-xs text-gray-600 hover:text-gray-900 transition-colors py-1"
+                      >
+                        <FileText className="h-3.5 w-3.5" />
+                        <span className="font-medium">Citations ({m.sources.length})</span>
+                        {expandedCitations.has(m.id) ? (
+                          <ChevronUp className="h-3.5 w-3.5" />
+                        ) : (
+                          <ChevronDown className="h-3.5 w-3.5" />
+                        )}
+                      </button>
+                      
+                      {expandedCitations.has(m.id) && (
+                        <div className="mt-2 bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden">
+                          <div className="divide-y divide-gray-100">
+                            {m.sources.map((source, idx) => (
+                              <div 
+                                key={idx}
+                                className="group p-3 hover:bg-gray-50 transition-colors"
+                              >
+                                <div className="flex items-start justify-between gap-2 mb-1">
+                                  <div className="flex-1">
+                                    <span className="text-xs font-medium text-gray-900">
+                                      {source.source}
+                                    </span>
+                                    {source.page && (
+                                      <span className="text-xs text-gray-500 ml-2">
+                                        Page {source.page}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <span className="text-xs text-gray-400">
+                                    {Math.round(source.score * 100)}%
+                                  </span>
+                                </div>
+                                {source.text && (
+                                  <div className="text-xs text-gray-600 leading-relaxed mt-1.5 line-clamp-2">
+                                    {source.text}...
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    )}
+                  </div>
+                  
+                  {/* Copy Button - Below message like ChatGPT */}
+                  {m.type === 'agent' && (
+                    <div className="flex items-center gap-2 mt-2 ml-1">
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(m.text)
+                          setCopiedMessageId(m.id)
+                          setTimeout(() => setCopiedMessageId(null), 2000)
+                        }}
+                        className="p-1.5 rounded-lg hover:bg-gray-200 transition-colors group"
+                        title="Copy message"
+                      >
+                        {copiedMessageId === m.id ? (
+                          <Check className="h-4 w-4 text-gray-600" />
+                        ) : (
+                          <Copy className="h-4 w-4 text-gray-500 group-hover:text-gray-700" />
+                        )}
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           ))}
           
           {/* Typing Indicator */}
           {isWaitingForResponse && (
-            <div className="flex justify-start">
-              <div className="bg-gray-100 rounded-2xl px-4 py-3">
-                <div className="flex space-x-2">
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></div>
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></div>
-                  <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></div>
+            <div className="flex items-center gap-3">
+              {expert?.avatar_url ? (
+                <img
+                  src={expert.avatar_url}
+                  alt={expert.name}
+                  className="h-8 w-8 rounded-full object-cover"
+                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+                />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
+                  <User className="h-4 w-4 text-gray-500" />
                 </div>
+              )}
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1">
+                  <div className="w-2.5 h-2.5 bg-gray-400 rounded-full animate-bounce"></div>
+                  <div className="w-2.5 h-2.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.12s' }}></div>
+                  <div className="w-2.5 h-2.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.24s' }}></div>
+                </div>
+                <span className="text-sm text-gray-500">Typing...</span>
               </div>
             </div>
           )}
@@ -760,12 +1326,12 @@ const ExpertChatPage = () => {
                 onClick={sendMsg}
                 disabled={!inputText.trim() || isWaitingForResponse}
                 size="icon"
-                className="rounded-full"
-                style={{ backgroundColor: primaryColor, opacity: isWaitingForResponse ? 0.5 : 1 }}
-                onMouseEnter={(e) => !isWaitingForResponse && (e.currentTarget.style.backgroundColor = secondaryColor)}
-                onMouseLeave={(e) => !isWaitingForResponse && (e.currentTarget.style.backgroundColor = primaryColor)}
+                className="rounded-full h-8 w-8"
+                style={{ backgroundColor: inputText.trim() && !isWaitingForResponse ? primaryColor : '#D1D5DB', opacity: 1 }}
+                onMouseEnter={(e) => inputText.trim() && !isWaitingForResponse && (e.currentTarget.style.backgroundColor = secondaryColor)}
+                onMouseLeave={(e) => inputText.trim() && !isWaitingForResponse && (e.currentTarget.style.backgroundColor = primaryColor)}
               >
-                <Send className="h-4 w-4" />
+                <ArrowUp className="h-4 w-4 text-white" />
               </Button>
             </div>
           </div>

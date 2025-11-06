@@ -2,11 +2,14 @@
 
 import React, { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
+import { useSelector, useDispatch } from 'react-redux'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import SpeechToTextInput from '@/components/ui/speech-to-text-input'
 import { API_URL } from '@/lib/config'
+import { RootState } from '@/store/store'
+import { loadUserFromStorage, logout } from '@/store/slices/authSlice'
 import { 
   MessageCircle, 
   Phone, 
@@ -20,7 +23,11 @@ import {
   Globe,
   Calendar,
   Eye,
-  Send
+  Send,
+  Lock,
+  LogIn,
+  ArrowLeft,
+  LogOut
 } from 'lucide-react'
 
 interface Expert {
@@ -38,6 +45,7 @@ interface Publication {
   display_name: string
   tagline: string
   description: string
+  is_private: boolean
   category: string
   specialty: string
   pricing_model: string
@@ -74,7 +82,11 @@ interface Template {
 const PublicExpertPage = () => {
   const params = useParams()
   const router = useRouter()
+  const dispatch = useDispatch()
   const slug = params.slug as string
+
+  // Auth state from Redux
+  const { user, isAuthenticated } = useSelector((state: RootState) => state.auth)
 
   const [expert, setExpert] = useState<Expert | null>(null)
   const [publication, setPublication] = useState<Publication | null>(null)
@@ -94,10 +106,15 @@ const PublicExpertPage = () => {
     return s3Url
   }
 
+  // Load user from storage on mount
+  useEffect(() => {
+    dispatch(loadUserFromStorage())
+  }, [])
+
   useEffect(() => {
     console.log("slug", slug)
     fetchExpertData()
-  }, [slug])
+  }, [slug, isAuthenticated])
 
   const fetchExpertData = async () => {
     try {
@@ -136,10 +153,11 @@ const PublicExpertPage = () => {
   }
 
   const handleQuestionSubmit = () => {
+    // Redirect to chat page with the question as URL parameter
     if (questionText.trim()) {
-      // Redirect to chat with the question as a parameter
-      const encodedQuestion = encodeURIComponent(questionText.trim())
-      router.push(`/expert/${slug}/chat?question=${encodedQuestion}`)
+      router.push(`/expert/${slug}/chat?q=${encodeURIComponent(questionText.trim())}`)
+    } else {
+      router.push(`/expert/${slug}/chat`)
     }
   }
 
@@ -191,20 +209,46 @@ const PublicExpertPage = () => {
   const primaryColor = publication.primary_color || '#3B82F6'
   const secondaryColor = publication.secondary_color || '#1E40AF'
 
+  // Redirect to login for private publications
+  if (!loading && publication?.is_private && !isAuthenticated) {
+    router.push(`/auth/login?redirect=/expert/${slug}`)
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-white">
       {/* Simple Header */}
       <div className="border-b border-gray-200">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-orange-500 rounded flex items-center justify-center">
-                <span className="text-white text-sm">≡</span>
-              </div>
-              <div className="w-8 h-8 bg-orange-500 rounded flex items-center justify-center">
-                <span className="text-white text-sm">🇺🇸</span>
-              </div>
+            <div className="flex items-center space-x-3">
+              <h1 className="text-xl font-bold text-gray-900">{publication?.display_name || expert?.name || 'Expert'}</h1>
             </div>
+            
+            {/* User Info & Logout */}
+            {isAuthenticated && user && (
+              <div className="flex items-center gap-3">
+                <div className="text-right">
+                  <p className="text-sm font-medium text-gray-900">{user.email}</p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    dispatch(logout())
+                    router.push('/auth/login')
+                  }}
+                  className="flex items-center gap-2"
+                >
+                  <LogOut className="h-4 w-4" />
+                  Logout
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -255,18 +299,20 @@ const PublicExpertPage = () => {
           <div className="flex justify-center gap-3 mb-12">
             <Button 
               size="lg" 
-              className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-2 rounded-full"
+              className="text-white px-8 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+              style={{ backgroundColor: primaryColor }}
               onClick={handleStartChat}
             >
-              <MessageCircle className="h-4 w-4 mr-2" />
+              <MessageCircle className="h-5 w-5 mr-2" />
               Chat
             </Button>
             <Button 
               size="lg" 
-              className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-2 rounded-full"
+              className="text-white px-8 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+              style={{ backgroundColor: primaryColor }}
               onClick={handleStartCall}
             >
-              <Phone className="h-4 w-4 mr-2" />
+              <Phone className="h-5 w-5 mr-2" />
               Call
             </Button>
           </div>
@@ -306,42 +352,6 @@ const PublicExpertPage = () => {
             </div>
           </div>
 
-          
-          {/* Ask Question Input with Speech-to-Text */}
-          <div className="mt-12 pt-8 border-t border-gray-200">
-            <div className="space-y-3">
-              <h3 className="text-lg font-semibold text-gray-900 text-center">
-                Ask {expert.name} a Question
-              </h3>
-              <p className="text-sm text-gray-600 text-center">
-                Type your question or use the microphone to speak
-              </p>
-              <div className="w-full max-w-md mx-auto">
-                <SpeechToTextInput
-                  value={questionText}
-                  onChange={setQuestionText}
-                  onKeyPress={handleKeyPress}
-                  placeholder={`Ask ${expert.name} a question...`}
-                  className="text-base"
-                  showMicButton={true}
-                />
-                <div className="mt-3 flex justify-center">
-                  <Button
-                    onClick={handleQuestionSubmit}
-                    disabled={!questionText.trim()}
-                    size="lg"
-                    className="bg-orange-500 hover:bg-orange-600 text-white px-6 py-2 rounded-full"
-                  >
-                    <Send className="h-4 w-4 mr-2" />
-                    Send Question
-                  </Button>
-                </div>
-              </div>
-              <p className="text-xs text-gray-500 text-center">
-                Press Enter to send or click the send button
-              </p>
-            </div>
-          </div>
         </div>
       </div>
     </div>

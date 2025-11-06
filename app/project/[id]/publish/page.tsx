@@ -25,6 +25,7 @@ interface Publication {
   tagline: string
   description: string
   is_published: boolean
+  is_private: boolean
   pricing_model: string
   price_per_session: number
   price_per_minute: number
@@ -45,7 +46,7 @@ const PublishManagerPage = () => {
   const [publishForm, setPublishForm] = useState({
     slug: '',
     is_published: false,
-    visibility: 'private' // 'public' or 'private'
+    is_private: false // Requires authentication
   })
 
   // Pricing plans state
@@ -92,7 +93,7 @@ const PublishManagerPage = () => {
           setPublishForm({
             slug: publicationData.publication.slug || '',
             is_published: publicationData.publication.is_published || false,
-            visibility: publicationData.publication.is_published ? 'public' : 'private'
+            is_private: publicationData.publication.is_private || false
           })
         } else {
           // No publication exists yet
@@ -100,7 +101,7 @@ const PublishManagerPage = () => {
           setPublishForm({
             slug: '',
             is_published: false,
-            visibility: 'private'
+            is_private: false
           })
         }
       }
@@ -172,6 +173,7 @@ const PublishManagerPage = () => {
         slug: publishForm.slug.toLowerCase().replace(/[^a-z0-9-]/g, '-'),
         tagline: tagline,
         description: description,
+        is_private: publishForm.is_private,
         category: 'business',
         specialty: 'consultant',
         template_category: 'business',
@@ -201,20 +203,18 @@ const PublishManagerPage = () => {
       if (data.success) {
         alert('Publication created successfully!')
         
-        // If user selected public, publish it
-        if (publishForm.visibility === 'public') {
-          const publishResponse = await fetchWithAuth(`${API_URL}/publishing/experts/${projectId}/publish`, {
-            method: 'POST',
-            headers: getAuthHeaders(),
-          })
+        // Auto-publish after creation
+        const publishResponse = await fetchWithAuth(`${API_URL}/publishing/experts/${projectId}/publish`, {
+          method: 'POST',
+          headers: getAuthHeaders(),
+        })
 
-          const publishData = await publishResponse.json()
+        const publishData = await publishResponse.json()
 
-          if (publishData.success) {
-            alert('Expert published successfully!')
-          } else {
-            alert('Publication created but failed to publish: ' + (publishData.detail || publishData.error))
-          }
+        if (publishData.success) {
+          alert('Expert published successfully!')
+        } else {
+          alert('Publication created but failed to publish: ' + (publishData.detail || publishData.error))
         }
         
         fetchPublicationData()
@@ -247,6 +247,7 @@ const PublishManagerPage = () => {
         display_name: expert?.name,
         tagline: expert?.headline,
         description: expert?.description,
+        is_private: publishForm.is_private,
       }
       
       // Include slug if changed
@@ -266,28 +267,7 @@ const PublishManagerPage = () => {
       const data = await response.json()
 
       if (data.success) {
-        // Now publish/unpublish based on visibility setting
-        const shouldPublish = publishForm.visibility === 'public'
-        
-        if (shouldPublish !== publishForm.is_published) {
-          const publishEndpoint = shouldPublish 
-            ? `${API_URL}/publishing/experts/${projectId}/publish`
-            : `${API_URL}/publishing/experts/${projectId}/unpublish`
-          
-          const publishResponse = await fetchWithAuth(publishEndpoint, {
-            method: 'POST',
-            headers: getAuthHeaders(),
-          })
-          
-          const publishData = await publishResponse.json()
-          
-          if (!publishData.success) {
-            alert(`Failed to ${shouldPublish ? 'publish' : 'unpublish'}: ` + (publishData.detail || publishData.error))
-            return
-          }
-        }
-        
-        alert('Publication updated and republished successfully!')
+        alert('Publication updated successfully!')
         fetchPublicationData()
       } else {
         alert('Failed to update publication: ' + (data.detail || data.error))
@@ -401,33 +381,33 @@ const PublishManagerPage = () => {
                   {/* Public Option */}
                   <div 
                     className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                      publishForm.visibility === 'public' 
+                      !publishForm.is_private 
                         ? 'border-green-500 bg-green-50' 
                         : 'border-gray-200 hover:border-green-300'
                     }`}
-                    onClick={() => setPublishForm({ ...publishForm, visibility: 'public' })}
+                    onClick={() => setPublishForm({ ...publishForm, is_private: false })}
                   >
                     <div className="flex items-center">
                       <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mr-3 ${
-                        publishForm.visibility === 'public' 
+                        !publishForm.is_private 
                           ? 'border-green-500 bg-green-500' 
                           : 'border-gray-300'
                       }`}>
-                        {publishForm.visibility === 'public' && (
+                        {!publishForm.is_private && (
                           <div className="w-2.5 h-2.5 rounded-full bg-white"></div>
                         )}
                       </div>
                       <Globe className={`h-5 w-5 mr-2 ${
-                        publishForm.visibility === 'public' ? 'text-green-600' : 'text-gray-400'
+                        !publishForm.is_private ? 'text-green-600' : 'text-gray-400'
                       }`} />
                       <div className="flex-1">
                         <h4 className={`text-sm font-medium ${
-                          publishForm.visibility === 'public' ? 'text-green-900' : 'text-gray-900'
+                          !publishForm.is_private ? 'text-green-900' : 'text-gray-900'
                         }`}>
                           Public
                         </h4>
                         <p className={`text-xs ${
-                          publishForm.visibility === 'public' ? 'text-green-700' : 'text-gray-500'
+                          !publishForm.is_private ? 'text-green-700' : 'text-gray-500'
                         }`}>
                           Anyone can discover and access your expert
                         </p>
@@ -438,35 +418,35 @@ const PublishManagerPage = () => {
                   {/* Private Option */}
                   <div 
                     className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                      publishForm.visibility === 'private' 
+                      publishForm.is_private 
                         ? 'border-blue-500 bg-blue-50' 
                         : 'border-gray-200 hover:border-blue-300'
                     }`}
-                    onClick={() => setPublishForm({ ...publishForm, visibility: 'private' })}
+                    onClick={() => setPublishForm({ ...publishForm, is_private: true })}
                   >
                     <div className="flex items-center">
                       <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mr-3 ${
-                        publishForm.visibility === 'private' 
+                        publishForm.is_private 
                           ? 'border-blue-500 bg-blue-500' 
                           : 'border-gray-300'
                       }`}>
-                        {publishForm.visibility === 'private' && (
+                        {publishForm.is_private && (
                           <div className="w-2.5 h-2.5 rounded-full bg-white"></div>
                         )}
                       </div>
                       <Lock className={`h-5 w-5 mr-2 ${
-                        publishForm.visibility === 'private' ? 'text-blue-600' : 'text-gray-400'
+                        publishForm.is_private ? 'text-blue-600' : 'text-gray-400'
                       }`} />
                       <div className="flex-1">
                         <h4 className={`text-sm font-medium ${
-                          publishForm.visibility === 'private' ? 'text-blue-900' : 'text-gray-900'
+                          publishForm.is_private ? 'text-blue-900' : 'text-gray-900'
                         }`}>
                           Private
                         </h4>
                         <p className={`text-xs ${
-                          publishForm.visibility === 'private' ? 'text-blue-700' : 'text-gray-500'
+                          publishForm.is_private ? 'text-blue-700' : 'text-gray-500'
                         }`}>
-                          Only you can access, not visible to public
+                          Users must sign in to access this expert
                         </p>
                       </div>
                     </div>
@@ -474,8 +454,8 @@ const PublishManagerPage = () => {
                 </div>
               </div>
 
-              {/* Pricing Plans - Only show when private */}
-              {publishForm.visibility === 'private' && (
+              {/* Pricing Plans - Only show when Private is selected */}
+              {publishForm.is_private && (
                 <div>
                   <Label className="block text-sm font-medium text-gray-700 mb-3">
                     Select Pricing Plan
