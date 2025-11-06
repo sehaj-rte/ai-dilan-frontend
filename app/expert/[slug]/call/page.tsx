@@ -169,12 +169,12 @@ const ExpertCallPage = () => {
               </div>
             </div>
             <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-orange-500 rounded flex items-center justify-center">
+              {/* <div className="w-8 h-8 bg-orange-500 rounded flex items-center justify-center">
                 <span className="text-white text-sm">≡</span>
-              </div>
-              <div className="w-8 h-8 bg-orange-500 rounded flex items-center justify-center">
+              </div> */}
+              {/* <div className="w-8 h-8 bg-orange-500 rounded flex items-center justify-center">
                 <span className="text-white text-sm">🇺🇸</span>
-              </div>
+              </div> */}
             </div>
             <div className="flex items-center space-x-2">
               <span className="text-sm text-gray-600">English</span>
