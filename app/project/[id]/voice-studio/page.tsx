@@ -6,9 +6,11 @@ import DashboardLayout from '@/components/dashboard/DashboardLayout'
 import VoiceCloneLibrary from '@/components/voice-studio/VoiceCloneLibrary'
 import VoiceCloneModal from '@/components/voice-studio/VoiceCloneModal'
 import VoicePreview from '@/components/voice-studio/VoicePreview'
+import PVCVoiceLibrary from '@/components/voice-studio/pvc/PVCVoiceLibrary'
+import PVCCreationWizard from '@/components/voice-studio/pvc/PVCCreationWizard'
 import { API_URL } from '@/lib/config'
 import { fetchWithAuth, getAuthHeaders } from '@/lib/api-client'
-import { Mic2, Plus, Loader2, AlertCircle, User, X, CheckCircle } from 'lucide-react'
+import { Mic2, Plus, Loader2, AlertCircle, User, X, CheckCircle, Zap, Award } from 'lucide-react'
 
 interface Expert {
   id: string
@@ -26,9 +28,12 @@ export default function VoiceStudioPage() {
   const [expert, setExpert] = useState<Expert | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [activeTab, setActiveTab] = useState<'instant' | 'professional'>('instant')
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isPVCModalOpen, setIsPVCModalOpen] = useState(false)
   const [refreshLibrary, setRefreshLibrary] = useState(0)
   const [voiceCount, setVoiceCount] = useState(0)
+  const [pvcVoiceCount, setPvcVoiceCount] = useState(0)
   const [showToast, setShowToast] = useState(false)
   const [toastMessage, setToastMessage] = useState('')
 
@@ -73,6 +78,10 @@ export default function VoiceStudioPage() {
     setVoiceCount(count)
   }
 
+  const handlePVCVoiceCountChange = (count: number) => {
+    setPvcVoiceCount(count)
+  }
+
   const showToastMessage = (message: string) => {
     setToastMessage(message)
     setShowToast(true)
@@ -82,11 +91,19 @@ export default function VoiceStudioPage() {
   }
 
   const handleCreateVoiceClick = () => {
-    if (voiceCount >= 6) {
-      showToastMessage('Reached Limit. Delete old voices to create new ones.')
+    if (activeTab === 'instant') {
+      if (voiceCount >= 6) {
+        showToastMessage('Reached Limit. Delete old voices to create new ones.')
+      } else {
+        setIsModalOpen(true)
+      }
     } else {
-      setIsModalOpen(true)
+      setIsPVCModalOpen(true)
     }
+  }
+
+  const handlePVCModalSuccess = () => {
+    setRefreshLibrary(prev => prev + 1)
   }
 
   const handleVoiceSelected = async (voiceId: string, voiceName: string) => {
@@ -139,55 +156,105 @@ export default function VoiceStudioPage() {
     <DashboardLayout>
       <div className="h-full overflow-auto bg-gray-50">
         <div className="max-w-6xl mx-auto p-6 space-y-6">
-          {/* Header with Create Button */}
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-               
-                <div>
-                  <h1 className="text-2xl font-bold text-gray-900">Voice Studio</h1>
-                  <p className="text-gray-600">Create custom voice for {expert.name}</p>
+          {/* Header with Voice Type Tabs */}
+          <div className="bg-white rounded-lg shadow-sm">
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <div>
+                    <h1 className="text-2xl font-bold text-gray-900">Voice Studio</h1>
+                    <p className="text-gray-600">Create custom voice for {expert.name}</p>
+                  </div>
                 </div>
-              </div>
 
-              <button
-                onClick={handleCreateVoiceClick}
-                className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all shadow-lg hover:shadow-xl"
-              >
-                <Plus className="w-5 h-5" />
-                <span>Create Voice</span>
-              </button>
+                <button
+                  onClick={handleCreateVoiceClick}
+                  className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all shadow-lg hover:shadow-xl"
+                >
+                  <Plus className="w-5 h-5" />
+                  <span>
+                    {activeTab === 'instant' ? 'Create Voice' : 'Create Professional Voice'}
+                  </span>
+                </button>
+              </div>
             </div>
 
-            {/* Current Voice Status */}
-            {/* {expert.voice_id && (
-              <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-                <div className="flex items-center space-x-2">
-                  <Mic2 className="w-4 h-4 text-green-600" />
-                  <span className="text-sm text-green-800">
-                    <strong>Active Voice:</strong> {expert.voice_id}
-                  </span>
-                  <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-full">
-                    ✅ Voice Active
-                  </span>
-                </div>
+            {/* Voice Type Tabs */}
+            <div className="px-6 py-4">
+              <div className="flex space-x-1 bg-gray-100 rounded-lg p-1">
+                <button
+                  onClick={() => setActiveTab('instant')}
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                    activeTab === 'instant'
+                      ? 'bg-white text-purple-700 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  <Zap className="w-4 h-4" />
+                  <span>Instant Voices</span>
+                  {voiceCount > 0 && (
+                    <span className="ml-1 px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded-full">
+                      {voiceCount}
+                    </span>
+                  )}
+                </button>
+                <button
+                  onClick={() => setActiveTab('professional')}
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                    activeTab === 'professional'
+                      ? 'bg-white text-purple-700 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  <Award className="w-4 h-4" />
+                  <span>Professional Voices</span>
+                  {pvcVoiceCount > 0 && (
+                    <span className="ml-1 px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded-full">
+                      {pvcVoiceCount}
+                    </span>
+                  )}
+                </button>
               </div>
-            )} */}
+              
+              {/* Tab Descriptions */}
+              <div className="mt-3 text-sm text-gray-600">
+                {activeTab === 'instant' ? (
+                  <p>Quick voice cloning from audio samples. Perfect for personal use and testing.</p>
+                ) : (
+                  <p>High-quality professional voices for commercial use. Advanced training and verification.</p>
+                )}
+              </div>
+            </div>
           </div>
 
-          {/* Voice Preview Section - Only show if no voices in library */}
-          {/* {voiceCount === 0 && (
-            <VoicePreview expertId={projectId} />
-          )} */}
+          {/* Tab Content */}
+          {activeTab === 'instant' ? (
+            <>
+              {/* Voice Preview Section - Only show if no voices in library */}
+              {voiceCount === 0 && (
+                <VoicePreview expertId={projectId} />
+              )}
 
-          {/* Voice Clone Library */}
-          <VoiceCloneLibrary
-            projectId={projectId}
-            refreshTrigger={refreshLibrary}
-            selectedVoiceId={expert?.voice_id}
-            onVoiceSelected={handleVoiceSelected}
-            onVoiceCountChange={handleVoiceCountChange}
-          />
+              {/* Instant Voice Clone Library */}
+              <VoiceCloneLibrary
+                projectId={projectId}
+                refreshTrigger={refreshLibrary}
+                selectedVoiceId={expert?.voice_id}
+                onVoiceSelected={handleVoiceSelected}
+                onVoiceCountChange={handleVoiceCountChange}
+              />
+            </>
+          ) : (
+            /* Professional Voice Library */
+            <PVCVoiceLibrary
+              projectId={projectId}
+              refreshTrigger={refreshLibrary}
+              selectedVoiceId={expert?.voice_id}
+              onVoiceSelected={handleVoiceSelected}
+              onVoiceCountChange={handlePVCVoiceCountChange}
+              onCreatePVCVoice={() => setIsPVCModalOpen(true)}
+            />
+          )}
 
           {/* Voice Clone Modal */}
           <VoiceCloneModal
@@ -195,6 +262,14 @@ export default function VoiceStudioPage() {
             onClose={() => setIsModalOpen(false)}
             projectId={projectId}
             onSuccess={handleModalSuccess}
+          />
+
+          {/* PVC Creation Wizard */}
+          <PVCCreationWizard
+            isOpen={isPVCModalOpen}
+            onClose={() => setIsPVCModalOpen(false)}
+            projectId={projectId}
+            onSuccess={handlePVCModalSuccess}
           />
         </div>
 
