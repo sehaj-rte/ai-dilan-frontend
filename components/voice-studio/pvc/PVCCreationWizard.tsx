@@ -165,12 +165,6 @@ export default function PVCCreationWizard({ isOpen, onClose, projectId, onSucces
       }
     }
 
-    // Stop training status polling
-    // @ts-ignore
-    if (window.pvcPollingInterval) {
-      // @ts-ignore
-      clearInterval(window.pvcPollingInterval)
-    }
 
     // Clean up any media streams
     if (mediaRecorder && mediaRecorder.stream) {
@@ -179,14 +173,6 @@ export default function PVCCreationWizard({ isOpen, onClose, projectId, onSucces
   }
 
   const handleClose = () => {
-    // Ask for confirmation if in the middle of an important process
-    if (isProcessingWorkflow || isRecording || (currentStep > 1 && currentStep < 6)) {
-      const shouldClose = window.confirm(
-        'You are in the middle of creating a professional voice. Are you sure you want to close? Your progress will be lost.'
-      )
-      if (!shouldClose) return
-    }
-
     cleanupOnClose()
     resetForm()
     onClose()
@@ -451,48 +437,6 @@ export default function PVCCreationWizard({ isOpen, onClose, projectId, onSucces
     }
   }
 
-  const startTrainingStatusPolling = () => {
-    const pollInterval = setInterval(async () => {
-      if (!createdVoiceId) return
-
-      try {
-        // Use ElevenLabs standard voices API for status
-        const response = await fetch(`${API_URL}/voices/${createdVoiceId}`, {
-          headers: getAuthHeaders()
-        })
-
-        const data = await response.json()
-        
-        if (response.ok && data.fine_tuning) {
-          // Check fine_tuning.state according to ElevenLabs docs
-          const fineTuningState = data.fine_tuning.state
-          
-          // State can be: not_started, queued, fine_tuning, fine_tuned, failed, delayed
-          if (fineTuningState === 'fine_tuned') {
-            // Training completed!
-            setVoiceStatus('completed')
-            setCurrentStep(6)
-            setWorkflowSuccess('🎉 Voice training completed! Your voice is ready to use.')
-            clearInterval(pollInterval)
-          } else if (fineTuningState === 'failed') {
-            // Training failed
-            setVoiceStatus('failed')
-            setError('Voice training failed. Please try creating a new voice.')
-            clearInterval(pollInterval)
-          }
-          // If queued or fine_tuning, continue polling
-          console.log(`PVC Training Status: ${fineTuningState}`)
-        }
-      } catch (error) {
-        console.error('Error polling training status:', error)
-        // Continue polling on error
-      }
-    }, 5000) // Poll every 5 seconds
-
-    // Store interval ID for cleanup
-    // @ts-ignore - we'll add this ref later if needed
-    window.pvcPollingInterval = pollInterval
-  }
 
   const handleSubmitCaptchaRecording = async () => {
     if (!createdVoiceId || !recordedAudio) {
@@ -534,9 +478,7 @@ export default function PVCCreationWizard({ isOpen, onClose, projectId, onSucces
       if (response.ok) {
         setVoiceStatus('training')
         setCurrentStep(5)
-        setWorkflowSuccess('CAPTCHA verified! Training started automatically.')
-        // Start polling for training status
-        startTrainingStatusPolling()
+        setWorkflowSuccess('🎉 CAPTCHA verified! Voice training has started in the background and will continue automatically.')
         // Clear the recording
         clearRecording()
       } else {
@@ -1201,23 +1143,23 @@ export default function PVCCreationWizard({ isOpen, onClose, projectId, onSucces
                   <Zap className="w-16 h-16 text-purple-500 mx-auto mb-4 animate-pulse" />
                   <div className="absolute inset-0 w-16 h-16 mx-auto mb-4 rounded-full border-2 border-purple-200 border-t-purple-500 animate-spin" />
                 </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">Training in Progress</h3>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">Training Started Successfully</h3>
                 <p className="text-gray-600">
-                  ElevenLabs is fine-tuning your voice. This process is handled automatically.
+                  Your voice training has been queued in our background system and will continue automatically.
                 </p>
               </div>
 
-              <div className="bg-blue-50 rounded-lg p-4">
+              <div className="bg-green-50 rounded-lg p-4">
                 <div className="flex items-start space-x-3">
                   <div className="flex-shrink-0">
-                    <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                      <Zap className="w-4 h-4 text-blue-600 animate-pulse" />
+                    <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                      <CheckCircle className="w-4 h-4 text-green-600" />
                     </div>
                   </div>
                   <div>
-                    <h4 className="font-medium text-blue-900">Automatic Fine-tuning</h4>
-                    <p className="text-sm text-blue-700 mt-1">
-                      Training typically takes several minutes to hours. We're checking the status every 5 seconds. You'll see a notification once complete!
+                    <h4 className="font-medium text-green-900">Background Processing</h4>
+                    <p className="text-sm text-green-700 mt-1">
+                      Training will continue even if you close this window. The process typically takes 1-2 hours depending on ElevenLabs' queue. Your voice will be ready automatically!
                     </p>
                   </div>
                 </div>
@@ -1365,9 +1307,9 @@ export default function PVCCreationWizard({ isOpen, onClose, projectId, onSucces
                 )}
               </button>
             ) : currentStep === 5 ? (
-              <div className="flex items-center space-x-2 px-6 py-2 rounded-lg bg-blue-100 text-blue-700">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Training automatically started...</span>
+              <div className="flex items-center space-x-2 px-6 py-2 rounded-lg bg-green-100 text-green-700">
+                <CheckCircle className="w-4 h-4" />
+                <span>Training started in background</span>
               </div>
             ) : currentStep === 6 ? (
               <button
