@@ -1179,7 +1179,7 @@ export default function PVCCreationWizard({ isOpen, onClose, projectId, onSucces
                   <div>
                     <h4 className="font-medium text-green-900">Background Processing</h4>
                     <p className="text-sm text-green-700 mt-1">
-                      Training will continue even if you close this window. The process typically takes 1-2 hours depending on ElevenLabs' queue. Your voice will be ready automatically!
+                      Training will continue even if you close this window. The process typically takes 28-48 hours depending on ElevenLabs' queue. Your voice will be ready automatically!
                     </p>
                   </div>
                 </div>
