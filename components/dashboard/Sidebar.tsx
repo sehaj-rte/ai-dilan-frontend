@@ -34,6 +34,11 @@ const sidebarItems = [
     title: 'Knowledge Base',
     href: '/dashboard/knowledge-base',
     icon: BookOpen
+  },
+  {
+    title: 'Professional Voice Clone',
+    href: '/dashboard/pvc',
+    icon: Mic
   }
 ]
 
@@ -118,6 +123,11 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, projectId }) => {
           title: 'Publish Manager',
           href: `/project/${projectId}/publish`,
           icon: Share2
+        },
+        {
+          title: 'Professional Voice Clone',
+          href: `/project/${projectId}/pvc`,
+          icon: Mic
         },
        
         // {
