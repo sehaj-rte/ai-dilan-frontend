@@ -506,6 +506,26 @@ export default function PVCCreationWizard({ isOpen, onClose, projectId, onSucces
       setIsCreating(true)
       setError(null)
 
+      // Check if user already has PVC voices (limit: 1 professional voice clone)
+      const existingVoicesResponse = await fetch(`${API_URL}/voices/user`, {
+        headers: getAuthHeaders()
+      })
+
+      if (existingVoicesResponse.ok) {
+        const existingVoices = await existingVoicesResponse.json()
+        const pvcVoices = existingVoices.filter((voice: any) => 
+          voice.category === 'professional' || 
+          voice.labels?.category === 'professional' ||
+          voice.fine_tuning // Has fine_tuning means it's a PVC
+        )
+
+        if (pvcVoices.length > 0) {
+          setError('You can only have one Professional Voice Clone. Please delete your existing PVC voice to create a new one.')
+          setIsCreating(false)
+          return
+        }
+      }
+
       // Step 1: Create PVC voice with metadata (JSON)
       const createVoiceResponse = await fetch(`${API_URL}/pvc/create`, {
         method: 'POST',
