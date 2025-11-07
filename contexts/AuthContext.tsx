@@ -9,6 +9,7 @@ interface User {
   username: string
   full_name?: string
   is_active: boolean
+  role?: string  // 'user' | 'super_admin'
 }
 
 interface AuthContextType {

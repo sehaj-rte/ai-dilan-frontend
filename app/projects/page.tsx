@@ -70,6 +70,11 @@ const ProjectsPage = () => {
   const [publishingProject, setPublishingProject] = useState<string | null>(null)
   const [publications, setPublications] = useState<{[key: string]: any}>({})
   const [showPublishModal, setShowPublishModal] = useState<string | null>(null)
+  
+  // Check if user is super admin
+  const isSuperAdmin = user?.role === 'super_admin'
+  // Regular users can only have 1 avatar, super admins can have multiple
+  const canCreateNewAvatar = isSuperAdmin || projects.length === 0
 
   useEffect(() => {
     // Fetch fresh user data on page load
@@ -387,15 +392,17 @@ const ProjectsPage = () => {
 
     
 
-        {/* Create New Project Button */}
-        {/* <div className="text-center mb-12">
-          <Link href="/projects/create">
-            <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition-all duration-200">
-              <Plus className="mr-3 h-6 w-6" />
-              Create New Avatar
-            </Button>
-          </Link>
-        </div> */}
+        {/* Create New Project Button - Only for super admins or users with no avatars */}
+        {canCreateNewAvatar && (
+          <div className="text-center mb-12">
+            <Link href="/projects/create">
+              <Button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-4 rounded-xl font-bold text-lg shadow-lg hover:shadow-xl transition-all duration-200">
+                <Plus className="mr-3 h-6 w-6" />
+                Create New Avatar
+              </Button>
+            </Link>
+          </div>
+        )}
 
         {/* Projects Grid */}
         {loadingProjects ? (

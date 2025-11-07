@@ -1,6 +1,7 @@
 'use client'
 import { API_URL } from '@/lib/config'
 import { fetchWithAuth, getAuthHeaders } from '@/lib/api-client'
+import { useAppSelector } from '@/store/hooks'
 
 import React, { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -67,6 +68,10 @@ interface KnowledgeBaseFile {
 const CreateExpertPage = () => {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { user } = useAppSelector((state) => state.auth)
+  
+  // Check if user is super admin
+  const isSuperAdmin = user?.role === 'super_admin'
   
   // Get project data from URL params
   const projectDataParam = searchParams.get('project')
@@ -81,7 +86,11 @@ const CreateExpertPage = () => {
     avatar: null as File | null,
     avatarBase64: '' as string,
     selectedFiles: [] as string[],
-    textOnly: false
+    textOnly: false,
+    // Super admin fields for creating user + expert
+    userEmail: '',
+    userPassword: '',
+    userFullName: ''
   })
   
   const [voices, setVoices] = useState<Voice[]>([])
@@ -313,7 +322,7 @@ const CreateExpertPage = () => {
     
     try {
       // Prepare the payload for the backend
-      const payload = {
+      const payload: any = {
         name: formData.name.trim(),
         description: formData.description.trim() || null,
         system_prompt: formData.systemPrompt.trim(),
@@ -324,9 +333,21 @@ const CreateExpertPage = () => {
         text_only: formData.textOnly
       }
       
+      // Add super admin fields if user is super admin and email is provided
+      if (isSuperAdmin && formData.userEmail.trim()) {
+        payload.user_email = formData.userEmail.trim()
+        if (formData.userPassword.trim()) {
+          payload.user_password = formData.userPassword.trim()
+        }
+        if (formData.userFullName.trim()) {
+          payload.user_full_name = formData.userFullName.trim()
+        }
+      }
+      
       console.log('Creating expert with payload:', {
         ...payload,
-        avatar_base64: payload.avatar_base64 ? '[BASE64_DATA]' : null // Don't log the actual base64 data
+        avatar_base64: payload.avatar_base64 ? '[BASE64_DATA]' : null, // Don't log the actual base64 data
+        user_password: payload.user_password ? '[HIDDEN]' : undefined // Don't log password
       })
       
       // Send to backend
@@ -367,7 +388,10 @@ const CreateExpertPage = () => {
           avatar: null,
           avatarBase64: '',
           selectedFiles: [],
-          textOnly: false
+          textOnly: false,
+          userEmail: '',
+          userPassword: '',
+          userFullName: ''
         })
         setAvatarPreview(null)
       } else {
@@ -448,6 +472,72 @@ const CreateExpertPage = () => {
                     />
                     <p className="text-xs text-gray-500 mt-2">📝 Help users understand what your avatar specializes in</p>
                   </div>
+
+                  {/* Super Admin: Create Expert for Another User */}
+                  {isSuperAdmin && (
+                    <div className="border-t-2 border-orange-200 pt-6 mt-6">
+                      <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-4">
+                        <h4 className="text-sm font-semibold text-orange-800 mb-1 flex items-center">
+                          <User className="h-4 w-4 mr-2" />
+                          🔧 Super Admin: Create Expert for Another User
+                        </h4>
+                        <p className="text-xs text-orange-700">
+                          Provide an email to create this expert for another user. If the user doesn't exist, a new account will be created.
+                        </p>
+                      </div>
+                      
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-800 mb-2">
+                            User Email
+                          </label>
+                          <input
+                            type="email"
+                            value={formData.userEmail}
+                            onChange={(e) => setFormData(prev => ({ ...prev, userEmail: e.target.value }))}
+                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200 text-gray-900 placeholder-gray-500 hover:border-gray-300"
+                            placeholder="user@example.com"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">
+                            💡 Leave empty to create expert for yourself
+                          </p>
+                        </div>
+                        
+                        {formData.userEmail && (
+                          <>
+                            <div>
+                              <label className="block text-sm font-semibold text-gray-800 mb-2">
+                                Password (Optional)
+                              </label>
+                              <input
+                                type="password"
+                                value={formData.userPassword}
+                                onChange={(e) => setFormData(prev => ({ ...prev, userPassword: e.target.value }))}
+                                className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200 text-gray-900 placeholder-gray-500 hover:border-gray-300"
+                                placeholder="Leave empty to auto-generate"
+                              />
+                              <p className="text-xs text-gray-500 mt-1">
+                                🔑 Auto-generated if not provided
+                              </p>
+                            </div>
+                            
+                            <div>
+                              <label className="block text-sm font-semibold text-gray-800 mb-2">
+                                Full Name (Optional)
+                              </label>
+                              <input
+                                type="text"
+                                value={formData.userFullName}
+                                onChange={(e) => setFormData(prev => ({ ...prev, userFullName: e.target.value }))}
+                                className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200 text-gray-900 placeholder-gray-500 hover:border-gray-300"
+                                placeholder="John Doe"
+                              />
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 

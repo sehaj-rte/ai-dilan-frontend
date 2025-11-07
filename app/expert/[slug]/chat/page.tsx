@@ -893,10 +893,10 @@ const ExpertChatPage = () => {
                   {grouped.today.map(c => (
                     <div
                       key={c.id}
-                      className={`p-2 rounded hover:bg-gray-800 flex items-center group ${currentConvId === c.id ? '' : ''}`}
+                      className={`p-2 rounded hover:bg-gray-800 flex items-center gap-2 group min-w-0 ${currentConvId === c.id ? '' : ''}`}
                       style={currentConvId === c.id ? { backgroundColor: primaryColor + '40' } : {}}
                     >
-                      <MessageSquare className="h-4 w-4 mr-2 flex-shrink-0" />
+                      <MessageSquare className="h-4 w-4 flex-shrink-0" />
                       {editingTitleId === c.id ? (
                         <input
                           type="text"
@@ -916,7 +916,7 @@ const ExpertChatPage = () => {
                               setEditingTitleId(null)
                             }
                           }}
-                          className="flex-1 bg-gray-700 text-white text-sm px-2 py-1 rounded outline-none"
+                            className="flex-1 min-w-0 bg-gray-700 text-white text-sm px-2 py-1 rounded outline-none focus:ring-1 focus:ring-gray-500"
                           autoFocus
                         />
                       ) : (
@@ -950,10 +950,10 @@ const ExpertChatPage = () => {
                   {grouped.yesterday.map(c => (
                     <div
                       key={c.id}
-                      className={`p-2 rounded hover:bg-gray-800 flex items-center group ${currentConvId === c.id ? '' : ''}`}
+                      className={`p-2 rounded hover:bg-gray-800 flex items-center gap-2 group min-w-0 ${currentConvId === c.id ? '' : ''}`}
                       style={currentConvId === c.id ? { backgroundColor: primaryColor + '40' } : {}}
                     >
-                      <MessageSquare className="h-4 w-4 mr-2 flex-shrink-0" />
+                      <MessageSquare className="h-4 w-4 flex-shrink-0" />
                       {editingTitleId === c.id ? (
                         <input
                           type="text"
@@ -973,7 +973,7 @@ const ExpertChatPage = () => {
                               setEditingTitleId(null)
                             }
                           }}
-                          className="flex-1 bg-gray-700 text-white text-sm px-2 py-1 rounded outline-none"
+                          className="flex-1 min-w-0 bg-gray-700 text-white text-sm px-2 py-1 rounded outline-none focus:ring-1 focus:ring-gray-500"
                           autoFocus
                         />
                       ) : (
@@ -1008,7 +1008,7 @@ const ExpertChatPage = () => {
           <Button
             onClick={() => router.push(`/expert/${slug}`)}
             variant="ghost"
-            className="w-full text-white hover:bg-gray-800"
+            className="w-full text-white hover:bg-gray-800 hover:text-white"
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
             Back to Profile
@@ -1090,44 +1090,45 @@ const ExpertChatPage = () => {
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {/* Initial greeting when no messages */}
-          {messages.length === 0 && !isWaitingForResponse && (
-            <div className="flex flex-col items-center justify-center h-full text-center space-y-3">
-              {expert?.avatar_url ? (
-                <img
-                  src={expert.avatar_url}
-                  alt={expert.name}
-                  className="h-16 w-16 rounded-full object-cover"
-                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
-                />
-              ) : (
-                <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center">
-                  <User className="h-8 w-8 text-gray-500" />
+        <div className="flex-1 overflow-y-auto p-6">
+          <div className="max-w-3xl mx-auto space-y-6">
+            {/* Initial greeting when no messages */}
+            {messages.length === 0 && !isWaitingForResponse && (
+              <div className="flex flex-col items-center justify-center h-full text-center space-y-3">
+                {expert?.avatar_url ? (
+                  <img
+                    src={expert.avatar_url}
+                    alt={expert.name}
+                    className="h-16 w-16 rounded-full object-cover"
+                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+                  />
+                ) : (
+                  <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center">
+                    <User className="h-8 w-8 text-gray-500" />
+                  </div>
+                )}
+                <div>
+                  <p className="text-gray-700 font-medium text-lg">Ask me anything!</p>
+                  <p className="text-sm text-gray-500">
+                    I'm ready to help with your questions about {expert?.name || 'this expert'}
+                  </p>
                 </div>
-              )}
-              <div>
-                <p className="text-gray-700 font-medium text-lg">Ask me anything!</p>
-                <p className="text-sm text-gray-500">
-                  I'm ready to help with your questions about {expert?.name || 'this expert'}
-                </p>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Loading conversation indicator */}
-          {isLoadingConversation && (
-            <div className="flex justify-center items-center py-12">
-              <div className="flex flex-col items-center gap-3">
-                <div className="animate-spin rounded-full h-10 w-10 border-b-2" style={{ borderColor: primaryColor }}></div>
-                <p className="text-sm text-gray-500 font-medium">Loading conversation...</p>
+            {/* Loading conversation indicator */}
+            {isLoadingConversation && (
+              <div className="flex justify-center items-center py-12">
+                <div className="flex flex-col items-center gap-3">
+                  <div className="animate-spin rounded-full h-10 w-10 border-b-2" style={{ borderColor: primaryColor }}></div>
+                  <p className="text-sm text-gray-500 font-medium">Loading conversation...</p>
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
-          {messages.map(m => (
-            <div key={m.id} className={`flex ${m.type === 'user' ? 'justify-end' : 'justify-start'} mb-4`}>
-              <div className={`flex items-start gap-3 max-w-2xl ${m.type === 'user' ? 'flex-row-reverse' : ''}`}>
+            {messages.map(m => (
+              <div key={m.id} className="group py-4">
+                <div className={`flex items-start gap-3 ${m.type === 'user' ? 'flex-row-reverse' : ''}`}>
                 {/* Show avatar for agent messages */}
                 {m.type === 'agent' && (
                   <>
@@ -1146,15 +1147,20 @@ const ExpertChatPage = () => {
                   </>
                 )}
                 
-                <div className="flex-1">
+                <div className={`${m.type === 'user' ? 'flex justify-end' : 'flex-1 min-w-0'}`}>
                   <div 
-                    className={`${m.type === 'user' ? 'text-white' : 'bg-gray-100 text-gray-900'} rounded-2xl px-4 py-3`}
-                    style={m.type === 'user' ? { backgroundColor: primaryColor } : {}}
+                    className={`${m.type === 'user' ? 'text-white inline-block' : 'bg-gray-100 text-gray-900 inline-block max-w-[85%]'} px-5 py-3.5`}
+                    style={m.type === 'user' ? { 
+                      backgroundColor: primaryColor,
+                      borderRadius: '1rem 1rem 0 1rem'
+                    } : {
+                      borderRadius: '1rem 1rem 1rem 0'
+                    }}
                   >
                     {m.type === 'user' ? (
-                      <p className="text-sm whitespace-pre-wrap">{m.text}</p>
+                      <p className="text-[15px] leading-relaxed whitespace-pre-wrap">{m.text}</p>
                     ) : (
-                    <div className="text-sm prose prose-sm max-w-none prose-gray prose-headings:text-gray-900 prose-p:text-gray-900 prose-strong:text-gray-900 prose-li:text-gray-900 prose-ul:my-2 prose-li:my-0">
+                    <div className="text-[15px] leading-relaxed prose prose-sm max-w-none prose-gray prose-headings:text-gray-900 prose-p:text-gray-900 prose-strong:text-gray-900 prose-li:text-gray-900 prose-ul:my-2 prose-li:my-0 prose-p:my-0">
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>
                         {m.text}
                       </ReactMarkdown>
@@ -1257,39 +1263,35 @@ const ExpertChatPage = () => {
             </div>
           ))}
           
-          {/* Typing Indicator */}
-          {isWaitingForResponse && (
-            <div className="flex items-center gap-3">
-              {expert?.avatar_url ? (
-                <img
-                  src={expert.avatar_url}
-                  alt={expert.name}
-                  className="h-8 w-8 rounded-full object-cover"
-                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
-                />
-              ) : (
-                <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
-                  <User className="h-4 w-4 text-gray-500" />
+            {/* Typing Indicator */}
+            {isWaitingForResponse && (
+              <div className="group py-4">
+                <div className="flex items-center gap-3">
+                  {expert?.avatar_url ? (
+                    <img
+                      src={expert.avatar_url}
+                      alt={expert.name}
+                      className="h-8 w-8 rounded-full object-cover"
+                      onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+                    />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
+                      <User className="h-4 w-4 text-gray-500" />
+                    </div>
+                  )}
+                  <span className="text-sm text-gray-500">Typing...</span>
                 </div>
-              )}
-              <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1">
-                  <div className="w-2.5 h-2.5 bg-gray-400 rounded-full animate-bounce"></div>
-                  <div className="w-2.5 h-2.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.12s' }}></div>
-                  <div className="w-2.5 h-2.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.24s' }}></div>
-                </div>
-                <span className="text-sm text-gray-500">Typing...</span>
               </div>
-            </div>
-          )}
-          
-          <div ref={messagesEndRef} />
+            )}
+            
+            <div ref={messagesEndRef} />
+          </div>
         </div>
 
         {/* Input */}
         <div className="border-t bg-white px-6 py-4">
-          <div className="max-w-4xl mx-auto">
-            <div className="flex items-start gap-3 bg-gray-100 rounded-2xl px-4 py-3">
+          <div className="max-w-3xl mx-auto">
+            <div className="flex items-center  gap-3 bg-gray-100 rounded-3xl px-5 py-3.5 shadow-sm">
               <textarea
                 ref={textareaRef}
                 value={inputText}
@@ -1301,12 +1303,10 @@ const ExpertChatPage = () => {
                     textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 128) + 'px'
                   }
                 }}
-                onKeyPress={e => e.key === 'Enter' && !e.shiftKey && sendMsg()}
-                placeholder={isWaitingForResponse ? 'Waiting for response...' : (isListening ? '🎤 Listening... speak now' : 'Type...')}
-                disabled={isWaitingForResponse}
-                className="flex-1 border-0 bg-transparent focus:outline-none resize-none min-h-[24px] max-h-32 overflow-y-auto"
+                onKeyPress={e => e.key === 'Enter' && !e.shiftKey && !isWaitingForResponse && sendMsg()}
+                placeholder={isListening ? '🎤 Listening... speak now' : 'Message...'}
+                className="flex-1 border-0 bg-transparent focus:outline-none resize-none min-h-[24px] max-h-32 overflow-y-auto text-[15px] leading-relaxed"
                 rows={1}
-                style={{ lineHeight: '1.5' }}
               />
               {/* Speech Recognition Button */}
               {speechSupported && (
@@ -1314,7 +1314,7 @@ const ExpertChatPage = () => {
                   onClick={toggleListening}
                   size="icon"
                   variant={isListening ? "destructive" : "ghost"}
-                  className={`rounded-full h-8 w-8 ${isListening ? "animate-pulse" : ""}`}
+                  className={`rounded-full h-9 w-9 flex-shrink-0 ${isListening ? "animate-pulse" : ""}`}
                   title={isListening ? "Stop listening" : "Voice input"}
                 >
                   <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1326,7 +1326,7 @@ const ExpertChatPage = () => {
                 onClick={sendMsg}
                 disabled={!inputText.trim() || isWaitingForResponse}
                 size="icon"
-                className="rounded-full h-8 w-8"
+                className="rounded-full h-9 w-9 flex-shrink-0 transition-all"
                 style={{ backgroundColor: inputText.trim() && !isWaitingForResponse ? primaryColor : '#D1D5DB', opacity: 1 }}
                 onMouseEnter={(e) => inputText.trim() && !isWaitingForResponse && (e.currentTarget.style.backgroundColor = secondaryColor)}
                 onMouseLeave={(e) => inputText.trim() && !isWaitingForResponse && (e.currentTarget.style.backgroundColor = primaryColor)}

@@ -53,6 +53,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, projectId }) => {
   const dispatch = useAppDispatch()
   const { user } = useAppSelector((state) => state.auth)
   const [projectName, setProjectName] = useState<string>('')
+  const [expertOwnerId, setExpertOwnerId] = useState<string | null>(null)
 
   // Debug: Log user data
   useEffect(() => {
@@ -68,11 +69,12 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, projectId }) => {
     }
   }, [dispatch])
 
-  // Fetch project name when projectId is available
+  // Fetch project name and owner when projectId is available
   useEffect(() => {
     const fetchProjectName = async () => {
       if (!projectId) {
         setProjectName('')
+        setExpertOwnerId(null)
         return
       }
       
@@ -84,10 +86,12 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, projectId }) => {
         
         if (data.success && data.expert) {
           setProjectName(data.expert.name || 'Project')
+          setExpertOwnerId(data.expert.user_id || null)
         }
       } catch (error) {
         console.error('Error fetching project name:', error)
         setProjectName('Project')
+        setExpertOwnerId(null)
       }
     }
 
@@ -97,7 +101,10 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, projectId }) => {
   // Create dynamic sidebar items based on context
   const dynamicSidebarItems = React.useMemo(() => {
     if (projectId) {
-      return [
+      // Check if super admin viewing someone else's expert
+      const isAdminViewing = user?.role === 'super_admin' && expertOwnerId && expertOwnerId !== user.id
+      
+      const items = [
         {
           title: 'Knowledge Base',
           href: `/project/${projectId}/knowledge-base`,
@@ -118,27 +125,23 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, projectId }) => {
           title: 'Profile Settings',
           href: `/project/${projectId}/profile-settings`,
           icon: User
-        },
-        {
+        }
+      ]
+      
+      // Only show Publish Manager if NOT super admin viewing someone else's expert
+      if (!isAdminViewing) {
+        items.push({
           title: 'Publish Manager',
           href: `/project/${projectId}/publish`,
           icon: Share2
-        },
-        {
-          title: 'Professional Voice Clone',
-          href: `/project/${projectId}/pvc`,
-          icon: Mic
-        },
-       
-        // {
-        //   title: 'All Agents',
-        //   href: '/projects',
-        //   icon: Home
-        // }
-      ]
+
+        })
+      }
+      
+      return items
     }
     return sidebarItems
-  }, [projectId])
+  }, [projectId, user, expertOwnerId])
 
   const handleLogout = () => {
     dispatch(logout())

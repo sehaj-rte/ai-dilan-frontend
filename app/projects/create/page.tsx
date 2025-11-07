@@ -2,6 +2,7 @@
 
 import React, { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAppSelector } from '@/store/hooks';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -16,6 +17,8 @@ import { fetchWithAuth, getAuthHeaders } from '@/lib/api-client';
 export default function CreateProjectPage() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { user } = useAppSelector((state) => state.auth);
+  const isSuperAdmin = user?.role === 'super_admin';
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showSuccessDialog, setShowSuccessDialog] = useState(false);
@@ -24,7 +27,10 @@ export default function CreateProjectPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [formData, setFormData] = useState({
     name: '',
-    description: ''
+    description: '',
+    userEmail: '',
+    userPassword: '',
+    userFullName: ''
   });
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -114,7 +120,7 @@ export default function CreateProjectPage() {
       }
 
       // Create avatar with minimal data - backend will use defaults for voice
-      const payload = {
+      const payload: any = {
         name: formData.name.trim(),
         description: formData.description.trim() || null,
         system_prompt: `You are ${formData.name.trim()}, a helpful AI assistant.`,
@@ -123,6 +129,13 @@ export default function CreateProjectPage() {
         avatar_base64: avatarBase64,
         selected_files: []
       };
+
+      // Add super admin fields if provided
+      if (isSuperAdmin && formData.userEmail.trim()) {
+        payload.user_email = formData.userEmail.trim();
+        if (formData.userPassword.trim()) payload.user_password = formData.userPassword.trim();
+        if (formData.userFullName.trim()) payload.user_full_name = formData.userFullName.trim();
+      }
 
       console.log('📤 Creating avatar with payload (avatar included:', !!avatarBase64, ')');
 
@@ -297,6 +310,37 @@ export default function CreateProjectPage() {
                   className="w-full resize-none"
                 />
               </div>
+
+              {/* Super Admin Fields */}
+              {isSuperAdmin && (
+                <div className="border-t-2 border-orange-200 pt-4 space-y-3">
+                  <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+                    <h4 className="text-sm font-semibold text-orange-800 flex items-center">
+                      <User className="h-4 w-4 mr-2" />
+                      Super Admin: Create for Another User
+                    </h4>
+                    <p className="text-xs text-orange-700 mt-1">
+                      Enter email to create expert for another user
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="userEmail" className="text-sm font-medium text-gray-700">User Email</Label>
+                    <Input id="userEmail" name="userEmail" type="email" placeholder="user@example.com" value={formData.userEmail} onChange={handleInputChange} className="w-full" />
+                  </div>
+                  {formData.userEmail && (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="userPassword" className="text-sm font-medium text-gray-700">Password (Optional)</Label>
+                        <Input id="userPassword" name="userPassword" type="password" placeholder="Auto-generated if empty" value={formData.userPassword} onChange={handleInputChange} className="w-full" />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="userFullName" className="text-sm font-medium text-gray-700">Full Name (Optional)</Label>
+                        <Input id="userFullName" name="userFullName" type="text" placeholder="John Doe" value={formData.userFullName} onChange={handleInputChange} className="w-full" />
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
 
               {/* Error Message */}
               {error && (
