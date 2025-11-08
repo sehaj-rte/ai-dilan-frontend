@@ -122,6 +122,11 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, projectId }) => {
           icon: MessageSquare
         },
         {
+          title: 'AI Behavior Settings',
+          href: `/project/${projectId}/behavior-settings`,
+          icon: Brain
+        },
+        {
           title: 'Profile Settings',
           href: `/project/${projectId}/profile-settings`,
           icon: User
