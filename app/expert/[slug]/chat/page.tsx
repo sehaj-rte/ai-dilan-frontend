@@ -7,12 +7,21 @@ import { useSelector, useDispatch } from 'react-redux'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import SpeechToTextInput from '@/components/ui/speech-to-text-input'
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
 import { API_URL } from '@/lib/config'
+import { uploadFilesToS3, S3UploadedFile } from '@/lib/s3-upload'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { Send, Plus, MessageSquare, MoreHorizontal, X, ArrowLeft, User, LogIn, LogOut, FileText, ChevronDown, ChevronUp, Edit2, Copy, Check, ArrowUp } from 'lucide-react'
+import { Send, Plus, MessageSquare, MoreHorizontal, X, ArrowLeft, User, LogIn, LogOut, FileText, ChevronDown, ChevronUp, Edit2, Copy, Check, ArrowUp, Paperclip, Image as ImageIcon, File as FileIcon, Menu, UserCircle } from 'lucide-react'
 import { RootState } from '@/store/store'
 import { logout, loadUserFromStorage } from '@/store/slices/authSlice'
+
+interface FileAttachment {
+  name: string
+  type: string
+  url: string
+  size: number
+}
 
 interface ChatMessage {
   id: string
@@ -30,6 +39,8 @@ interface ChatMessage {
     page?: number
     text?: string
   }>
+  files?: FileAttachment[]
+  isStreaming?: boolean
 }
 
 interface Conversation {
@@ -83,6 +94,14 @@ const ExpertChatPage = () => {
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null)
   const [showAuthModal, setShowAuthModal] = useState(false)
   const [expandedCitations, setExpandedCitations] = useState<Set<string>>(new Set())
+  const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
+  const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null)
+  const [isUploadingFiles, setIsUploadingFiles] = useState(false)
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, right: 0 })
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const userMenuTriggerRef = useRef<HTMLButtonElement>(null)
   
   // Speech Recognition States
   const [isListening, setIsListening] = useState(false)
@@ -93,6 +112,7 @@ const ExpertChatPage = () => {
   const isListeningRef = useRef<boolean>(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const shouldIgnoreRecognitionRef = useRef<boolean>(false)
+  const userMenuRef = useRef<HTMLDivElement>(null)
 
   // Load user from storage on mount
   useEffect(() => {
@@ -110,6 +130,23 @@ const ExpertChatPage = () => {
       }
     }
   }, [])
+
+  // Close user menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setIsUserMenuOpen(false)
+      }
+    }
+
+    if (isUserMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [isUserMenuOpen])
 
   // Auto-connect when expert is loaded
   useEffect(() => {
@@ -610,21 +647,78 @@ const ExpertChatPage = () => {
     setMessages(prev => [...prev, msg])
   }
 
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || [])
+    if (files.length === 0) return
+
+    // Show uploading state
+    setIsUploadingFiles(true)
+    
+    try {
+      console.log('📤 Uploading files to S3...')
+      
+      // Upload all files to S3 in parallel
+      const s3Files = await uploadFilesToS3(files)
+      
+      console.log('✅ Files uploaded to S3:', s3Files)
+      
+      // Store S3 file metadata (not the File objects)
+      setUploadedFiles(prev => [...prev, ...files])
+      
+      // Store S3 URLs separately for sending to backend
+      const s3FileData = s3Files.map(f => ({
+        name: f.name,
+        type: f.type,
+        url: f.url,
+        s3_key: f.s3_key,
+        size: f.size
+      }))
+      
+      // Store in a ref or state for later use
+      ;(window as any).__s3UploadedFiles = s3FileData
+      
+    } catch (error) {
+      console.error('❌ S3 upload failed:', error)
+      alert('Failed to upload files. Please try again.')
+    } finally {
+      setIsUploadingFiles(false)
+      // Reset file input so same file can be selected again
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+    }
+  }
+
+  const removeFile = (index: number) => {
+    setUploadedFiles(prev => prev.filter((_, i) => i !== index))
+    // Also remove from S3 data
+    const s3Data = (window as any).__s3UploadedFiles || []
+    ;(window as any).__s3UploadedFiles = s3Data.filter((_: any, i: number) => i !== index)
+  }
+
   const sendMsg = async () => {
-    if (!inputText.trim() || !sessionId || !isConnected || isWaitingForResponse) return
+    if ((!inputText.trim() && uploadedFiles.length === 0) || !sessionId || !isConnected || isWaitingForResponse) return
 
     const userMessage: ChatMessage = {
       id: `user-${Date.now()}`,
       type: 'user',
       text: inputText.trim(),
-      timestamp: new Date()
+      timestamp: new Date(),
+      files: uploadedFiles.map(f => ({
+        name: f.name,
+        type: f.type,
+        url: URL.createObjectURL(f),
+        size: f.size
+      }))
     }
 
     // Add user message to chat
     setMessages(prev => [...prev, userMessage])
     setIsWaitingForResponse(true)
     const messageText = inputText.trim()
+    const filesToSend = [...uploadedFiles]
     setInputText('')
+    setUploadedFiles([])
     
     // Stop voice recognition if active and prevent it from refilling input
     if (isListening && recognitionRef.current) {
@@ -645,102 +739,226 @@ const ExpertChatPage = () => {
       textareaRef.current.style.height = 'auto'
     }
 
-    // Save to conversation history (create new session for first message)
-    let conversationId = currentConvId // Store current ID or create new one
-    
-    if (messages.length === 0 && !currentConvId) {
-      console.log('💾 Creating new conversation for first message')
-      // Use temporary title initially
-      const tempTitle = 'New Conversation'
-      const newSessionId = await saveConversation(tempTitle, userMessage)
-      if (newSessionId) {
-        console.log('✅ Conversation created with ID:', newSessionId)
-        conversationId = newSessionId // Store in local variable
-        setCurrentConvId(newSessionId)
-        // Reload conversations to show the new one
-        await loadConversations(expert.id)
-      } else {
-        console.log('❌ Failed to create conversation (user may not be authenticated)')
-      }
-    } else if (currentConvId) {
-      // Save message to existing session
-      console.log('💾 Saving user message to existing conversation:', currentConvId)
-      await saveMessage(currentConvId, 'user', messageText)
-    } else {
-      console.log('⚠️ No conversation ID and not first message - message not saved')
-    }
-
     try {
-      const response = await fetch(`${API_URL}/openai-chat/message/send`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          session_id: sessionId,
-          message: messageText,
-          model: 'gpt-4o-mini'
+      // Create streaming agent message placeholder FIRST (no latency)
+      const agentMessageId = `agent-${Date.now()}`
+      const agentMessage: ChatMessage = {
+        id: agentMessageId,
+        type: 'agent',
+        text: 'Thinking...',  // Show "Thinking..." until first content arrives
+        timestamp: new Date(),
+        isStreaming: true
+      }
+      
+      setMessages(prev => [...prev, agentMessage])
+      setStreamingMessageId(agentMessageId)
+      setIsWaitingForResponse(false)
+
+      // Prepare request - use S3 URLs if files are present
+      let response: Response
+      
+      if (filesToSend.length > 0) {
+        // Get S3 file data that was uploaded earlier
+        const s3FileData = (window as any).__s3UploadedFiles || []
+        
+        console.log('📎 Sending message with S3 file URLs:', s3FileData)
+        
+        response = await fetch(`${API_URL}/openai-chat/message/stream-with-files`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            session_id: sessionId,
+            message: messageText,
+            model: 'gpt-4o-mini',
+            files: s3FileData  // Send S3 URLs, not files
+          })
         })
-      })
+        
+        // Clear S3 data after sending
+        ;(window as any).__s3UploadedFiles = []
+      } else {
+        response = await fetch(`${API_URL}/openai-chat/message/stream`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            session_id: sessionId,
+            message: messageText,
+            model: 'gpt-4o-mini'
+          })
+        })
+      }
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ detail: response.statusText }))
-        console.error('❌ OpenAI API Error:', errorData)
-        throw new Error(`Failed to send message: ${errorData.detail || response.statusText}`)
+        const errorText = await response.text()
+        console.error('❌ HTTP Error:', response.status, errorText)
+        throw new Error(`Failed to send message: ${response.statusText}`)
       }
 
-      const data = await response.json()
+      console.log('📡 Starting to process streaming response...')
+
+      // Process streaming response
+      const reader = response.body?.getReader()
+      if (!reader) {
+        throw new Error('Response body is not readable')
+      }
+
+      const decoder = new TextDecoder()
+      let fullResponse = ''
+      let toolCalls: any[] = []
+      let sources: any[] = []
+      let buffer = '' // Buffer for incomplete lines
+      let firstContentReceived = false // Track if we've received first content
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) {
+            console.log('✅ Stream reading completed')
+            break
+          }
+
+          // Decode chunk and add to buffer
+          buffer += decoder.decode(value, { stream: true })
+          
+          // Split by newlines
+          const lines = buffer.split('\n')
+          
+          // Keep the last incomplete line in buffer
+          buffer = lines.pop() || ''
+
+          for (const line of lines) {
+            if (!line.trim()) continue // Skip empty lines
+            
+            if (line.startsWith('data: ')) {
+              try {
+                const jsonStr = line.slice(6).trim()
+                if (!jsonStr) continue
+                
+                const data = JSON.parse(jsonStr)
+                console.log('📦 Received event:', data.type)
+                
+                if (data.type === 'content') {
+                  fullResponse += data.data
+                  console.log("data.data",data.data)
+                  
+                  // Clear "Thinking..." on first content
+                  if (!firstContentReceived) {
+                    firstContentReceived = true
+                    fullResponse = data.data // Start fresh, removing "Thinking..."
+                  }
+                  
+                  // Update message with streaming content
+                  setMessages(prev => prev.map(msg => 
+                    msg.id === agentMessageId 
+                      ? { ...msg, text: fullResponse }
+                      : msg
+                  ))
+                } else if (data.type === 'sources') {
+                  console.log('📚 Received sources:', data.data.length)
+                  sources = data.data
+                } else if (data.type === 'tool_calls') {
+                  console.log('🔧 Tool calls:', data.data)
+                } else if (data.type === 'done') {
+                  console.log('✅ Received done event')
+                  toolCalls = data.data.tool_calls_made || []
+                  sources = data.data.sources || sources
+                  // Final update with complete data
+                  setMessages(prev => prev.map(msg => 
+                    msg.id === agentMessageId 
+                      ? { 
+                          ...msg, 
+                          text: fullResponse,
+                          toolCalls,
+                          sources,
+                          isStreaming: false
+                        }
+                      : msg
+                  ))
+                  setStreamingMessageId(null)
+                } else if (data.type === 'error') {
+                  console.error('❌ Received error event:', data.data)
+                  throw new Error(data.data.message || 'Streaming error')
+                }
+              } catch (e) {
+                console.error('❌ Error parsing SSE line:', line, e)
+              }
+            }
+          }
+        }
+      } catch (streamError) {
+        console.error('❌ Stream reading error:', streamError)
+        throw streamError
+      }
       
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to get response')
-      }
-
-      // Add agent response with sources
-      const agentMessage: ChatMessage = {
-        id: `agent-${Date.now()}`,
-        type: 'agent',
-        text: data.response,
-        timestamp: new Date(),
-        toolCalls: data.tool_calls_made,
-        sources: data.sources || []
-      }
-
-      console.log('💬 Agent message with sources:', agentMessage)
-      setMessages(prev => [...prev, agentMessage])
+      // NOW save to database AFTER streaming completes (no latency impact)
+      console.log('✅ Streaming complete! Now saving to database...')
       
-      // Clear typing indicator immediately
-      setIsWaitingForResponse(false)
+      // Save conversation and messages to database
+      let conversationId = currentConvId
+      
+      if (messages.length === 0 && !currentConvId) {
+        // First message - create new conversation
+        console.log('💾 Creating new conversation after streaming')
+        const tempTitle = 'New Conversation'
+        const newSessionId = await saveConversation(tempTitle, userMessage)
+        if (newSessionId) {
+          console.log('✅ Conversation created with ID:', newSessionId)
+          conversationId = newSessionId
+          setCurrentConvId(newSessionId)
+          // Reload conversations to show the new one
+          loadConversations(expert.id).catch(err => console.error('Failed to reload conversations:', err))
+        } else {
+          console.log('❌ Failed to create conversation (user may not be authenticated)')
+        }
+      } else if (currentConvId) {
+        // Existing conversation - save user message
+        console.log('💾 Saving user message to existing conversation:', currentConvId)
+        saveMessage(currentConvId, 'user', messageText).catch(err => 
+          console.error('❌ Failed to save user message:', err)
+        )
+      }
       
       // Save agent response to database (in background)
-      if (conversationId) {
+      if (conversationId && fullResponse) {
         console.log('💾 Saving agent response to conversation:', conversationId)
-        saveMessage(conversationId, 'assistant', data.response).catch(err => 
+        saveMessage(conversationId, 'assistant', fullResponse).catch(err => 
           console.error('❌ Failed to save agent message:', err)
         )
         
-        // Generate and update smart title for first exchange (when there's only 1 message before this response)
-        if (messages.length === 1) {
+        // Generate and update smart title for first exchange
+        if (messages.length === 0) {
           console.log('🏷️ Generating smart title for first exchange')
-          generateSmartTitle(messageText, data.response).then(smartTitle => {
+          generateSmartTitle(messageText, fullResponse).then(smartTitle => {
             console.log('✅ Smart title generated:', smartTitle)
-            updateConversationTitle(conversationId, smartTitle)
-          })
+            updateConversationTitle(conversationId!, smartTitle)
+          }).catch(err => console.error('Failed to generate title:', err))
         }
         
         // Update title if knowledge base was searched
-        if (data.tool_calls_made && data.tool_calls_made.length > 0) {
+        if (toolCalls && toolCalls.length > 0) {
           console.log('🔍 Knowledge base was searched, updating title')
-          generateSmartTitle(messageText, data.response).then(smartTitle => {
-            updateConversationTitle(conversationId, smartTitle)
-          })
+          generateSmartTitle(messageText, fullResponse).then(smartTitle => {
+            updateConversationTitle(conversationId!, smartTitle)
+          }).catch(err => console.error('Failed to update title:', err))
         }
       } else {
-        console.log('⚠️ No conversation ID - agent response not saved to DB')
+        console.log('⚠️ No conversation ID - messages not saved to DB')
       }
 
     } catch (error: any) {
       console.error('Error sending OpenAI message:', error)
       setIsWaitingForResponse(false)
+      setStreamingMessageId(null)
+      // Show error message
+      setMessages(prev => prev.map(msg => 
+        msg.id === streamingMessageId
+          ? { ...msg, text: 'Sorry, I encountered an error. Please try again.', isStreaming: false }
+          : msg
+      ))
     }
   }
 
@@ -787,7 +1005,7 @@ const ExpertChatPage = () => {
       setIsLoadingConversation(false)
     }
   }
-
+ 
   const groupConversations = () => {
     const now = new Date()
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
@@ -852,9 +1070,22 @@ const ExpertChatPage = () => {
   }
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-screen bg-gray-50 overflow-hidden">
+      {/* Mobile Overlay */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+      
       {/* Sidebar - Conversation History */}
-      <div className="w-64 bg-gray-900 text-white flex flex-col">
+      <div className={`
+        fixed lg:relative inset-y-0 left-0 z-50
+        w-64 bg-gray-900 text-white flex flex-col
+        transform transition-transform duration-300 ease-in-out
+        ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+      `}>
         <div className="p-3 border-b border-gray-700">
           <Button 
             onClick={() => startOpenAIChatSession()} 
@@ -934,6 +1165,7 @@ const ExpertChatPage = () => {
                               setEditingTitleText(c.title)
                             }}
                             className="opacity-0 group-hover:opacity-100 ml-2 p-1 hover:bg-gray-700 rounded"
+                            aria-label="Edit conversation title"
                           >
                             <Edit2 className="h-3 w-3" />
                           </button>
@@ -991,6 +1223,7 @@ const ExpertChatPage = () => {
                               setEditingTitleText(c.title)
                             }}
                             className="opacity-0 group-hover:opacity-100 ml-2 p-1 hover:bg-gray-700 rounded"
+                            aria-label="Edit conversation title"
                           >
                             <Edit2 className="h-3 w-3" />
                           </button>
@@ -1017,81 +1250,156 @@ const ExpertChatPage = () => {
       </div>
 
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col bg-white">
+      <div className="flex-1 flex flex-col bg-white min-w-0">
         {/* Header */}
-        <div className="border-b bg-white px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center space-x-3">
+        <div className="border-b bg-white px-3 sm:px-6 py-3 sm:py-4 flex items-center justify-between relative overflow-visible">
+          {/* Mobile Menu Button */}
+          <button
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            className="lg:hidden p-2 rounded-lg hover:bg-gray-100 mr-2"
+          >
+            <Menu className="h-5 w-5 text-gray-600" />
+          </button>
+          
+          <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
             {expert?.avatar_url ? (
               <img 
                 src={expert.avatar_url} 
-                className="w-10 h-10 rounded-full object-cover" 
+                className="w-8 h-8 sm:w-10 sm:h-10 rounded-full object-cover flex-shrink-0" 
                 alt={expert.name} 
                 onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
               />
             ) : (
-              <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
-                <User className="h-5 w-5 text-gray-500" />
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
+                <User className="h-4 w-4 sm:h-5 sm:w-5 text-gray-500" />
               </div>
             )}
-            <div>
-              <h2 className="font-semibold text-gray-900">{expert?.name}</h2>
+            <div className="min-w-0 flex-1">
+              <h2 className="font-semibold text-gray-900 text-sm sm:text-base truncate">{expert?.name}</h2>
               <p className="text-xs flex items-center" style={{ color: isConnected ? primaryColor : '#9CA3AF' }}>
                 <span 
-                  className={`w-2 h-2 rounded-full mr-2 ${isConnected ? 'animate-pulse' : ''}`}
+                  className={`w-2 h-2 rounded-full mr-1.5 sm:mr-2 flex-shrink-0 ${isConnected ? 'animate-pulse' : ''}`}
                   style={{ backgroundColor: isConnected ? primaryColor : '#9CA3AF' }}
                 ></span>
-                {isConnecting ? 'Connecting...' : isConnected ? 'Connected' : 'Disconnected'}
+                <span className="truncate">{isConnecting ? 'Connecting...' : isConnected ? 'Connected' : 'Disconnected'}</span>
               </p>
             </div>
           </div>
           
           {/* User Profile / Login */}
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-2 sm:space-x-3 flex-shrink-0">
             {isAuthenticated && user ? (
-              <div className="flex items-center space-x-3">
-                <div className="text-right">
-                  <p className="text-sm font-medium text-gray-900">{user.full_name || user.username}</p>
-                  <p className="text-xs text-gray-500">{user.email}</p>
+              <>
+                {/* Desktop View */}
+                <div className="hidden md:flex items-center space-x-3">
+                  <div className="text-right">
+                    <p className="text-sm font-medium text-gray-900 truncate max-w-[120px]">{user.full_name || user.username}</p>
+                    <p className="text-xs text-gray-500 truncate max-w-[120px]">{user.email}</p>
+                  </div>
+                  {user.avatar_url ? (
+                    <img 
+                      src={user.avatar_url.startsWith('http') ? user.avatar_url : `${API_URL}${user.avatar_url}`} 
+                      className="w-10 h-10 rounded-full object-cover border-2 border-gray-200 flex-shrink-0" 
+                      alt={user.username}
+                      onError={(e) => {
+                        e.currentTarget.style.display = 'none'
+                        e.currentTarget.nextElementSibling?.classList.remove('hidden')
+                      }}
+                    />
+                  ) : null}
+                  <div className={`w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0 ${user.avatar_url ? 'hidden' : ''}`}>
+                    <User className="h-5 w-5 text-gray-500" />
+                  </div>
+                  <Button
+                    onClick={handleLogout}
+                    variant="ghost"
+                    size="sm"
+                    className="text-gray-600 hover:text-gray-900"
+                  >
+                    <LogOut className="h-4 w-4" />
+                  </Button>
                 </div>
-                {user.avatar_url ? (
-                  <img 
-                    src={user.avatar_url.startsWith('http') ? user.avatar_url : `${API_URL}${user.avatar_url}`} 
-                    className="w-10 h-10 rounded-full object-cover border-2 border-gray-200" 
-                    alt={user.username}
-                    onError={(e) => {
-                      e.currentTarget.style.display = 'none'
-                      e.currentTarget.nextElementSibling?.classList.remove('hidden')
-                    }}
-                  />
-                ) : null}
-                <div className={`w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center ${user.avatar_url ? 'hidden' : ''}`}>
-                  <User className="h-5 w-5 text-gray-500" />
+
+                {/* Mobile/Tablet Dropdown */}
+                <div
+                //  ref={userMenuRef} 
+                
+                className="relative">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger
+                      ref={userMenuTriggerRef}
+                      className="md:hidden flex items-center justify-center"
+                      onClick={(e) => {
+                        const rect = e.currentTarget.getBoundingClientRect()
+                        setDropdownPosition({
+                          top: rect.bottom + 8,
+                          right: window.innerWidth - rect.right
+                        })
+                        setIsUserMenuOpen(!isUserMenuOpen)
+                      }}
+                      aria-label="User menu"
+                    > 
+                      {user.avatar_url ? (
+                        <img 
+                          src={user.avatar_url} 
+                          className="w-8 h-8 rounded-full object-cover border-2 border-gray-200" 
+                          alt={user.username}
+                          onError={(e) => {
+                            // e.currentTarget.style.display = 'none'
+                            // e.currentTarget.nextElementSibling?.classList.remove('hidden')
+                          }}
+                        />
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center border-2 border-gray-200">
+                          <User className="h-4 w-4 text-gray-500" />
+                        </div>
+                      )}
+                    </DropdownMenuTrigger>
+                    {isUserMenuOpen && (
+                      <div 
+                        className="fixed z-[100] w-56 overflow-hidden rounded-lg border border-gray-200 bg-white p-1 shadow-lg md:hidden"
+                        style={{
+                          top: `${dropdownPosition.top}px`,
+                          right: `${dropdownPosition.right}px`
+                        }}
+                      >
+                        <div className="px-2 py-2">
+                          <p className="text-sm font-medium text-gray-900 truncate">{user.full_name || user.username}</p>
+                          <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                        </div>
+                        <div className="-mx-1 my-1 h-px bg-gray-200" />
+                        <div
+                          onClick={() => {
+                            handleLogout()
+                            setIsUserMenuOpen(false)
+                          }}
+                          className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-gray-100 focus:bg-gray-100"
+                        >
+                          <LogOut className="mr-2 h-4 w-4" />
+                          <span>Logout</span>
+                        </div>
+                      </div>
+                    )}
+                  </DropdownMenu>
                 </div>
-                <Button
-                  onClick={handleLogout}
-                  variant="ghost"
-                  size="sm"
-                  className="text-gray-600 hover:text-gray-900"
-                >
-                  <LogOut className="h-4 w-4" />
-                </Button>
-              </div>
+              </>
             ) : (
               <Button
                 onClick={() => router.push('/auth/login')}
                 size="sm"
+                className="text-xs sm:text-sm"
                 style={{ backgroundColor: primaryColor }}
               >
-                <LogIn className="mr-2 h-4 w-4" />
-                Login
+                <LogIn className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
+                <span>Login</span>
               </Button>
             )}
           </div>
         </div>
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-6">
-          <div className="max-w-3xl mx-auto space-y-6">
+        <div className="flex-1 overflow-y-auto p-3 sm:p-6">
+          <div className="max-w-3xl mx-auto space-y-4 sm:space-y-6">
             {/* Initial greeting when no messages */}
             {messages.length === 0 && !isWaitingForResponse && (
               <div className="flex flex-col items-center justify-center h-full text-center space-y-3">
@@ -1127,8 +1435,8 @@ const ExpertChatPage = () => {
             )}
 
             {messages.map(m => (
-              <div key={m.id} className="group py-4">
-                <div className={`flex items-start gap-3 ${m.type === 'user' ? 'flex-row-reverse' : ''}`}>
+              <div key={m.id} className="group py-2 sm:py-4">
+                <div className={`flex items-start gap-2 sm:gap-3 ${m.type === 'user' ? 'flex-row-reverse' : ''}`}>
                 {/* Show avatar for agent messages */}
                 {m.type === 'agent' && (
                   <>
@@ -1136,12 +1444,12 @@ const ExpertChatPage = () => {
                       <img
                         src={expert.avatar_url}
                         alt={expert.name}
-                        className="h-8 w-8 rounded-full object-cover flex-shrink-0"
+                        className="h-6 w-6 sm:h-8 sm:w-8 rounded-full object-cover flex-shrink-0"
                         onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
                       />
                     ) : (
-                      <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
-                        <User className="h-4 w-4 text-gray-500" />
+                      <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
+                        <User className="h-3 w-3 sm:h-4 sm:w-4 text-gray-500" />
                       </div>
                     )}
                   </>
@@ -1149,7 +1457,7 @@ const ExpertChatPage = () => {
                 
                 <div className={`${m.type === 'user' ? 'flex justify-end' : 'flex-1 min-w-0'}`}>
                   <div 
-                    className={`${m.type === 'user' ? 'text-white inline-block' : 'bg-gray-100 text-gray-900 inline-block max-w-[85%]'} px-5 py-3.5`}
+                    className={`${m.type === 'user' ? 'text-white inline-block max-w-[85%] sm:max-w-[75%]' : 'bg-gray-100 text-gray-900 inline-block max-w-[90%] sm:max-w-[85%]'} px-3 py-2.5 sm:px-5 sm:py-3.5`}
                     style={m.type === 'user' ? { 
                       backgroundColor: primaryColor,
                       borderRadius: '1rem 1rem 0 1rem'
@@ -1158,9 +1466,25 @@ const ExpertChatPage = () => {
                     }}
                   >
                     {m.type === 'user' ? (
-                      <p className="text-[15px] leading-relaxed whitespace-pre-wrap">{m.text}</p>
+                      <div>
+                        <p className="text-sm sm:text-[15px] leading-relaxed whitespace-pre-wrap mr-2">{m.text}</p>
+                        {m.files && m.files.length > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {m.files.map((file, idx) => (
+                              <div key={idx} className="flex items-center gap-2 bg-white bg-opacity-20 rounded-lg px-3 py-2">
+                                {file.type.startsWith('image/') ? (
+                                  <ImageIcon className="h-4 w-4" />
+                                ) : (
+                                  <FileIcon className="h-4 w-4" />
+                                )}
+                                <span className="text-xs">{file.name}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     ) : (
-                    <div className="text-[15px] leading-relaxed prose prose-sm max-w-none prose-gray prose-headings:text-gray-900 prose-p:text-gray-900 prose-strong:text-gray-900 prose-li:text-gray-900 prose-ul:my-2 prose-li:my-0 prose-p:my-0">
+                    <div className="text-sm sm:text-[15px] leading-relaxed prose prose-sm max-w-none prose-gray prose-headings:text-gray-900 prose-p:text-gray-900 prose-strong:text-gray-900 prose-li:text-gray-900 prose-ul:my-2 prose-li:my-0 prose-p:my-0">
                       <ReactMarkdown remarkPlugins={[remarkGfm]}>
                         {m.text}
                       </ReactMarkdown>
@@ -1263,23 +1587,23 @@ const ExpertChatPage = () => {
             </div>
           ))}
           
-            {/* Typing Indicator */}
-            {isWaitingForResponse && (
-              <div className="group py-4">
-                <div className="flex items-center gap-3">
+            {/* Typing Indicator - only show when waiting and not streaming */}
+            {isWaitingForResponse && !streamingMessageId && (
+              <div className="group py-2 sm:py-4">
+                <div className="flex items-center gap-2 sm:gap-3">
                   {expert?.avatar_url ? (
                     <img
                       src={expert.avatar_url}
                       alt={expert.name}
-                      className="h-8 w-8 rounded-full object-cover"
+                      className="h-6 w-6 sm:h-8 sm:w-8 rounded-full object-cover"
                       onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
                     />
                   ) : (
-                    <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
-                      <User className="h-4 w-4 text-gray-500" />
+                    <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-gray-200 flex items-center justify-center">
+                      <User className="h-3 w-3 sm:h-4 sm:w-4 text-gray-500" />
                     </div>
                   )}
-                  <span className="text-sm text-gray-500">Typing...</span>
+                  <span className="text-sm text-gray-500">Thinking...</span>
                 </div>
               </div>
             )}
@@ -1289,50 +1613,176 @@ const ExpertChatPage = () => {
         </div>
 
         {/* Input */}
-        <div className="border-t bg-white px-6 py-4">
+        <div className="border-t bg-gradient-to-b from-white to-gray-50 px-3 sm:px-6 py-3 sm:py-5">
           <div className="max-w-3xl mx-auto">
-            <div className="flex items-center  gap-3 bg-gray-100 rounded-3xl px-5 py-3.5 shadow-sm">
-              <textarea
-                ref={textareaRef}
-                value={inputText}
-                onChange={e => {
-                  setInputText(e.target.value)
-                  // Auto-resize textarea
-                  if (textareaRef.current) {
-                    textareaRef.current.style.height = 'auto'
-                    textareaRef.current.style.height = Math.min(textareaRef.current.scrollHeight, 128) + 'px'
-                  }
-                }}
-                onKeyPress={e => e.key === 'Enter' && !e.shiftKey && !isWaitingForResponse && sendMsg()}
-                placeholder={isListening ? '🎤 Listening... speak now' : 'Message...'}
-                className="flex-1 border-0 bg-transparent focus:outline-none resize-none min-h-[24px] max-h-32 overflow-y-auto text-[15px] leading-relaxed"
-                rows={1}
-              />
-              {/* Speech Recognition Button */}
-              {speechSupported && (
+            {/* File Upload Loader */}
+            {isUploadingFiles && (
+              <div className="mb-3 sm:mb-4 flex items-center gap-2 sm:gap-3 bg-blue-50 rounded-xl px-3 sm:px-4 py-2 sm:py-3 border border-blue-200 animate-in slide-in-from-bottom-2 duration-200">
+                <div className="flex items-center justify-center">
+                  <div className="animate-spin rounded-full h-5 w-5 border-2 border-blue-500 border-t-transparent"></div>
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-blue-900">Uploading files...</p>
+                  <p className="text-xs text-blue-600 mt-0.5">Please wait while we upload your files to the cloud</p>
+                </div>
+              </div>
+            )}
+            
+            {/* File Preview */}
+            {uploadedFiles.length > 0 && (
+              <div className="mb-3 sm:mb-4 flex flex-wrap gap-2 animate-in slide-in-from-bottom-2 duration-200">
+                {uploadedFiles.map((file, idx) => (
+                  <div 
+                    key={idx} 
+                    className="group flex items-center gap-2 bg-white rounded-xl px-3 py-2.5 border border-gray-200 shadow-sm hover:shadow-md hover:border-gray-300 transition-all duration-200"
+                  >
+                    <div className="p-1.5 rounded-lg" style={{ backgroundColor: `${primaryColor}15` }}>
+                      {file.type.startsWith('image/') ? (
+                        <ImageIcon className="h-4 w-4" style={{ color: primaryColor }} />
+                      ) : (
+                        <FileIcon className="h-4 w-4" style={{ color: primaryColor }} />
+                      )}
+                    </div>
+                    <span className="text-sm font-medium text-gray-700 max-w-[150px] truncate">{file.name}</span>
+                    <button
+                      onClick={() => removeFile(idx)}
+                      className="ml-1 p-1 rounded-full hover:bg-gray-100 text-gray-400 hover:text-red-500 transition-colors"
+                      title="Remove file"
+                      aria-label="Remove file"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            
+            {/* Input Container */}
+            <div className="relative">
+              <div className="flex items-center gap-1 sm:gap-2 bg-white rounded-2xl border-2 border-gray-200 focus-within:border-gray-300 shadow-lg hover:shadow-xl transition-all duration-200 p-1.5 sm:p-2">
+                {/* File Upload Button */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept="image/*,.pdf,.doc,.docx,.txt"
+                  onChange={handleFileSelect}
+                  className="hidden"
+                  aria-label="Upload files"
+                />
                 <Button
-                  onClick={toggleListening}
+                  onClick={() => fileInputRef.current?.click()}
                   size="icon"
-                  variant={isListening ? "destructive" : "ghost"}
-                  className={`rounded-full h-9 w-9 flex-shrink-0 ${isListening ? "animate-pulse" : ""}`}
-                  title={isListening ? "Stop listening" : "Voice input"}
+                  variant="ghost"
+                  className="rounded-xl h-8 w-8 sm:h-10 sm:w-10 flex-shrink-0 hover:bg-gray-100 transition-colors"
+                  title="Attach files"
+                  disabled={isWaitingForResponse || streamingMessageId !== null || isUploadingFiles}
                 >
-                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                  </svg>
+                  {isUploadingFiles ? (
+                    <div className="animate-spin rounded-full h-4 w-4 sm:h-5 sm:w-5 border-2 border-gray-400 border-t-transparent"></div>
+                  ) : (
+                    <Paperclip className="h-4 w-4 sm:h-5 sm:w-5 text-gray-500" />
+                  )}
                 </Button>
-              )}
-              <Button
-                onClick={sendMsg}
-                disabled={!inputText.trim() || isWaitingForResponse}
-                size="icon"
-                className="rounded-full h-9 w-9 flex-shrink-0 transition-all"
-                style={{ backgroundColor: inputText.trim() && !isWaitingForResponse ? primaryColor : '#D1D5DB', opacity: 1 }}
-                onMouseEnter={(e) => inputText.trim() && !isWaitingForResponse && (e.currentTarget.style.backgroundColor = secondaryColor)}
-                onMouseLeave={(e) => inputText.trim() && !isWaitingForResponse && (e.currentTarget.style.backgroundColor = primaryColor)}
-              >
-                <ArrowUp className="h-4 w-4 text-white" />
-              </Button>
+                
+                {/* Textarea */}
+                <div className="flex-1 px-1 sm:px-2 flex items-center">
+                  <textarea
+                    ref={textareaRef}
+                    value={inputText}
+                    onChange={e => {
+                      setInputText(e.target.value)
+                      // Auto-resize textarea
+                      if (textareaRef.current) {
+                        textareaRef.current.style.height = '24px' // Reset to single line
+                        const newHeight = Math.min(textareaRef.current.scrollHeight, 120)
+                        textareaRef.current.style.height = newHeight + 'px'
+                      }
+                    }}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault()
+                        if (!isWaitingForResponse && !streamingMessageId && (inputText.trim() || uploadedFiles.length > 0)) {
+                          sendMsg()
+                        }
+                      }
+                    }}
+                    placeholder={isListening ? '🎤 Listening... speak now' : 'Type your message...'}
+                    className="w-full border-0 bg-transparent focus:outline-none resize-none overflow-y-auto text-sm sm:text-[15px] leading-6 text-gray-900 placeholder:text-gray-400"
+                    style={{ height: '24px', maxHeight: '100px' }}
+                    rows={1}
+                    disabled={isWaitingForResponse || streamingMessageId !== null}
+                  />
+                </div>
+                
+                {/* Action Buttons */}
+                <div className="flex items-center gap-1 sm:gap-1.5 flex-shrink-0">
+                  {/* Speech Recognition Button */}
+                  {speechSupported && (
+                    <Button
+                      onClick={toggleListening}
+                      size="icon"
+                      variant="ghost"
+                      className={`rounded-xl h-8 w-8 sm:h-10 sm:w-10 transition-all duration-200 ${
+                        isListening 
+                          ? 'bg-red-50 text-red-600 hover:bg-red-100 animate-pulse' 
+                          : 'hover:bg-gray-100 text-gray-500'
+                      }`}
+                      title={isListening ? "Stop listening" : "Voice input"}
+                      disabled={isWaitingForResponse || streamingMessageId !== null}
+                    >
+                      {isListening ? (
+                        <svg className="h-4 w-4 sm:h-5 sm:w-5" fill="currentColor" viewBox="0 0 24 24">
+                          <rect x="6" y="4" width="4" height="16" rx="2" />
+                          <rect x="14" y="4" width="4" height="16" rx="2" />
+                        </svg>
+                      ) : (
+                        <svg className="h-4 w-4 sm:h-5 sm:w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                        </svg>
+                      )}
+                    </Button>
+                  )}
+                  
+                  {/* Send Button */}
+                  <Button
+                    onClick={sendMsg}
+                    disabled={(!inputText.trim() && uploadedFiles.length === 0) || isWaitingForResponse || streamingMessageId !== null}
+                    size="icon"
+                    className="rounded-xl h-8 w-8 sm:h-10 sm:w-10 flex-shrink-0 transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{ 
+                      backgroundColor: (inputText.trim() || uploadedFiles.length > 0) && !isWaitingForResponse && !streamingMessageId ? primaryColor : '#E5E7EB',
+                      color: (inputText.trim() || uploadedFiles.length > 0) && !isWaitingForResponse && !streamingMessageId ? 'white' : '#9CA3AF'
+                    }}
+                    onMouseEnter={(e) => {
+                      if ((inputText.trim() || uploadedFiles.length > 0) && !isWaitingForResponse && !streamingMessageId) {
+                        e.currentTarget.style.backgroundColor = secondaryColor
+                        e.currentTarget.style.transform = 'scale(1.05)'
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if ((inputText.trim() || uploadedFiles.length > 0) && !isWaitingForResponse && !streamingMessageId) {
+                        e.currentTarget.style.backgroundColor = primaryColor
+                        e.currentTarget.style.transform = 'scale(1)'
+                      }
+                    }}
+                  >
+                    <ArrowUp className="h-4 w-4 sm:h-5 sm:w-5" /> 
+                  </Button>
+                </div>
+              </div>
+              
+              {/* Helper text */}
+              <div className="mt-2 px-1 flex items-center justify-between text-xs text-gray-400">
+                <span className="hidden sm:inline">Press Enter to send, Shift+Enter for new line</span>
+                <span className="sm:hidden text-[10px]">Enter to send</span>
+                {(isWaitingForResponse || streamingMessageId) && (
+                  <span className="flex items-center gap-1 text-gray-500">
+                    <div className="h-1.5 w-1.5 rounded-full bg-gray-400 animate-pulse"></div>
+                    Processing...
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         </div>

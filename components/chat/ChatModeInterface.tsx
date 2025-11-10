@@ -569,7 +569,20 @@ const ChatModeInterface: React.FC<ChatModeInterfaceProps> = ({
     setInputText('')
 
     try {
-      const response = await fetch(`${API_URL}/openai-chat/message/send`, {
+      // Create streaming agent message placeholder
+      const agentMessageId = `agent-${Date.now()}`
+      const agentMessage: ChatMessage = {
+        id: agentMessageId,
+        type: 'agent',
+        text: 'Thinking...',
+        timestamp: new Date()
+      }
+      
+      setMessages(prev => [...prev, agentMessage])
+      setIsWaitingForResponse(false)
+
+      // Use streaming endpoint
+      const response = await fetch(`${API_URL}/openai-chat/message/stream`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -585,29 +598,72 @@ const ChatModeInterface: React.FC<ChatModeInterfaceProps> = ({
         throw new Error(`Failed to send message: ${response.statusText}`)
       }
 
-      const data = await response.json()
-      
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to get response')
+      console.log('📡 Starting to process streaming response...')
+
+      // Process streaming response
+      const reader = response.body?.getReader()
+      if (!reader) {
+        throw new Error('Response body is not readable')
       }
 
-      console.log('📚 Response data:', data)
-      console.log('📄 Sources received:', data.sources)
+      const decoder = new TextDecoder()
+      let fullResponse = ''
+      let toolCalls: any[] = []
+      let sources: any[] = []
+      let buffer = ''
+      let firstContentReceived = false
 
-      // Add agent response
-      const agentMessage: ChatMessage = {
-        id: `agent-${Date.now()}`,
-        type: 'agent',
-        text: data.response,
-        timestamp: new Date(),
-        toolCalls: data.tool_calls_made,
-        sources: data.sources || []
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() || ''
+
+        for (const line of lines) {
+          if (!line.trim()) continue
+          
+          if (line.startsWith('data: ')) {
+            try {
+              const jsonStr = line.slice(6).trim()
+              if (!jsonStr) continue
+              
+              const data = JSON.parse(jsonStr)
+              
+              if (data.type === 'content') {
+                fullResponse += data.data
+                
+                // Clear "Thinking..." on first content
+                if (!firstContentReceived) {
+                  firstContentReceived = true
+                  fullResponse = data.data
+                }
+                
+                setMessages(prev => prev.map(msg => 
+                  msg.id === agentMessageId 
+                    ? { ...msg, text: fullResponse }
+                    : msg
+                ))
+              } else if (data.type === 'sources') {
+                sources = data.data
+              } else if (data.type === 'done') {
+                toolCalls = data.data.tool_calls_made || []
+                sources = data.data.sources || sources
+                setMessages(prev => prev.map(msg => 
+                  msg.id === agentMessageId 
+                    ? { ...msg, text: fullResponse, toolCalls, sources }
+                    : msg
+                ))
+              } else if (data.type === 'error') {
+                throw new Error(data.data.message || 'Streaming error')
+              }
+            } catch (e) {
+              console.error('Error parsing SSE:', e)
+            }
+          }
+        }
       }
-      
-      console.log('💬 Agent message with sources:', agentMessage)
-
-      setMessages(prev => [...prev, agentMessage])
-      setIsWaitingForResponse(false)
 
     } catch (error: any) {
       console.error('Error sending OpenAI message:', error)

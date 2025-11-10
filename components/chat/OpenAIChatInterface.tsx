@@ -163,18 +163,31 @@ const OpenAIChatInterface: React.FC<OpenAIChatInterfaceProps> = ({
 
     // Add user message to chat
     setMessages(prev => [...prev, userMessage])
-    setIsWaitingForResponse(true)
+    const messageText = inputText.trim()
     setInputText('')
 
     try {
-      const response = await fetch(`${API_URL}/openai-chat/message/send`, {
+      // Create streaming agent message placeholder
+      const agentMessageId = `agent-${Date.now()}`
+      const agentMessage: ChatMessage = {
+        id: agentMessageId,
+        type: 'agent',
+        text: 'Thinking...',
+        timestamp: new Date()
+      }
+      
+      setMessages(prev => [...prev, agentMessage])
+      setIsWaitingForResponse(false)
+
+      // Use streaming endpoint
+      const response = await fetch(`${API_URL}/openai-chat/message/stream`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           session_id: sessionId,
-          message: inputText.trim(),
+          message: messageText,
           model: model
         })
       })
@@ -183,23 +196,66 @@ const OpenAIChatInterface: React.FC<OpenAIChatInterfaceProps> = ({
         throw new Error(`Failed to send message: ${response.statusText}`)
       }
 
-      const data = await response.json()
-      
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to get response')
+      // Process streaming response
+      const reader = response.body?.getReader()
+      if (!reader) {
+        throw new Error('Response body is not readable')
       }
 
-      // Add agent response
-      const agentMessage: ChatMessage = {
-        id: `agent-${Date.now()}`,
-        type: 'agent',
-        text: data.response,
-        timestamp: new Date(),
-        toolCalls: data.tool_calls_made
-      }
+      const decoder = new TextDecoder()
+      let fullResponse = ''
+      let toolCalls: any[] = []
+      let buffer = ''
+      let firstContentReceived = false
 
-      setMessages(prev => [...prev, agentMessage])
-      setIsWaitingForResponse(false)
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() || ''
+
+        for (const line of lines) {
+          if (!line.trim()) continue
+          
+          if (line.startsWith('data: ')) {
+            try {
+              const jsonStr = line.slice(6).trim()
+              if (!jsonStr) continue
+              
+              const data = JSON.parse(jsonStr)
+              
+              if (data.type === 'content') {
+                fullResponse += data.data
+                
+                // Clear "Thinking..." on first content
+                if (!firstContentReceived) {
+                  firstContentReceived = true
+                  fullResponse = data.data
+                }
+                
+                setMessages(prev => prev.map(msg => 
+                  msg.id === agentMessageId 
+                    ? { ...msg, text: fullResponse }
+                    : msg
+                ))
+              } else if (data.type === 'done') {
+                toolCalls = data.data.tool_calls_made || []
+                setMessages(prev => prev.map(msg => 
+                  msg.id === agentMessageId 
+                    ? { ...msg, text: fullResponse, toolCalls }
+                    : msg
+                ))
+              } else if (data.type === 'error') {
+                throw new Error(data.data.message || 'Streaming error')
+              }
+            } catch (e) {
+              console.error('Error parsing SSE:', e)
+            }
+          }
+        }
+      }
 
     } catch (error: any) {
       console.error('Error sending message:', error)
