@@ -98,7 +98,12 @@ export default function VoiceStudioPage() {
         setIsModalOpen(true)
       }
     } else {
-      setIsPVCModalOpen(true)
+      // Professional Voice - limit to 1
+      if (pvcVoiceCount >= 1) {
+        showToastMessage('Limit Reached: You can only have 1 Professional Voice. Delete the existing one to create a new one.')
+      } else {
+        setIsPVCModalOpen(true)
+      }
     }
   }
 
@@ -169,11 +174,21 @@ export default function VoiceStudioPage() {
 
                 <button
                   onClick={handleCreateVoiceClick}
-                  className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all shadow-lg hover:shadow-xl"
+                  disabled={
+                    (activeTab === 'instant' && voiceCount >= 6) ||
+                    (activeTab === 'professional' && pvcVoiceCount >= 1)
+                  }
+                  className={`flex items-center space-x-2 px-6 py-3 rounded-lg transition-all shadow-lg ${
+                    (activeTab === 'instant' && voiceCount >= 6) ||
+                    (activeTab === 'professional' && pvcVoiceCount >= 1)
+                      ? 'bg-gray-400 text-gray-200 cursor-not-allowed'
+                      : 'bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-700 hover:to-blue-700 hover:shadow-xl'
+                  }`}
                 >
                   <Plus className="w-5 h-5" />
                   <span>
                     {activeTab === 'instant' ? 'Create Voice' : 'Create Professional Voice'}
+                    {activeTab === 'professional' && pvcVoiceCount >= 1 && ' (Limit Reached)'}
                   </span>
                 </button>
               </div>
