@@ -3,7 +3,7 @@
 import React, { useState, useCallback } from 'react'
 import { API_URL } from '@/lib/config'
 import { fetchWithAuth, getAuthHeaders, getAuthHeadersForFormData } from '@/lib/api-client'
-import { X, Upload, FileAudio, Loader2, CheckCircle, AlertCircle, Play, Pause, Trash2, ArrowRight, ArrowLeft, Shield, Zap } from 'lucide-react'
+import { X, Upload, FileAudio, Loader2, CheckCircle, AlertCircle, Play, Pause, Trash2, ArrowRight, ArrowLeft, Shield, Zap, Mic } from 'lucide-react'
 
 interface PVCCreationWizardProps {
   isOpen: boolean
@@ -482,7 +482,15 @@ export default function PVCCreationWizard({ isOpen, onClose, projectId, onSucces
         // Clear the recording
         clearRecording()
       } else {
-        setError(data.detail || 'Failed to verify CAPTCHA recording')
+        // Provide more helpful error messages
+        let errorMessage = data.detail || data.error || 'Failed to verify CAPTCHA recording'
+        
+        // Add helpful tips based on common errors
+        if (errorMessage.toLowerCase().includes('match') || errorMessage.toLowerCase().includes('verify')) {
+          errorMessage += '\n\n💡 Tips: Make sure you read the text exactly as shown, speak clearly in the same voice as your training samples, and record in a quiet environment.'
+        }
+        
+        setError(errorMessage)
       }
     } catch (error) {
       console.error('CAPTCHA submission error:', error)
@@ -645,132 +653,161 @@ export default function PVCCreationWizard({ isOpen, onClose, projectId, onSucces
         {/* Content */}
         <div className="p-6 overflow-y-auto max-h-[60vh]">
           {currentStep === 1 && (
-            <div className="space-y-6">
+            <div className="space-y-5">
+              {/* Important Requirements Box */}
+              <div className="bg-gradient-to-r from-blue-50 to-purple-50 border-l-4 border-blue-500 rounded-lg p-4">
+                <h3 className="text-sm font-bold text-gray-900 mb-2 flex items-center">
+                  <AlertCircle className="w-4 h-4 mr-2 text-blue-600" />
+                  Requirements for Professional Voice
+                </h3>
+                <div className="space-y-1.5 text-xs text-gray-700">
+                  <div className="flex items-start">
+                    <span className="text-blue-600 mr-2">✓</span>
+                    <span><strong>Minimum 3 audio samples</strong> (up to 25 files allowed)</span>
+                  </div>
+                  <div className="flex items-start">
+                    <span className="text-blue-600 mr-2">✓</span>
+                    <span><strong>Total duration: ~1 hour</strong> of clear speech (recommended for best quality)</span>
+                  </div>
+                  <div className="flex items-start">
+                    <span className="text-blue-600 mr-2">✓</span>
+                    <span><strong>Quality matters:</strong> Quiet environment, clear audio, no background noise</span>
+                  </div>
+                  <div className="flex items-start">
+                    <span className="text-blue-600 mr-2">✓</span>
+                    <span><strong>Varied content:</strong> Different emotions, tones, and speaking styles</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Voice Name - Most Important */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-semibold text-gray-900 mb-2">
                   Voice Name *
                 </label>
                 <input
                   type="text"
                   value={voiceName}
                   onChange={(e) => setVoiceName(e.target.value)}
-                  placeholder="Enter a name for your professional voice"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  placeholder="e.g., My Professional Voice"
+                  className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-base"
                   maxLength={50}
                 />
-                <p className="text-sm text-gray-500 mt-1">
-                  Choose a descriptive name (minimum 3 characters)
+                <p className="text-xs text-gray-500 mt-1">
+                  Minimum 3 characters
                 </p>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Language *
-                </label>
-                <select
-                  value={language}
-                  onChange={(e) => setLanguage(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                >
-                  {languages.map(lang => (
-                    <option key={lang.code} value={lang.code}>
-                      {lang.name}
-                    </option>
-                  ))}
-                </select>
+              {/* Basic Details - Compact Grid */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                    Language *
+                  </label>
+                  <select
+                    value={language}
+                    onChange={(e) => setLanguage(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+                  >
+                    {languages.map(lang => (
+                      <option key={lang.code} value={lang.code}>
+                        {lang.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                    Accent *
+                  </label>
+                  <select
+                    value={accent}
+                    onChange={(e) => setAccent(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+                  >
+                    {accents.map(acc => (
+                      <option key={acc.code} value={acc.code}>
+                        {acc.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                    Gender *
+                  </label>
+                  <select
+                    value={gender}
+                    onChange={(e) => setGender(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+                  >
+                    {genders.map(g => (
+                      <option key={g.code} value={g.code}>
+                        {g.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-gray-700 mb-1.5">
+                    Age *
+                  </label>
+                  <select
+                    value={age}
+                    onChange={(e) => setAge(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+                  >
+                    {ages.map(a => (
+                      <option key={a.code} value={a.code}>
+                        {a.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Accent *
-                </label>
-                <select
-                  value={accent}
-                  onChange={(e) => setAccent(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                >
-                  {accents.map(acc => (
-                    <option key={acc.code} value={acc.code}>
-                      {acc.name}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-sm text-gray-500 mt-1">
-                  Select the accent that best matches your voice
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Gender *
-                </label>
-                <select
-                  value={gender}
-                  onChange={(e) => setGender(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                >
-                  {genders.map(g => (
-                    <option key={g.code} value={g.code}>
-                      {g.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Age *
-                </label>
-                <select
-                  value={age}
-                  onChange={(e) => setAge(e.target.value)}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                >
-                  {ages.map(a => (
-                    <option key={a.code} value={a.code}>
-                      {a.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Description (Optional)
-                </label>
+              {/* Description - Collapsed */}
+              <details className="bg-gray-50 rounded-lg p-3 border border-gray-200">
+                <summary className="cursor-pointer text-xs font-medium text-gray-600">
+                  + Add Description (Optional)
+                </summary>
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Describe the intended use for this voice"
-                  rows={3}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  rows={2}
+                  className="w-full mt-2 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
                   maxLength={200}
                 />
-              </div>
+              </details>
 
-              {/* File Upload Section */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Audio Samples * (Minimum {MIN_FILES} files)
-                </label>
-                
+              {/* Divider */}
+              <div className="border-t border-gray-200 pt-5">
+                <h3 className="text-sm font-bold text-gray-900 mb-3">
+                  Audio Samples ({files.length}/{MIN_FILES} minimum required)
+                </h3>
+
+                {/* Upload Area */}
                 <div
-                  className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+                  className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors mb-4 ${
                     dragActive
-                      ? 'border-purple-500 bg-purple-50'
-                      : 'border-gray-300 hover:border-purple-400'
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-gray-300 hover:border-gray-400 bg-gray-50'
                   }`}
                   onDragEnter={handleDrag}
                   onDragLeave={handleDrag}
                   onDragOver={handleDrag}
                   onDrop={handleDrop}
                 >
-                  <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">
-                    Upload Audio Samples
-                  </h3>
-                  <p className="text-gray-600 mb-4">
-                    Drag and drop files here, or click to browse
+                  <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                  <p className="text-sm text-gray-700 font-medium mb-2">
+                    📁 Upload Audio Files
+                  </p>
+                  <p className="text-xs text-gray-500 mb-3">
+                    Drag and drop or click to browse
                   </p>
                   <input
                     type="file"
@@ -782,13 +819,13 @@ export default function PVCCreationWizard({ isOpen, onClose, projectId, onSucces
                   />
                   <label
                     htmlFor="file-upload"
-                    className="inline-flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 cursor-pointer transition-colors"
+                    className="inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700 cursor-pointer transition-colors"
                   >
                     <Upload className="w-4 h-4 mr-2" />
                     Choose Files
                   </label>
-                  <p className="text-sm text-gray-500 mt-4">
-                    Supported formats: {SUPPORTED_FORMATS.join(', ')} • Max size: 50MB per file
+                  <p className="text-xs text-gray-400 mt-2">
+                    {SUPPORTED_FORMATS.join(', ')} • Max 50MB
                   </p>
                 </div>
 
@@ -850,95 +887,65 @@ export default function PVCCreationWizard({ isOpen, onClose, projectId, onSucces
                   </div>
                 )}
 
-                {/* Voice Recording Section */}
-                <div className="mt-6 pt-6 border-t border-gray-200">
-                  <label className="block text-sm font-medium text-gray-700 mb-3">
-                    Or Record Voice Samples
-                  </label>
-                  
-                  <div className="bg-blue-50 rounded-lg p-4 space-y-4">
-                    <div className="flex items-center space-x-2 text-blue-800">
-                      <FileAudio className="w-5 h-5" />
-                      <span className="font-medium">Quick Voice Recording</span>
-                    </div>
-                    
-                    <p className="text-sm text-blue-700">
-                      Record multiple voice samples directly in your browser. Each recording will be added to your samples list.
-                    </p>
-                    
-                    {/* Recording Controls */}
-                    <div className="flex items-center space-x-4">
-                      {!isSampleRecording && (
-                        <button
-                          onClick={startSampleRecording}
-                          className="flex items-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-                        >
-                          <div className="w-3 h-3 rounded-full bg-white"></div>
-                          <span>Record Sample</span>
-                        </button>
-                      )}
-                      
-                      {isSampleRecording && (
-                        <div className="flex items-center space-x-4">
-                          <button
-                            onClick={stopSampleRecording}
-                            className="flex items-center space-x-2 px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
-                          >
-                            <div className="w-3 h-3 bg-white"></div>
-                            <span>Stop Recording</span>
-                          </button>
-                          <div className="flex items-center space-x-2 text-red-600">
-                            <div className="w-2 h-2 rounded-full bg-red-600 animate-pulse"></div>
-                            <span className="font-mono">{formatTime(sampleRecordingTime)}</span>
-                          </div>
-                        </div>
-                      )}
-                      
-                      <div className="text-sm text-blue-600">
-                        {files.filter(f => f.isRecorded).length} recorded samples
-                      </div>
-                    </div>
-
-                    {isSampleRecording && (
-                      <div className="bg-white rounded p-3 border border-blue-200">
-                        <p className="text-sm text-gray-600">
-                          🎤 Recording in progress... Speak clearly and naturally. Each sample should be 10-30 seconds long.
-                        </p>
-                      </div>
-                    )}
-
-                    {/* Recording Tips */}
-                    <div className="bg-white rounded p-3 border border-blue-100">
-                      <h5 className="text-sm font-medium text-gray-900 mb-2">💡 Recording Tips:</h5>
-                      <ul className="text-xs text-gray-600 space-y-1">
-                        <li>• Record in a quiet environment</li>
-                        <li>• Speak naturally and clearly</li>
-                        <li>• Try different emotions: happy, sad, excited</li>
-                        <li>• Include varied sentence types: questions, statements</li>
-                        <li>• Record 10-30 seconds per sample</li>
-                        <li>• Aim for at least 3-5 different samples</li>
-                      </ul>
-                    </div>
-
-                    {/* Sample Prompts */}
-                    <div className="bg-white rounded p-3 border border-green-100">
-                      <h5 className="text-sm font-medium text-gray-900 mb-2">🎭 Sample Prompts:</h5>
-                      <div className="grid grid-cols-1 gap-2">
-                        <div className="text-xs bg-green-50 p-2 rounded border-l-2 border-green-300">
-                          <strong>Professional:</strong> "Good morning! I'm excited to present today's quarterly results to the board."
-                        </div>
-                        <div className="text-xs bg-green-50 p-2 rounded border-l-2 border-green-300">
-                          <strong>Conversational:</strong> "Hey there! How was your weekend? Did you get a chance to try that new restaurant?"
-                        </div>
-                        <div className="text-xs bg-green-50 p-2 rounded border-l-2 border-green-300">
-                          <strong>Storytelling:</strong> "Once upon a time, in a land far away, there lived a curious inventor who dreamed of flying."
-                        </div>
-                        <div className="text-xs bg-green-50 p-2 rounded border-l-2 border-green-300">
-                          <strong>Educational:</strong> "Today we'll learn about the fascinating process of photosynthesis in plants."
-                        </div>
-                      </div>
-                    </div>
+                {/* Recording Section */}
+                <div className="mt-4 bg-red-50 border border-red-200 rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="text-sm font-semibold text-gray-900 flex items-center">
+                      <Mic className="w-4 h-4 mr-2 text-red-600" />
+                      Or Record Voice Samples
+                    </h4>
+                    <span className="text-xs bg-red-600 text-white px-2 py-1 rounded-full">
+                      {files.filter(f => f.isRecorded).length} Recorded
+                    </span>
                   </div>
+                  
+                  <p className="text-xs text-gray-600 mb-3">
+                    Record directly in your browser - no files needed
+                  </p>
+                  
+                  {/* Recording Controls */}
+                  <div className="flex items-center space-x-2">
+                    {!isSampleRecording ? (
+                      <button
+                        onClick={startSampleRecording}
+                        className="flex items-center space-x-2 px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-colors"
+                      >
+                        <div className="w-2.5 h-2.5 rounded-full bg-white"></div>
+                        <span>Start Recording</span>
+                      </button>
+                    ) : (
+                      <>
+                        <button
+                          onClick={stopSampleRecording}
+                          className="flex items-center space-x-2 px-4 py-2 bg-gray-700 text-white text-sm rounded-lg hover:bg-gray-800 transition-colors"
+                        >
+                          <div className="w-2.5 h-2.5 bg-white"></div>
+                          <span>Stop</span>
+                        </button>
+                        <div className="flex items-center space-x-2 bg-red-600 text-white px-3 py-2 rounded-lg font-mono text-sm">
+                          <div className="w-2 h-2 rounded-full bg-white animate-pulse"></div>
+                          {formatTime(sampleRecordingTime)}
+                        </div>
+                      </>
+                    )}
+                  </div>
+
+                  {isSampleRecording && (
+                    <div className="mt-3 bg-red-600 text-white rounded-lg p-2 text-xs">
+                      🎤 Recording... Speak clearly for 10-30 seconds
+                    </div>
+                  )}
+
+                  {/* Tips - Collapsed */}
+                  <details className="mt-3">
+                    <summary className="cursor-pointer text-xs text-gray-600">
+                      💡 Tips & Prompts
+                    </summary>
+                    <div className="mt-2 text-xs text-gray-600 space-y-1">
+                      <p>• Quiet room • Natural speech • 10-30 sec each</p>
+                      <p className="text-gray-500 italic">Try: "Good morning! I'm excited to present today's results."</p>
+                    </div>
+                  </details>
                 </div>
               </div>
             </div>
@@ -1032,28 +1039,58 @@ export default function PVCCreationWizard({ isOpen, onClose, projectId, onSucces
 
           {/* Step 4: Record CAPTCHA */}
           {currentStep === 4 && (
-            <div className="space-y-6">
+            <div className="space-y-5">
+              {/* Important Instructions */}
+              <div className="bg-gradient-to-r from-yellow-50 to-orange-50 border-l-4 border-yellow-500 rounded-lg p-4">
+                <h3 className="text-sm font-bold text-gray-900 mb-2 flex items-center">
+                  <AlertCircle className="w-4 h-4 mr-2 text-yellow-600" />
+                  Important: How to Pass CAPTCHA Verification
+                </h3>
+                <div className="space-y-1.5 text-xs text-gray-700">
+                  <div className="flex items-start">
+                    <span className="text-yellow-600 mr-2">✓</span>
+                    <span><strong>Read EXACTLY as shown</strong> - Don't add or skip any words</span>
+                  </div>
+                  <div className="flex items-start">
+                    <span className="text-yellow-600 mr-2">✓</span>
+                    <span><strong>Speak clearly and naturally</strong> - Same voice as your training samples</span>
+                  </div>
+                  <div className="flex items-start">
+                    <span className="text-yellow-600 mr-2">✓</span>
+                    <span><strong>Quiet environment</strong> - No background noise or echo</span>
+                  </div>
+                  <div className="flex items-start">
+                    <span className="text-yellow-600 mr-2">✓</span>
+                    <span><strong>Normal pace</strong> - Not too fast, not too slow</span>
+                  </div>
+                  <div className="flex items-start">
+                    <span className="text-yellow-600 mr-2">✓</span>
+                    <span><strong>Listen to playback</strong> - Verify quality before submitting</span>
+                  </div>
+                </div>
+              </div>
+
               <div className="text-center">
-                <Zap className="w-16 h-16 text-purple-500 mx-auto mb-4" />
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">Record CAPTCHA</h3>
-                <p className="text-gray-600">
-                  Read the text below aloud and submit your recording for verification.
+                <Zap className="w-12 h-12 text-purple-500 mx-auto mb-3" />
+                <h3 className="text-lg font-semibold text-gray-900 mb-1">Voice Verification</h3>
+                <p className="text-sm text-gray-600">
+                  Read the text below to verify your voice ownership
                 </p>
               </div>
 
-              <div className="bg-gray-50 rounded-lg p-4">
-                <h4 className="font-medium text-gray-900 mb-2">CAPTCHA Challenge:</h4>
+              <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg p-4 border-2 border-purple-200">
+                <h4 className="font-semibold text-gray-900 mb-3 text-sm">📝 Read This Text Aloud:</h4>
                 
                 {/* Display CAPTCHA text if available */}
                 {captchaData?.captcha_data?.text && (
-                  <div className="text-lg font-mono bg-white p-3 rounded border">
+                  <div className="text-base font-medium bg-white p-4 rounded-lg border-2 border-purple-300 shadow-sm">
                     "{captchaData.captcha_data.text}"
                   </div>
                 )}
                 
                 {/* Display CAPTCHA image if available */}
                 {captchaData?.captcha_image && (
-                  <div className="bg-white p-3 rounded border flex justify-center">
+                  <div className="bg-white p-3 rounded-lg border-2 border-purple-300 flex justify-center">
                     <img 
                       src={`data:${captchaData.content_type || 'image/png'};base64,${captchaData.captcha_image}`}
                       alt="CAPTCHA Challenge"
@@ -1064,15 +1101,16 @@ export default function PVCCreationWizard({ isOpen, onClose, projectId, onSucces
                 
                 {/* Display plain text if available */}
                 {captchaData?.captcha_text && !captchaData?.captcha_data?.text && (
-                  <div className="text-lg font-mono bg-white p-3 rounded border">
+                  <div className="text-base font-medium bg-white p-4 rounded-lg border-2 border-purple-300 shadow-sm">
                     {captchaData.captcha_text}
                   </div>
                 )}
                 
                 {/* Fallback display */}
                 {!captchaData?.captcha_data?.text && !captchaData?.captcha_image && !captchaData?.captcha_text && (
-                  <div className="text-lg font-mono bg-white p-3 rounded border text-gray-500">
-                    Loading CAPTCHA challenge...
+                  <div className="text-base bg-white p-4 rounded-lg border-2 border-gray-300 text-gray-500 flex items-center justify-center">
+                    <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                    Loading verification text...
                   </div>
                 )}
               </div>

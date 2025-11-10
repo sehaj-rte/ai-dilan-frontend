@@ -38,6 +38,7 @@ export default function PVCVoiceLibrary({
   const [error, setError] = useState<string | null>(null)
   const [playingVoice, setPlayingVoice] = useState<string | null>(null)
   const [loadingVoice, setLoadingVoice] = useState<string | null>(null)
+  const [deleteConfirmVoice, setDeleteConfirmVoice] = useState<PVCVoice | null>(null)
 
   // Fetch PVC voices
   const fetchVoices = async () => {
@@ -89,10 +90,15 @@ export default function PVCVoiceLibrary({
     }
   }
 
-  const handleDeleteVoice = async (voice: PVCVoice) => {
-    if (!confirm(`Are you sure you want to delete "${voice.name}" from your library?\n\nNote: This will only remove it from your library. The voice will remain in ElevenLabs.`)) {
-      return
-    }
+  const handleDeleteClick = (voice: PVCVoice) => {
+    setDeleteConfirmVoice(voice)
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!deleteConfirmVoice) return
+
+    const voice = deleteConfirmVoice
+    setDeleteConfirmVoice(null)
 
     try {
       // For PVC voices, we only delete from our database (not from ElevenLabs)
@@ -179,18 +185,9 @@ export default function PVCVoiceLibrary({
   return (
     <div className="bg-white rounded-lg shadow-sm">
       <div className="p-6 border-b border-gray-200">
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900">Professional Voices</h2>
-            <p className="text-sm text-gray-600">High-quality voices for commercial use</p>
-          </div>
-          <button
-            onClick={onCreatePVCVoice}
-            className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all shadow-md hover:shadow-lg"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Create Professional Voice</span>
-          </button>
+        <div>
+          <h2 className="text-lg font-semibold text-gray-900">Professional Voices</h2>
+          <p className="text-sm text-gray-600">High-quality voices for commercial use</p>
         </div>
       </div>
 
@@ -199,16 +196,9 @@ export default function PVCVoiceLibrary({
           <div className="text-center py-12">
             <Mic2 className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <h3 className="text-lg font-medium text-gray-900 mb-2">No Professional Voices</h3>
-            <p className="text-gray-600 mb-6">
-              Create your first professional voice for high-quality, commercial-grade speech synthesis.
+            <p className="text-gray-600">
+              Create your first professional voice for high-quality, commercial-grade speech synthesis using the button above.
             </p>
-            <button
-              onClick={onCreatePVCVoice}
-              className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all shadow-lg hover:shadow-xl mx-auto"
-            >
-              <Plus className="w-5 h-5" />
-              <span>Create Professional Voice</span>
-            </button>
           </div>
         ) : (
           <div className="grid gap-4">
@@ -282,7 +272,7 @@ export default function PVCVoiceLibrary({
                     )}
 
                     <button
-                      onClick={() => handleDeleteVoice(voice)}
+                      onClick={() => handleDeleteClick(voice)}
                       className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
                       title="Delete voice"
                     >
@@ -295,6 +285,39 @@ export default function PVCVoiceLibrary({
           </div>
         )}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirmVoice && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">
+              Delete "{deleteConfirmVoice.name}"?
+            </h3>
+            <p className="text-sm text-gray-600 mb-4">
+              Are you sure you want to delete this voice from your library?
+            </p>
+            <div className="bg-blue-50 border-l-4 border-blue-400 p-3 mb-4">
+              <p className="text-xs text-blue-800">
+                <strong>Note:</strong> This will only remove it from your library. The voice will remain in ElevenLabs.
+              </p>
+            </div>
+            <div className="flex space-x-3">
+              <button
+                onClick={() => setDeleteConfirmVoice(null)}
+                className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmDelete}
+                className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
