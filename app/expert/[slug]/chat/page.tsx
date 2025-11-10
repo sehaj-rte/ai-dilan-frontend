@@ -527,7 +527,7 @@ const ExpertChatPage = () => {
     return null
   }
   
-  const saveMessage = async (sessionId: string, role: 'user' | 'assistant', content: string) => {
+  const saveMessage = async (sessionId: string, role: 'user' | 'assistant', content: string, files?: any[]) => {
     if (!isAuthenticated || !user) {
       console.log('❌ Cannot save message: Not authenticated')
       return
@@ -535,7 +535,7 @@ const ExpertChatPage = () => {
     
     try {
       const token = localStorage.getItem('dilan_ai_token')
-      console.log('💾 Saving message:', { sessionId, role, contentLength: content.length })
+      console.log('💾 Saving message:', { sessionId, role, contentLength: content.length, filesCount: files?.length || 0 })
       
       const response = await fetch(`${API_URL}/chat-sessions/${sessionId}/messages`, {
         method: 'POST',
@@ -546,7 +546,8 @@ const ExpertChatPage = () => {
         body: JSON.stringify({
           session_id: sessionId,
           role: role,
-          content: content
+          content: content,
+          files: files || null  // Include files if provided
         })
       })
       
@@ -674,8 +675,13 @@ const ExpertChatPage = () => {
         size: f.size
       }))
       
-      // Store in a ref or state for later use
-      ;(window as any).__s3UploadedFiles = s3FileData
+      // Append to existing S3 files (not replace) to support multiple uploads
+      const existingS3Files = (window as any).__s3UploadedFiles || []
+      console.log(`📊 Before append - Existing S3 files: ${existingS3Files.length}, New files: ${s3FileData.length}`)
+      ;(window as any).__s3UploadedFiles = [...existingS3Files, ...s3FileData]
+      
+      console.log(`✅ After append - Total files ready to send: ${(window as any).__s3UploadedFiles.length}`)
+      console.log(`📋 All S3 files:`, (window as any).__s3UploadedFiles)
       
     } catch (error) {
       console.error('❌ S3 upload failed:', error)
@@ -756,12 +762,14 @@ const ExpertChatPage = () => {
 
       // Prepare request - use S3 URLs if files are present
       let response: Response
+      let s3FileData: any[] = []
       
       if (filesToSend.length > 0) {
         // Get S3 file data that was uploaded earlier
-        const s3FileData = (window as any).__s3UploadedFiles || []
+        s3FileData = (window as any).__s3UploadedFiles || []
         
-        console.log('📎 Sending message with S3 file URLs:', s3FileData)
+        console.log(`📎 Sending message with ${s3FileData.length} S3 file(s)`)
+        console.log('📎 S3 file URLs:', s3FileData)
         
         response = await fetch(`${API_URL}/openai-chat/message/stream-with-files`, {
           method: 'POST',
@@ -776,8 +784,7 @@ const ExpertChatPage = () => {
           })
         })
         
-        // Clear S3 data after sending
-        ;(window as any).__s3UploadedFiles = []
+        // Don't clear S3 data yet - we need it for saving to database
       } else {
         response = await fetch(`${API_URL}/openai-chat/message/stream`, {
           method: 'POST',
@@ -915,11 +922,16 @@ const ExpertChatPage = () => {
           console.log('❌ Failed to create conversation (user may not be authenticated)')
         }
       } else if (currentConvId) {
-        // Existing conversation - save user message
+        // Existing conversation - save user message with files
         console.log('💾 Saving user message to existing conversation:', currentConvId)
-        saveMessage(currentConvId, 'user', messageText).catch(err => 
+        saveMessage(currentConvId, 'user', messageText, s3FileData.length > 0 ? s3FileData : undefined).catch(err => 
           console.error('❌ Failed to save user message:', err)
         )
+      }
+      
+      // Clear S3 data after saving to database
+      if (s3FileData.length > 0) {
+        ;(window as any).__s3UploadedFiles = []
       }
       
       // Save agent response to database (in background)
