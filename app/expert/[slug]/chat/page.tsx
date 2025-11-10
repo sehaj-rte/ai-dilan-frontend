@@ -1001,7 +1001,8 @@ const ExpertChatPage = () => {
           id: msg.id,
           type: msg.role === 'user' ? 'user' : 'agent',
           text: msg.content,
-          timestamp: new Date(msg.created_at)
+          timestamp: new Date(msg.created_at),
+          files: msg.files || undefined // Include files from database
         }))
         setMessages(loadedMessages)
         

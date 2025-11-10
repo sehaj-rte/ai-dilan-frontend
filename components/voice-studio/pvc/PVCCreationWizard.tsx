@@ -607,9 +607,9 @@ export default function PVCCreationWizard({ isOpen, onClose, projectId, onSucces
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 flex-shrink-0">
           <div>
             <h2 className="text-2xl font-bold text-gray-900">Create Professional Voice</h2>
             <p className="text-gray-600 mt-1">Step {currentStep} of 6</p>
@@ -623,7 +623,7 @@ export default function PVCCreationWizard({ isOpen, onClose, projectId, onSucces
         </div>
 
         {/* Progress Bar */}
-        <div className="px-6 py-4 bg-gray-50">
+        <div className="px-6 py-4 bg-gray-50 flex-shrink-0">
           <div className="flex items-center justify-between">
             {[1, 2, 3, 4, 5, 6].map((step, index) => (
               <React.Fragment key={step}>
@@ -651,7 +651,7 @@ export default function PVCCreationWizard({ isOpen, onClose, projectId, onSucces
         </div>
 
         {/* Content */}
-        <div className="p-6 overflow-y-auto max-h-[60vh]">
+        <div className="p-6 overflow-y-auto flex-1">
           {currentStep === 1 && (
             <div className="space-y-5">
               {/* Important Requirements Box */}
@@ -1264,7 +1264,7 @@ export default function PVCCreationWizard({ isOpen, onClose, projectId, onSucces
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between p-6 border-t border-gray-200 bg-gray-50">
+        <div className="flex items-center justify-between p-6 border-t border-gray-200 bg-gray-50 flex-shrink-0">
           <div className="flex space-x-3">
             {currentStep > 1 && (
               <button
