@@ -1239,12 +1239,12 @@ const ExpertChatPage = () => {
         
         <div className="p-3 border-t border-gray-700">
           <Button
-            onClick={() => router.push(`/expert/${slug}`)}
+            onClick={() => router.push(`/project/${expert?.id}/chat`)}
             variant="ghost"
             className="w-full text-white hover:bg-gray-800 hover:text-white"
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Profile
+            Back to Dashboard
           </Button>
         </div>
       </div>
