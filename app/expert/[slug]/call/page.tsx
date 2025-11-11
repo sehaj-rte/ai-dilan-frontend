@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { useSelector, useDispatch } from 'react-redux'
 import { Button } from '@/components/ui/button'
 import { API_URL } from '@/lib/config'
-import { ArrowLeft, Phone, PhoneOff, User, LogIn, LogOut } from 'lucide-react'
+import { ArrowLeft, Phone, PhoneOff, User, LogIn, LogOut, MessageSquare } from 'lucide-react'
 import { useVoiceConversation } from '@/hooks/useVoiceConversation'
 import { RootState } from '@/store/store'
 import { logout, loadUserFromStorage } from '@/store/slices/authSlice'
@@ -24,6 +24,9 @@ interface Publication {
   slug: string
   display_name: string
   is_published: boolean
+  primary_color: string
+  secondary_color: string
+  theme: string
 }
 
 const ExpertCallPage = () => {
@@ -145,6 +148,10 @@ const ExpertCallPage = () => {
   }
 
   const handleBack = () => {
+    router.push(`/expert/${slug}`)
+  }
+
+  const handleGoToChat = () => {
     router.push(`/expert/${slug}/chat`)
   }
 
@@ -200,6 +207,10 @@ const ExpertCallPage = () => {
     )
   }
 
+  // Apply theme colors
+  const primaryColor = publication?.primary_color || '#3B82F6'
+  const secondaryColor = publication?.secondary_color || '#1E40AF'
+
   return (
     <div className="min-h-screen bg-white">
       {/* Header */}
@@ -228,6 +239,23 @@ const ExpertCallPage = () => {
             
             {/* User Profile / Login */}
             <div className="flex items-center space-x-3">
+              {/* Chat Button */}
+              <Button
+                onClick={handleGoToChat}
+                size="sm"
+                className="hidden sm:flex items-center justify-center w-9 h-9 bg-black hover:bg-gray-800 text-white border-0 shadow-sm mr-2 rounded-full"
+              >
+                <MessageSquare className="h-4 w-4" />
+              </Button>
+              
+              {/* Mobile Chat Button */}
+              <Button
+                onClick={handleGoToChat}
+                size="sm"
+                className="sm:hidden flex items-center justify-center w-9 h-9 bg-black hover:bg-gray-800 text-white border-0 shadow-sm mr-2 rounded-full"
+              >
+                <MessageSquare className="h-4 w-4" />
+              </Button>
               {isAuthenticated && user ? (
                 <div className="flex items-center space-x-3">
                   <div className="text-right">

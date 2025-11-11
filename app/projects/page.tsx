@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -70,6 +70,10 @@ const ProjectsPage = () => {
   const [publishingProject, setPublishingProject] = useState<string | null>(null)
   const [publications, setPublications] = useState<{[key: string]: any}>({})
   const [showPublishModal, setShowPublishModal] = useState<string | null>(null)
+  const [imageLoadingStates, setImageLoadingStates] = useState<{[key: string]: boolean}>({})
+  const [imageErrors, setImageErrors] = useState<{[key: string]: boolean}>({})
+  const [userImageLoading, setUserImageLoading] = useState(true)
+  const [userImageError, setUserImageError] = useState(false)
   
   // Check if user is super admin
   const isSuperAdmin = user?.role === 'super_admin'
@@ -134,6 +138,36 @@ const ProjectsPage = () => {
     return s3Url
   }
 
+  // Preload images for better performance
+  const preloadImage = useCallback((src: string): Promise<void> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image()
+      img.onload = () => resolve()
+      img.onerror = () => reject()
+      img.src = src
+    })
+  }, [])
+
+  // Handle image loading states
+  const handleImageLoad = useCallback((imageId: string) => {
+    setImageLoadingStates(prev => ({ ...prev, [imageId]: false }))
+  }, [])
+
+  const handleImageError = useCallback((imageId: string) => {
+    setImageLoadingStates(prev => ({ ...prev, [imageId]: false }))
+    setImageErrors(prev => ({ ...prev, [imageId]: true }))
+  }, [])
+
+  // Handle user avatar loading
+  const handleUserImageLoad = useCallback(() => {
+    setUserImageLoading(false)
+  }, [])
+
+  const handleUserImageError = useCallback(() => {
+    setUserImageLoading(false)
+    setUserImageError(true)
+  }, [])
+
   const fetchProjects = async () => {
     try {
       setLoadingProjects(true)
@@ -149,6 +183,19 @@ const ProjectsPage = () => {
           avatar_url: project.avatar_url ? convertS3UrlToProxy(project.avatar_url) : null
         }))
         setProjects(projectsWithProxyUrls)
+        
+        // Initialize loading states for all project images
+        const loadingStates: {[key: string]: boolean} = {}
+        projectsWithProxyUrls.forEach((project: Project) => {
+          if (project.avatar_url) {
+            loadingStates[project.id] = true
+            // Preload images for better performance
+            preloadImage(project.avatar_url)
+              .then(() => handleImageLoad(project.id))
+              .catch(() => handleImageError(project.id))
+          }
+        })
+        setImageLoadingStates(loadingStates)
       } else {
         console.error('Failed to fetch projects:', data.error)
         setProjects([])
@@ -335,27 +382,31 @@ const ProjectsPage = () => {
           <div className="mb-6 flex justify-center">
             {user?.avatar_url ? (
               <div className="relative w-24 h-24">
+                {/* Loading spinner */}
+                {userImageLoading && (
+                  <div className="absolute inset-0 w-24 h-24 rounded-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center border-4 border-white shadow-lg">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  </div>
+                )}
+                
                 <img
-                  
                   src={user.avatar_url}
                   alt={user.full_name || user.username || 'User'}
-                  className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-lg"
-                  onError={(e) => {
-                    e.currentTarget.style.display = 'none'
-                    const fallback = e.currentTarget.parentElement?.querySelector('.avatar-fallback') as HTMLElement
-                    if (fallback) {
-                      fallback.style.display = 'flex'
-                    }
-                  }}
+                  className={`w-24 h-24 rounded-full object-cover border-4 border-white shadow-lg transition-opacity duration-300 ${
+                    userImageLoading ? 'opacity-0' : 'opacity-100'
+                  } ${userImageError ? 'hidden' : ''}`}
+                  onLoad={handleUserImageLoad}
+                  onError={handleUserImageError}
                 />
-                <div 
-                  className="avatar-fallback absolute inset-0 w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center border-4 border-white shadow-lg"
-                  style={{ display: 'none' }}
-                >
-                  <span className="text-white font-bold text-2xl">
-                    {user.username?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase() || 'U'}
-                  </span>
-                </div>
+                
+                {/* Fallback avatar */}
+                {userImageError && (
+                  <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center border-4 border-white shadow-lg">
+                    <span className="text-white font-bold text-2xl">
+                      {user.username?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase() || 'U'}
+                    </span>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center border-4 border-white shadow-lg">
@@ -456,24 +507,29 @@ const ProjectsPage = () => {
                     <div className="mb-4">
                       {project.avatar_url ? (
                         <div className="relative mx-auto w-20 h-20">
+                          {/* Loading spinner */}
+                          {imageLoadingStates[project.id] && (
+                            <div className="absolute inset-0 w-20 h-20 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center border-4 border-gray-200 group-hover:border-blue-300 transition-colors">
+                              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                            </div>
+                          )}
+                          
                           <img
                             src={project.avatar_url}
                             alt={project.name}
-                            className="w-20 h-20 rounded-full object-cover border-4 border-gray-200 group-hover:border-blue-300 transition-colors"
-                            onError={(e) => {
-                              e.currentTarget.style.display = 'none'
-                              const fallback = e.currentTarget.parentElement?.querySelector('.avatar-fallback') as HTMLElement
-                              if (fallback) {
-                                fallback.style.display = 'flex'
-                              }
-                            }}
+                            className={`w-20 h-20 rounded-full object-cover border-4 border-gray-200 group-hover:border-blue-300 transition-all duration-300 ${
+                              imageLoadingStates[project.id] ? 'opacity-0' : 'opacity-100'
+                            } ${imageErrors[project.id] ? 'hidden' : ''}`}
+                            onLoad={() => handleImageLoad(project.id)}
+                            onError={() => handleImageError(project.id)}
                           />
-                          <div 
-                            className="avatar-fallback absolute inset-0 w-20 h-20 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center border-4 border-gray-200 group-hover:border-blue-300 transition-colors"
-                            style={{ display: 'none' }}
-                          >
-                            <User className="h-8 w-8 text-blue-600" />
-                          </div>
+                          
+                          {/* Fallback avatar */}
+                          {imageErrors[project.id] && (
+                            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center border-4 border-gray-200 group-hover:border-blue-300 transition-colors">
+                              <User className="h-8 w-8 text-blue-600" />
+                            </div>
+                          )}
                         </div>
                       ) : (
                         <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center mx-auto border-4 border-gray-200 group-hover:border-blue-300 transition-colors">

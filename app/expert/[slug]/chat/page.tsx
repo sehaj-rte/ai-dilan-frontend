@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useParams, useRouter } from 'next/navigation'
 import { useSelector, useDispatch } from 'react-redux'
@@ -12,7 +12,7 @@ import { API_URL } from '@/lib/config'
 import { uploadFilesToS3, S3UploadedFile } from '@/lib/s3-upload'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { Send, Plus, MessageSquare, MoreHorizontal, X, ArrowLeft, User, LogIn, LogOut, FileText, ChevronDown, ChevronUp, Edit2, Copy, Check, ArrowUp, Paperclip, Image as ImageIcon, File as FileIcon, Menu, UserCircle } from 'lucide-react'
+import { Send, Plus, MessageSquare, MoreHorizontal, X, ArrowLeft, User, LogIn, LogOut, FileText, ChevronDown, ChevronUp, Edit2, Copy, Check, ArrowUp, Paperclip, Image as ImageIcon, File as FileIcon, Menu, UserCircle, Phone } from 'lucide-react'
 import FilePreviewModal from '@/components/chat/FilePreviewModal'
 import { RootState } from '@/store/store'
 import { logout, loadUserFromStorage } from '@/store/slices/authSlice'
@@ -74,6 +74,26 @@ const ExpertChatPage = () => {
     return s3Url
   }
 
+  // Handle expert avatar loading
+  const handleExpertImageLoad = useCallback(() => {
+    setExpertImageLoading(false)
+  }, [])
+
+  const handleExpertImageError = useCallback(() => {
+    setExpertImageLoading(false)
+    setExpertImageError(true)
+  }, [])
+
+  // Handle user avatar loading
+  const handleUserImageLoad = useCallback(() => {
+    setUserImageLoading(false)
+  }, [])
+
+  const handleUserImageError = useCallback(() => {
+    setUserImageLoading(false)
+    setUserImageError(true)
+  }, [])
+
   // Auth state from Redux
   const { user, isAuthenticated } = useSelector((state: RootState) => state.auth)
   
@@ -98,6 +118,10 @@ const ExpertChatPage = () => {
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null)
   const [isUploadingFiles, setIsUploadingFiles] = useState(false)
+  const [expertImageLoading, setExpertImageLoading] = useState(true)
+  const [expertImageError, setExpertImageError] = useState(false)
+  const [userImageLoading, setUserImageLoading] = useState(true)
+  const [userImageError, setUserImageError] = useState(false)
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, right: 0 })
@@ -165,6 +189,11 @@ const ExpertChatPage = () => {
             avatar_url: data.expert?.avatar_url ? convertS3UrlToProxy(data.expert.avatar_url) : null
           })
           setPublication(data.publication)
+          // Reset image loading states when expert data changes
+          if (data.expert?.avatar_url) {
+            setExpertImageLoading(true)
+            setExpertImageError(false)
+          }
           
           // Debug logging
           console.log('🔍 Publication data:', {
@@ -1296,15 +1325,30 @@ const ExpertChatPage = () => {
           
           <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
             {expert?.avatar_url ? (
-              <img 
-                src={expert.avatar_url} 
-                className="w-8 h-8 sm:w-10 sm:h-10 rounded-full object-cover flex-shrink-0" 
-                alt={expert.name} 
-                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
-              />
+              <div className="relative w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0">
+                {expertImageLoading && (
+                  <div className="absolute inset-0 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-3 w-3 sm:h-4 sm:w-4 border-b border-blue-600"></div>
+                  </div>
+                )}
+                <img 
+                  src={expert.avatar_url} 
+                  className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full object-cover transition-opacity duration-300 ${
+                    expertImageLoading ? 'opacity-0' : 'opacity-100'
+                  } ${expertImageError ? 'hidden' : ''}`}
+                  alt={expert.name} 
+                  onLoad={handleExpertImageLoad}
+                  onError={handleExpertImageError}
+                />
+                {expertImageError && (
+                  <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center">
+                    <User className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
+                  </div>
+                )}
+              </div>
             ) : (
-              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
-                <User className="h-4 w-4 sm:h-5 sm:w-5 text-gray-500" />
+              <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center flex-shrink-0">
+                <User className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
               </div>
             )}
             <div className="min-w-0 flex-1">
@@ -1321,6 +1365,37 @@ const ExpertChatPage = () => {
           
           {/* User Profile / Login */}
           <div className="flex items-center space-x-2 sm:space-x-3 flex-shrink-0">
+            {/* Call Button */}
+            <Button
+              onClick={() => router.push(`/expert/${slug}/call`)}
+              size="sm"
+              className="hidden sm:flex items-center justify-center w-9 h-9 text-white border-0 shadow-sm mr-2 rounded-full"
+              style={{ backgroundColor: primaryColor }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.opacity = '0.9'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.opacity = '1'
+              }}
+            >
+              <Phone className="h-4 w-4" />
+            </Button>
+            
+            {/* Mobile Call Button */}
+            <Button
+              onClick={() => router.push(`/expert/${slug}/call`)}
+              size="sm"
+              className="sm:hidden flex items-center justify-center w-9 h-9 text-white border-0 shadow-sm mr-2 rounded-full"
+              style={{ backgroundColor: primaryColor }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.opacity = '0.9'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.opacity = '1'
+              }}
+            >
+              <Phone className="h-4 w-4" />
+            </Button>
             {isAuthenticated && user ? (
               <>
                 {/* Desktop View */}
@@ -1330,19 +1405,32 @@ const ExpertChatPage = () => {
                     <p className="text-xs text-gray-500 truncate max-w-[120px]">{user.email}</p>
                   </div>
                   {user.avatar_url ? (
-                    <img 
-                      src={user.avatar_url.startsWith('http') ? user.avatar_url : `${API_URL}${user.avatar_url}`} 
-                      className="w-10 h-10 rounded-full object-cover border-2 border-gray-200 flex-shrink-0" 
-                      alt={user.username}
-                      onError={(e) => {
-                        e.currentTarget.style.display = 'none'
-                        e.currentTarget.nextElementSibling?.classList.remove('hidden')
-                      }}
-                    />
-                  ) : null}
-                  <div className={`w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0 ${user.avatar_url ? 'hidden' : ''}`}>
-                    <User className="h-5 w-5 text-gray-500" />
-                  </div>
+                    <div className="relative w-10 h-10 flex-shrink-0">
+                      {userImageLoading && (
+                        <div className="absolute inset-0 rounded-full bg-gray-200 flex items-center justify-center border-2 border-gray-200">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b border-blue-600"></div>
+                        </div>
+                      )}
+                      <img 
+                        src={user.avatar_url.startsWith('http') ? user.avatar_url : `${API_URL}${user.avatar_url}`} 
+                        className={`w-10 h-10 rounded-full object-cover border-2 border-gray-200 transition-opacity duration-300 ${
+                          userImageLoading ? 'opacity-0' : 'opacity-100'
+                        } ${userImageError ? 'hidden' : ''}`}
+                        alt={user.username}
+                        onLoad={handleUserImageLoad}
+                        onError={handleUserImageError}
+                      />
+                      {userImageError && (
+                        <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center border-2 border-gray-200">
+                          <User className="h-5 w-5 text-gray-500" />
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
+                      <User className="h-5 w-5 text-gray-500" />
+                    </div>
+                  )}
                   <Button
                     onClick={handleLogout}
                     variant="ghost"
@@ -1373,17 +1461,29 @@ const ExpertChatPage = () => {
                       aria-label="User menu"
                     > 
                       {user.avatar_url ? (
-                        <img 
-                          src={user.avatar_url} 
-                          className="w-8 h-8 rounded-full object-cover border-2 border-gray-200" 
-                          alt={user.username}
-                          onError={(e) => {
-                            // e.currentTarget.style.display = 'none'
-                            // e.currentTarget.nextElementSibling?.classList.remove('hidden')
-                          }}
-                        />
+                        <div className="relative w-8 h-8">
+                          {userImageLoading && (
+                            <div className="absolute inset-0 rounded-full bg-gray-200 flex items-center justify-center border-2 border-gray-200">
+                              <div className="animate-spin rounded-full h-3 w-3 border-b border-blue-600"></div>
+                            </div>
+                          )}
+                          <img 
+                            src={user.avatar_url} 
+                            className={`w-8 h-8 rounded-full object-cover border-2 border-gray-200 transition-opacity duration-300 ${
+                              userImageLoading ? 'opacity-0' : 'opacity-100'
+                            } ${userImageError ? 'hidden' : ''}`}
+                            alt={user.username}
+                            onLoad={handleUserImageLoad}
+                            onError={handleUserImageError}
+                          />
+                          {userImageError && (
+                            <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center border-2 border-gray-200">
+                              <User className="h-4 w-4 text-gray-500" />
+                            </div>
+                          )}
+                        </div>
                       ) : (
-                        <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center border-2 border-gray-200">
+                        <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
                           <User className="h-4 w-4 text-gray-500" />
                         </div>
                       )}
@@ -1437,15 +1537,30 @@ const ExpertChatPage = () => {
             {messages.length === 0 && !isWaitingForResponse && (
               <div className="flex flex-col items-center justify-center h-full text-center space-y-3">
                 {expert?.avatar_url ? (
-                  <img
-                    src={expert.avatar_url}
-                    alt={expert.name}
-                    className="h-16 w-16 rounded-full object-cover"
-                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
-                  />
+                  <div className="relative h-16 w-16">
+                    {expertImageLoading && (
+                      <div className="absolute inset-0 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                      </div>
+                    )}
+                    <img
+                      src={expert.avatar_url}
+                      alt={expert.name}
+                      className={`h-16 w-16 rounded-full object-cover transition-opacity duration-300 ${
+                        expertImageLoading ? 'opacity-0' : 'opacity-100'
+                      } ${expertImageError ? 'hidden' : ''}`}
+                      onLoad={handleExpertImageLoad}
+                      onError={handleExpertImageError}
+                    />
+                    {expertImageError && (
+                      <div className="h-16 w-16 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center">
+                        <User className="h-8 w-8 text-blue-600" />
+                      </div>
+                    )}
+                  </div>
                 ) : (
-                  <div className="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center">
-                    <User className="h-8 w-8 text-gray-500" />
+                  <div className="h-16 w-16 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center">
+                    <User className="h-8 w-8 text-blue-600" />
                   </div>
                 )}
                 <div>
@@ -1474,15 +1589,30 @@ const ExpertChatPage = () => {
                 {m.type === 'agent' && (
                   <>
                     {expert?.avatar_url ? (
-                      <img
-                        src={expert.avatar_url}
-                        alt={expert.name}
-                        className="h-6 w-6 sm:h-8 sm:w-8 rounded-full object-cover flex-shrink-0"
-                        onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
-                      />
+                      <div className="relative h-6 w-6 sm:h-8 sm:w-8 flex-shrink-0">
+                        {expertImageLoading && (
+                          <div className="absolute inset-0 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                            <div className="animate-spin rounded-full h-2 w-2 sm:h-3 sm:w-3 border-b border-blue-600"></div>
+                          </div>
+                        )}
+                        <img
+                          src={expert.avatar_url}
+                          alt={expert.name}
+                          className={`h-6 w-6 sm:h-8 sm:w-8 rounded-full object-cover transition-opacity duration-300 ${
+                            expertImageLoading ? 'opacity-0' : 'opacity-100'
+                          } ${expertImageError ? 'hidden' : ''}`}
+                          onLoad={handleExpertImageLoad}
+                          onError={handleExpertImageError}
+                        />
+                        {expertImageError && (
+                          <div className="h-6 w-6 sm:h-8 sm:w-8 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center">
+                            <User className="h-3 w-3 sm:h-4 sm:w-4 text-blue-600" />
+                          </div>
+                        )}
+                      </div>
                     ) : (
-                      <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
-                        <User className="h-3 w-3 sm:h-4 sm:w-4 text-gray-500" />
+                      <div className="h-6 w-6 sm:h-8 sm:w-8 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center flex-shrink-0">
+                        <User className="h-3 w-3 sm:h-4 sm:w-4 text-blue-600" />
                       </div>
                     )}
                   </>
@@ -1633,15 +1763,30 @@ const ExpertChatPage = () => {
               <div className="group py-2 sm:py-4">
                 <div className="flex items-center gap-2 sm:gap-3">
                   {expert?.avatar_url ? (
-                    <img
-                      src={expert.avatar_url}
-                      alt={expert.name}
-                      className="h-6 w-6 sm:h-8 sm:w-8 rounded-full object-cover"
-                      onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
-                    />
+                    <div className="relative h-6 w-6 sm:h-8 sm:w-8">
+                      {expertImageLoading && (
+                        <div className="absolute inset-0 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center">
+                          <div className="animate-spin rounded-full h-2 w-2 sm:h-3 sm:w-3 border-b border-blue-600"></div>
+                        </div>
+                      )}
+                      <img
+                        src={expert.avatar_url}
+                        alt={expert.name}
+                        className={`h-6 w-6 sm:h-8 sm:w-8 rounded-full object-cover transition-opacity duration-300 ${
+                          expertImageLoading ? 'opacity-0' : 'opacity-100'
+                        } ${expertImageError ? 'hidden' : ''}`}
+                        onLoad={handleExpertImageLoad}
+                        onError={handleExpertImageError}
+                      />
+                      {expertImageError && (
+                        <div className="h-6 w-6 sm:h-8 sm:w-8 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center">
+                          <User className="h-3 w-3 sm:h-4 sm:w-4 text-blue-600" />
+                        </div>
+                      )}
+                    </div>
                   ) : (
-                    <div className="w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-gray-200 flex items-center justify-center">
-                      <User className="h-3 w-3 sm:h-4 sm:w-4 text-gray-500" />
+                    <div className="h-6 w-6 sm:h-8 sm:w-8 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center">
+                      <User className="h-3 w-3 sm:h-4 sm:w-4 text-blue-600" />
                     </div>
                   )}
                   <span className="text-sm text-gray-500">Thinking...</span>
