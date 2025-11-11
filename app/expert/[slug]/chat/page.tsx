@@ -13,6 +13,7 @@ import { uploadFilesToS3, S3UploadedFile } from '@/lib/s3-upload'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { Send, Plus, MessageSquare, MoreHorizontal, X, ArrowLeft, User, LogIn, LogOut, FileText, ChevronDown, ChevronUp, Edit2, Copy, Check, ArrowUp, Paperclip, Image as ImageIcon, File as FileIcon, Menu, UserCircle } from 'lucide-react'
+import FilePreviewModal from '@/components/chat/FilePreviewModal'
 import { RootState } from '@/store/store'
 import { logout, loadUserFromStorage } from '@/store/slices/authSlice'
 
@@ -100,6 +101,9 @@ const ExpertChatPage = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false)
   const [dropdownPosition, setDropdownPosition] = useState({ top: 0, right: 0 })
+  const [previewFile, setPreviewFile] = useState<FileAttachment | null>(null)
+  const [previewFiles, setPreviewFiles] = useState<FileAttachment[]>([])
+  const [isPreviewOpen, setIsPreviewOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const userMenuTriggerRef = useRef<HTMLButtonElement>(null)
   
@@ -908,7 +912,7 @@ const ExpertChatPage = () => {
       let conversationId = currentConvId
       
       if (messages.length === 0 && !currentConvId) {
-        // First message - create new conversation
+        // First message - create new conversation (this also saves the user message)
         console.log('💾 Creating new conversation after streaming')
         const tempTitle = 'New Conversation'
         const newSessionId = await saveConversation(tempTitle, userMessage)
@@ -922,11 +926,14 @@ const ExpertChatPage = () => {
           console.log('❌ Failed to create conversation (user may not be authenticated)')
         }
       } else if (currentConvId) {
-        // Existing conversation - save user message with files
+        // Existing conversation - save user message with files FIRST (await to ensure proper ordering)
         console.log('💾 Saving user message to existing conversation:', currentConvId)
-        saveMessage(currentConvId, 'user', messageText, s3FileData.length > 0 ? s3FileData : undefined).catch(err => 
+        try {
+          await saveMessage(currentConvId, 'user', messageText, s3FileData.length > 0 ? s3FileData : undefined)
+          console.log('✅ User message saved successfully')
+        } catch (err) {
           console.error('❌ Failed to save user message:', err)
-        )
+        }
       }
       
       // Clear S3 data after saving to database
@@ -934,12 +941,18 @@ const ExpertChatPage = () => {
         ;(window as any).__s3UploadedFiles = []
       }
       
-      // Save agent response to database (in background)
+      // Save agent response to database AFTER user message (await to ensure proper ordering)
       if (conversationId && fullResponse) {
+        // Small delay to ensure timestamp ordering in database
+        await new Promise(resolve => setTimeout(resolve, 100))
+        
         console.log('💾 Saving agent response to conversation:', conversationId)
-        saveMessage(conversationId, 'assistant', fullResponse).catch(err => 
+        try {
+          await saveMessage(conversationId, 'assistant', fullResponse)
+          console.log('✅ Agent message saved successfully')
+        } catch (err) {
           console.error('❌ Failed to save agent message:', err)
-        )
+        }
         
         // Generate and update smart title for first exchange
         if (messages.length === 0) {
@@ -1002,8 +1015,15 @@ const ExpertChatPage = () => {
           type: msg.role === 'user' ? 'user' : 'agent',
           text: msg.content,
           timestamp: new Date(msg.created_at),
-          files: msg.files || undefined // Include files from database
+          files: msg.files ? msg.files.map((file: any) => ({
+            ...file,
+            url: convertS3UrlToProxy(file.url) // Convert S3 URLs to proxy URLs
+          })) : undefined
         }))
+        
+        // Sort messages by timestamp to ensure correct chronological order
+        loadedMessages.sort((a, b) => a.timestamp.getTime() - b.timestamp.getTime())
+        
         setMessages(loadedMessages)
         
         // Save to sessionStorage for persistence during current session only
@@ -1448,7 +1468,7 @@ const ExpertChatPage = () => {
             )}
 
             {messages.map(m => (
-              <div key={m.id} className="group py-2 sm:py-4">
+              <div key={m.id} className={`group ${m.type === 'user' ? 'py-1.5 sm:py-2' : 'py-2 sm:py-4'}`}>
                 <div className={`flex items-start gap-2 sm:gap-3 ${m.type === 'user' ? 'flex-row-reverse' : ''}`}>
                 {/* Show avatar for agent messages */}
                 {m.type === 'agent' && (
@@ -1468,9 +1488,9 @@ const ExpertChatPage = () => {
                   </>
                 )}
                 
-                <div className={`${m.type === 'user' ? 'flex justify-end' : 'flex-1 min-w-0'}`}>
+                <div className={`${m.type === 'user' ? 'flex justify-end w-full' : 'flex-1 min-w-0'}`}>
                   <div 
-                    className={`${m.type === 'user' ? 'text-white inline-block max-w-[85%] sm:max-w-[75%]' : 'bg-gray-100 text-gray-900 inline-block max-w-[90%] sm:max-w-[85%]'} px-3 py-2.5 sm:px-5 sm:py-3.5`}
+                    className={`${m.type === 'user' ? 'text-white inline-block px-3 py-2 max-w-[85%] sm:max-w-[80%]' : 'bg-gray-100 text-gray-900 inline-block max-w-[90%] sm:max-w-[85%] px-3 py-2.5 sm:px-5 sm:py-3.5'}`}
                     style={m.type === 'user' ? { 
                       backgroundColor: primaryColor,
                       borderRadius: '1rem 1rem 0 1rem'
@@ -1480,18 +1500,26 @@ const ExpertChatPage = () => {
                   >
                     {m.type === 'user' ? (
                       <div>
-                        <p className="text-sm sm:text-[15px] leading-relaxed whitespace-pre-wrap mr-2">{m.text}</p>
+                        <p className="text-sm leading-relaxed whitespace-pre-wrap">{m.text}</p>
                         {m.files && m.files.length > 0 && (
                           <div className="mt-2 flex flex-wrap gap-2">
                             {m.files.map((file, idx) => (
-                              <div key={idx} className="flex items-center gap-2 bg-white bg-opacity-20 rounded-lg px-3 py-2">
+                              <button
+                                key={idx}
+                                onClick={() => {
+                                  setPreviewFile(file)
+                                  setPreviewFiles(m.files || [])
+                                  setIsPreviewOpen(true)
+                                }}
+                                className="flex items-center gap-2 bg-white bg-opacity-20 rounded-lg px-3 py-2 hover:bg-white hover:bg-opacity-30 transition-colors cursor-pointer"
+                              >
                                 {file.type.startsWith('image/') ? (
                                   <ImageIcon className="h-4 w-4" />
                                 ) : (
                                   <FileIcon className="h-4 w-4" />
                                 )}
                                 <span className="text-xs">{file.name}</span>
-                              </div>
+                              </button>
                             ))}
                           </div>
                         )}
@@ -1649,14 +1677,29 @@ const ExpertChatPage = () => {
                     key={idx} 
                     className="group flex items-center gap-2 bg-white rounded-xl px-3 py-2.5 border border-gray-200 shadow-sm hover:shadow-md hover:border-gray-300 transition-all duration-200"
                   >
-                    <div className="p-1.5 rounded-lg" style={{ backgroundColor: `${primaryColor}15` }}>
-                      {file.type.startsWith('image/') ? (
-                        <ImageIcon className="h-4 w-4" style={{ color: primaryColor }} />
-                      ) : (
-                        <FileIcon className="h-4 w-4" style={{ color: primaryColor }} />
-                      )}
-                    </div>
-                    <span className="text-sm font-medium text-gray-700 max-w-[150px] truncate">{file.name}</span>
+                    <button
+                      onClick={() => {
+                        const fileAttachment: FileAttachment = {
+                          name: file.name,
+                          type: file.type,
+                          url: URL.createObjectURL(file),
+                          size: file.size
+                        }
+                        setPreviewFile(fileAttachment)
+                        setPreviewFiles([fileAttachment])
+                        setIsPreviewOpen(true)
+                      }}
+                      className="flex items-center gap-2 flex-1 min-w-0 hover:bg-gray-50 rounded-lg p-1 transition-colors"
+                    >
+                      <div className="p-1.5 rounded-lg" style={{ backgroundColor: `${primaryColor}15` }}>
+                        {file.type.startsWith('image/') ? (
+                          <ImageIcon className="h-4 w-4" style={{ color: primaryColor }} />
+                        ) : (
+                          <FileIcon className="h-4 w-4" style={{ color: primaryColor }} />
+                        )}
+                      </div>
+                      <span className="text-sm font-medium text-gray-700 max-w-[150px] truncate">{file.name}</span>
+                    </button>
                     <button
                       onClick={() => removeFile(idx)}
                       className="ml-1 p-1 rounded-full hover:bg-gray-100 text-gray-400 hover:text-red-500 transition-colors"
@@ -1800,6 +1843,18 @@ const ExpertChatPage = () => {
           </div>
         </div>
       </div>
+
+      {/* File Preview Modal */}
+      <FilePreviewModal
+        file={previewFile}
+        files={previewFiles}
+        isOpen={isPreviewOpen}
+        onClose={() => {
+          setIsPreviewOpen(false)
+          setPreviewFile(null)
+          setPreviewFiles([])
+        }}
+      />
     </div>
   )
 }
