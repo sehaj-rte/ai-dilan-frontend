@@ -57,7 +57,7 @@ export default function VoiceCloneLibrary({ projectId, refreshTrigger, selectedV
 
   const refetchVoices = async () => {
     try {
-      const response = await fetchWithAuth(`${API_URL}/voice-clone/list?expert_id=${projectId}`, {
+      const response = await fetchWithAuth(`${API_URL}/voice-clone/list?expert_id=${projectId}&category=instant`, {
         headers: getAuthHeaders(),
       })
       if (!response.ok) throw new Error('Failed to fetch voice clones')
@@ -109,7 +109,7 @@ export default function VoiceCloneLibrary({ projectId, refreshTrigger, selectedV
         setLoading(true)
         setError(null)
 
-        const response = await fetchWithAuth(`${API_URL}/voice-clone/list?expert_id=${projectId}`, {
+        const response = await fetchWithAuth(`${API_URL}/voice-clone/list?expert_id=${projectId}&category=instant`, {
           headers: getAuthHeaders(),
         })
 

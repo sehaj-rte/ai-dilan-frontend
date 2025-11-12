@@ -46,7 +46,7 @@ export default function PVCVoiceLibrary({
       setLoading(true)
       setError(null)
 
-      const response = await fetchWithAuth(`${API_URL}/voice-clone/list?expert_id=${projectId}`, {
+      const response = await fetchWithAuth(`${API_URL}/voice-clone/list?expert_id=${projectId}&category=professional`, {
         headers: getAuthHeaders(),
       })
 
