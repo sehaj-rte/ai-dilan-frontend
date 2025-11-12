@@ -22,6 +22,7 @@ interface UploadedFile {
   progress: number
   error?: string
   isRecorded?: boolean // Mark files that were recorded vs uploaded
+  recordedDuration?: number // Duration in seconds for recorded files
 }
 
 const SUPPORTED_FORMATS = ['.mp3', '.wav', '.m4a', '.flac', '.webm', '.ogg']
@@ -64,6 +65,11 @@ export default function PVCCreationWizard({ isOpen, onClose, projectId, onSucces
   const [workflowSuccess, setWorkflowSuccess] = useState<string | null>(null)
   const [validationError, setValidationError] = useState<string | null>(null)
   const [totalDuration, setTotalDuration] = useState<number>(0) // in seconds
+  
+  // CAPTCHA retry system
+  const [captchaAttempts, setCaptchaAttempts] = useState(0)
+  const [maxCaptchaAttempts] = useState(3)
+  const [captchaGenerated, setCaptchaGenerated] = useState(false)
 
   const languages = [
     { code: 'en', name: 'English' },
@@ -145,6 +151,13 @@ export default function PVCCreationWizard({ isOpen, onClose, projectId, onSucces
     setIsSampleRecording(false)
     setSampleMediaRecorder(null)
     setSampleRecordingTime(0)
+    
+    // Reset CAPTCHA retry states
+    setCaptchaAttempts(0)
+    setCaptchaGenerated(false)
+    
+    // Reset duration tracking
+    setTotalDuration(0)
   }
 
   const cleanupOnClose = () => {
@@ -205,10 +218,49 @@ export default function PVCCreationWizard({ isOpen, onClose, projectId, onSucces
     return null
   }
 
+  const checkForDuplicates = (newFileList: FileList, existingFiles: UploadedFile[]) => {
+    const duplicates: string[] = []
+    const existingFileSignatures = existingFiles.map(f => ({
+      name: f.name,
+      size: f.size,
+      type: f.type
+    }))
+
+    Array.from(newFileList).forEach(file => {
+      const isDuplicate = existingFileSignatures.some(existing => 
+        existing.name === file.name && 
+        existing.size === file.size && 
+        existing.type === file.type
+      )
+      if (isDuplicate) {
+        duplicates.push(file.name)
+      }
+    })
+
+    return duplicates
+  }
+
+  const checkForDuplicateRecording = (recordingDuration: number, existingFiles: UploadedFile[]) => {
+    // Check if there's already a recorded file with similar duration (within 2 seconds)
+    const similarRecording = existingFiles.find(f => 
+      f.isRecorded && 
+      f.recordedDuration && 
+      Math.abs(f.recordedDuration - recordingDuration) <= 2
+    )
+    return similarRecording
+  }
+
   const handleFileSelect = (fileList: FileList) => {
     const validationError = validateFiles(fileList)
     if (validationError) {
       setError(validationError)
+      return
+    }
+
+    // Check for duplicates
+    const duplicates = checkForDuplicates(fileList, files)
+    if (duplicates.length > 0) {
+      setError(`Duplicate files detected: ${duplicates.join(', ')}. Please select different files.`)
       return
     }
 
@@ -298,10 +350,19 @@ export default function PVCCreationWizard({ isOpen, onClose, projectId, onSucces
     let total = 0
     for (const fileItem of fileList) {
       try {
-        const duration = await getAudioDuration(fileItem.file)
-        total += duration
+        // Use stored duration for recorded files, otherwise calculate from audio
+        if (fileItem.isRecorded && fileItem.recordedDuration) {
+          total += fileItem.recordedDuration
+        } else {
+          const duration = await getAudioDuration(fileItem.file)
+          total += duration
+        }
       } catch (error) {
         console.warn(`Could not get duration for ${fileItem.name}:`, error)
+        // For recorded files, fallback to stored duration even if audio analysis fails
+        if (fileItem.isRecorded && fileItem.recordedDuration) {
+          total += fileItem.recordedDuration
+        }
       }
     }
     setTotalDuration(total)
@@ -381,19 +442,20 @@ export default function PVCCreationWizard({ isOpen, onClose, projectId, onSucces
         // Store the CAPTCHA data for display
         setCaptchaData(data)
         setVoiceStatus('captcha_ready')
+        setCaptchaGenerated(true)
         setCurrentStep(4)
         
         // Log the response structure for debugging
         console.log('CAPTCHA Response:', data)
         
         if (data.captcha_data?.text) {
-          setWorkflowSuccess('CAPTCHA text ready! Please read the text aloud.')
+          setWorkflowSuccess(`CAPTCHA text ready! Please read the text aloud. (Attempt ${captchaAttempts + 1}/${maxCaptchaAttempts})`)
         } else if (data.captcha_image) {
-          setWorkflowSuccess('CAPTCHA image ready! Please follow the instructions.')
+          setWorkflowSuccess(`CAPTCHA image ready! Please follow the instructions. (Attempt ${captchaAttempts + 1}/${maxCaptchaAttempts})`)
         } else if (data.captcha_text) {
-          setWorkflowSuccess('CAPTCHA ready! Please complete the verification.')
+          setWorkflowSuccess(`CAPTCHA ready! Please complete the verification. (Attempt ${captchaAttempts + 1}/${maxCaptchaAttempts})`)
         } else {
-          setWorkflowSuccess('CAPTCHA ready! Please complete the verification.')
+          setWorkflowSuccess(`CAPTCHA ready! Please complete the verification. (Attempt ${captchaAttempts + 1}/${maxCaptchaAttempts})`)
         }
       } else {
         setError(data.detail || 'Failed to get CAPTCHA')
@@ -485,6 +547,15 @@ export default function PVCCreationWizard({ isOpen, onClose, projectId, onSucces
       recorder.onstop = () => {
         const audioBlob = new Blob(audioChunks, { type: 'audio/wav' })
         
+        // Check for duplicate recording
+        const duplicateRecording = checkForDuplicateRecording(sampleRecordingTime, files)
+        if (duplicateRecording) {
+          setError(`Similar recording already exists (${duplicateRecording.name}). Please record a different sample with varied content.`)
+          stream.getTracks().forEach(track => track.stop()) // Clean up
+          setSampleRecordingTime(0)
+          return
+        }
+        
         // Convert recorded blob to UploadedFile format
         const recordedFile: UploadedFile = {
           id: `recorded-${Date.now()}`,
@@ -494,10 +565,16 @@ export default function PVCCreationWizard({ isOpen, onClose, projectId, onSucces
           file: audioBlob,
           status: 'completed',
           progress: 100,
-          isRecorded: true // Mark as recorded
+          isRecorded: true, // Mark as recorded
+          recordedDuration: sampleRecordingTime // Store the recorded duration
         }
 
-        setFiles(prev => [...prev, recordedFile])
+        setFiles(prev => {
+          const updatedFiles = [...prev, recordedFile]
+          // Calculate total duration after adding recorded file
+          calculateTotalDuration(updatedFiles)
+          return updatedFiles
+        })
         stream.getTracks().forEach(track => track.stop()) // Clean up
         setSampleRecordingTime(0)
       }
@@ -580,16 +657,33 @@ export default function PVCCreationWizard({ isOpen, onClose, projectId, onSucces
         setWorkflowSuccess('🎉 CAPTCHA verified! Voice training has started in the background and will continue automatically.')
         // Clear the recording
         clearRecording()
+        // Reset attempts on success
+        setCaptchaAttempts(0)
       } else {
-        // Provide more helpful error messages
-        let errorMessage = data.detail || data.error || 'Failed to verify CAPTCHA recording'
+        // Increment attempt counter
+        const newAttempts = captchaAttempts + 1
+        setCaptchaAttempts(newAttempts)
         
-        // Add helpful tips based on common errors
-        if (errorMessage.toLowerCase().includes('match') || errorMessage.toLowerCase().includes('verify')) {
-          errorMessage += '\n\n💡 Tips: Make sure you read the text exactly as shown, speak clearly in the same voice as your training samples, and record in a quiet environment.'
+        // Check if max attempts reached
+        if (newAttempts >= maxCaptchaAttempts) {
+          setError(`❌ CAPTCHA verification failed after ${maxCaptchaAttempts} attempts. Please try creating a new voice or contact support.`)
+          setVoiceStatus('failed')
+        } else {
+          // Allow retry
+          let errorMessage = data.detail || data.error || 'Failed to verify CAPTCHA recording'
+          
+          // Add helpful tips and retry info
+          errorMessage += `\n\n💡 Tips: Make sure you read the text exactly as shown, speak clearly in the same voice as your training samples, and record in a quiet environment.`
+          errorMessage += `\n\n🔄 You have ${maxCaptchaAttempts - newAttempts} attempt(s) remaining. Click "Get New CAPTCHA" to try again.`
+          
+          setError(errorMessage)
+          
+          // Clear current recording and go back to step 3 for retry
+          clearRecording()
+          setCaptchaData(null)
+          setCaptchaGenerated(false)
+          setCurrentStep(3)
         }
-        
-        setError(errorMessage)
       }
     } catch (error) {
       console.error('CAPTCHA submission error:', error)
@@ -784,6 +878,10 @@ export default function PVCCreationWizard({ isOpen, onClose, projectId, onSucces
                   <div className="flex items-start">
                     <span className="text-blue-600 mr-2">✓</span>
                     <span><strong>Varied content:</strong> Different emotions, tones, and speaking styles</span>
+                  </div>
+                  <div className="flex items-start">
+                    <span className="text-blue-600 mr-2">✓</span>
+                    <span><strong>No duplicates:</strong> Each file should be unique (different content and duration)</span>
                   </div>
                 </div>
               </div>
@@ -1197,10 +1295,15 @@ export default function PVCCreationWizard({ isOpen, onClose, projectId, onSucces
                     </div>
                   </div>
                   <div>
-                    <h4 className="font-medium text-blue-900">CAPTCHA Verification</h4>
+                    <h4 className="font-medium text-blue-900">CAPTCHA Verification ({captchaAttempts}/{maxCaptchaAttempts} attempts used)</h4>
                     <p className="text-sm text-blue-700 mt-1">
-                      We'll provide you with a text challenge that you'll need to read aloud to verify your voice ownership. This is faster than manual verification.
+                      Click "Get CAPTCHA" to receive a text challenge. You'll have time to prepare before recording. You get {maxCaptchaAttempts} attempts total.
                     </p>
+                    {captchaAttempts > 0 && (
+                      <p className="text-sm text-orange-600 mt-2 font-medium">
+                        ⚠️ Previous attempt failed. {maxCaptchaAttempts - captchaAttempts} attempts remaining.
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1474,11 +1577,26 @@ export default function PVCCreationWizard({ isOpen, onClose, projectId, onSucces
                   <ArrowRight className="w-4 h-4" />
                 </button>
                 
-                {/* Simple Tooltip */}
+                {/* Enhanced Tooltip */}
                 {!canProceedToStep2() && (
-                  <div className="absolute bottom-full right-0 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 max-w-xs whitespace-nowrap">
-                    {getDisabledReason().split('\n• ').join(' • ')}
-                    <div className="absolute top-full right-6 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+                  <div className="absolute bottom-full right-0 mb-3 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-20">
+                    <div className="bg-white text-black text-sm rounded-lg shadow-lg border border-gray-300 overflow-hidden max-w-md w-80">
+                      <div className="px-4 py-3">
+                        <div className="font-medium mb-2">Requirements Missing:</div>
+                        <div className="space-y-1.5 text-sm">
+                          {voiceName.trim().length < 3 && (
+                            <div>• Voice name must be at least 3 characters</div>
+                          )}
+                          {files.length < MIN_FILES && (
+                            <div>• Need at least {MIN_FILES} audio samples (currently {files.length})</div>
+                          )}
+                          {totalDuration < (MIN_TOTAL_DURATION_MINUTES * 60) && (
+                            <div>• Need {MIN_TOTAL_DURATION_MINUTES} minutes total duration (currently {formatDuration(totalDuration)})</div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="absolute top-full right-6 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-white"></div>
                   </div>
                 )}
               </div>
@@ -1522,7 +1640,7 @@ export default function PVCCreationWizard({ isOpen, onClose, projectId, onSucces
                 ) : (
                   <>
                     <Shield className="w-4 h-4" />
-                    <span>Get CAPTCHA</span>
+                    <span>{captchaAttempts > 0 ? 'Get New CAPTCHA' : 'Get CAPTCHA'}</span>
                   </>
                 )}
               </button>
