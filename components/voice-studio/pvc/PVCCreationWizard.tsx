@@ -28,6 +28,7 @@ const SUPPORTED_FORMATS = ['.mp3', '.wav', '.m4a', '.flac', '.webm', '.ogg']
 const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50MB
 const MIN_FILES = 3
 const MAX_FILES = 25
+const MIN_TOTAL_DURATION_MINUTES = 10
 
 export default function PVCCreationWizard({ isOpen, onClose, projectId, onSuccess }: PVCCreationWizardProps) {
   const [currentStep, setCurrentStep] = useState(1)
@@ -61,6 +62,8 @@ export default function PVCCreationWizard({ isOpen, onClose, projectId, onSucces
   const [verificationCode, setVerificationCode] = useState('')
   const [isProcessingWorkflow, setIsProcessingWorkflow] = useState(false)
   const [workflowSuccess, setWorkflowSuccess] = useState<string | null>(null)
+  const [validationError, setValidationError] = useState<string | null>(null)
+  const [totalDuration, setTotalDuration] = useState<number>(0) // in seconds
 
   const languages = [
     { code: 'en', name: 'English' },
@@ -221,7 +224,12 @@ export default function PVCCreationWizard({ isOpen, onClose, projectId, onSucces
       isRecorded: false
     }))
 
-    setFiles(prev => [...prev, ...newFiles])
+    setFiles(prev => {
+      const updatedFiles = [...prev, ...newFiles]
+      // Calculate total duration after adding files
+      calculateTotalDuration(updatedFiles)
+      return updatedFiles
+    })
   }
 
   const handleDrag = useCallback((e: React.DragEvent) => {
@@ -245,7 +253,12 @@ export default function PVCCreationWizard({ isOpen, onClose, projectId, onSucces
   }, [])
 
   const removeFile = (fileId: string) => {
-    setFiles(prev => prev.filter(f => f.id !== fileId))
+    setFiles(prev => {
+      const updatedFiles = prev.filter(f => f.id !== fileId)
+      // Recalculate total duration after removing file
+      calculateTotalDuration(updatedFiles)
+      return updatedFiles
+    })
   }
 
   const formatFileSize = (bytes: number): string => {
@@ -256,8 +269,94 @@ export default function PVCCreationWizard({ isOpen, onClose, projectId, onSucces
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
   }
 
+  const formatDuration = (seconds: number): string => {
+    const minutes = Math.floor(seconds / 60)
+    const remainingSeconds = Math.floor(seconds % 60)
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`
+  }
+
+  const getAudioDuration = (file: File | Blob): Promise<number> => {
+    return new Promise((resolve) => {
+      const audio = new Audio()
+      const url = URL.createObjectURL(file)
+      
+      audio.addEventListener('loadedmetadata', () => {
+        URL.revokeObjectURL(url)
+        resolve(audio.duration || 0)
+      })
+      
+      audio.addEventListener('error', () => {
+        URL.revokeObjectURL(url)
+        resolve(0) // Return 0 if we can't get duration
+      })
+      
+      audio.src = url
+    })
+  }
+
+  const calculateTotalDuration = async (fileList: UploadedFile[]) => {
+    let total = 0
+    for (const fileItem of fileList) {
+      try {
+        const duration = await getAudioDuration(fileItem.file)
+        total += duration
+      } catch (error) {
+        console.warn(`Could not get duration for ${fileItem.name}:`, error)
+      }
+    }
+    setTotalDuration(total)
+    return total
+  }
+
   const canProceedToStep2 = () => {
-    return voiceName.trim().length >= 3 && language && files.length >= MIN_FILES
+    const hasValidName = voiceName.trim().length >= 3
+    const hasLanguage = !!language
+    const hasMinFiles = files.length >= MIN_FILES
+    const hasMinDuration = totalDuration >= (MIN_TOTAL_DURATION_MINUTES * 60)
+    
+    return hasValidName && hasLanguage && hasMinFiles && hasMinDuration
+  }
+
+  const validateStep1 = () => {
+    setValidationError(null)
+    
+    if (voiceName.trim().length < 3) {
+      setValidationError('Voice name must be at least 3 characters long')
+      return false
+    }
+    
+    if (files.length < MIN_FILES) {
+      setValidationError(`You need at least ${MIN_FILES} audio samples to continue`)
+      return false
+    }
+    
+    if (totalDuration < (MIN_TOTAL_DURATION_MINUTES * 60)) {
+      const currentMinutes = Math.floor(totalDuration / 60)
+      setValidationError(`Total audio duration must be at least ${MIN_TOTAL_DURATION_MINUTES} minutes. Current: ${currentMinutes} minutes`)
+      return false
+    }
+    
+    return true
+  }
+
+  const getDisabledReason = () => {
+    const issues = []
+    
+    if (voiceName.trim().length < 3) {
+      issues.push('Voice name must be at least 3 characters')
+    }
+    
+    if (files.length < MIN_FILES) {
+      issues.push(`Need at least ${MIN_FILES} audio samples (currently ${files.length})`)
+    }
+    
+    if (totalDuration < (MIN_TOTAL_DURATION_MINUTES * 60)) {
+      const currentMinutes = Math.floor(totalDuration / 60)
+      const currentSeconds = Math.floor(totalDuration % 60)
+      issues.push(`Need ${MIN_TOTAL_DURATION_MINUTES} minutes total duration (currently ${currentMinutes}:${currentSeconds.toString().padStart(2, '0')})`)
+    }
+    
+    return issues.length > 0 ? issues.join('\n• ') : ''
   }
 
   const canCreateVoice = () => {
@@ -652,6 +751,15 @@ export default function PVCCreationWizard({ isOpen, onClose, projectId, onSucces
 
         {/* Content */}
         <div className="p-6 overflow-y-auto flex-1">
+          {/* Validation Error */}
+          {validationError && (
+            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+              <div className="flex items-center space-x-2">
+                <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
+                <p className="text-sm text-red-700">{validationError}</p>
+              </div>
+            </div>
+          )}
           {currentStep === 1 && (
             <div className="space-y-5">
               {/* Important Requirements Box */}
@@ -667,7 +775,7 @@ export default function PVCCreationWizard({ isOpen, onClose, projectId, onSucces
                   </div>
                   <div className="flex items-start">
                     <span className="text-blue-600 mr-2">✓</span>
-                    <span><strong>Total duration: ~1 hour</strong> of clear speech (recommended for best quality)</span>
+                    <span><strong>Minimum 10 minutes total duration</strong> (1 hour recommended for best quality)</span>
                   </div>
                   <div className="flex items-start">
                     <span className="text-blue-600 mr-2">✓</span>
@@ -784,11 +892,73 @@ export default function PVCCreationWizard({ isOpen, onClose, projectId, onSucces
                 />
               </details>
 
+              {/* Requirements Checklist */}
+              <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                <h4 className="text-sm font-medium text-gray-900 mb-3">Progress Checklist</h4>
+                <div className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    {voiceName.trim().length >= 3 ? (
+                      <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+                        <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                    ) : (
+                      <div className="w-5 h-5 bg-gray-300 rounded-full flex items-center justify-center">
+                        <div className="w-2 h-2 bg-gray-500 rounded-full"></div>
+                      </div>
+                    )}
+                    <span className={`text-sm ${voiceName.trim().length >= 3 ? 'text-green-700' : 'text-gray-600'}`}>
+                      Voice name (minimum 3 characters)
+                    </span>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2">
+                    {files.length >= MIN_FILES ? (
+                      <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+                        <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                    ) : (
+                      <div className="w-5 h-5 bg-gray-300 rounded-full flex items-center justify-center">
+                        <div className="w-2 h-2 bg-gray-500 rounded-full"></div>
+                      </div>
+                    )}
+                    <span className={`text-sm ${files.length >= MIN_FILES ? 'text-green-700' : 'text-gray-600'}`}>
+                      Audio samples ({files.length}/{MIN_FILES} minimum)
+                    </span>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2">
+                    {totalDuration >= (MIN_TOTAL_DURATION_MINUTES * 60) ? (
+                      <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+                        <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                    ) : (
+                      <div className="w-5 h-5 bg-gray-300 rounded-full flex items-center justify-center">
+                        <div className="w-2 h-2 bg-gray-500 rounded-full"></div>
+                      </div>
+                    )}
+                    <span className={`text-sm ${totalDuration >= (MIN_TOTAL_DURATION_MINUTES * 60) ? 'text-green-700' : 'text-gray-600'}`}>
+                      Total duration ({formatDuration(totalDuration)} / {MIN_TOTAL_DURATION_MINUTES}:00 min)
+                    </span>
+                  </div>
+                </div>
+              </div>
+
               {/* Divider */}
               <div className="border-t border-gray-200 pt-5">
-                <h3 className="text-sm font-bold text-gray-900 mb-3">
-                  Audio Samples ({files.length}/{MIN_FILES} minimum required)
-                </h3>
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-bold text-gray-900">
+                    Audio Samples ({files.length}/{MIN_FILES} minimum required)
+                  </h3>
+                  <div className="text-xs text-gray-600">
+                    Duration: {formatDuration(totalDuration)} / {MIN_TOTAL_DURATION_MINUTES}:00 min
+                  </div>
+                </div>
 
                 {/* Upload Area */}
                 <div
@@ -1286,18 +1456,32 @@ export default function PVCCreationWizard({ isOpen, onClose, projectId, onSucces
             </button>
             
             {currentStep === 1 ? (
-              <button
-                onClick={() => setCurrentStep(2)}
-                disabled={!canProceedToStep2()}
-                className={`flex items-center space-x-2 px-6 py-2 rounded-lg transition-all ${
-                  canProceedToStep2()
-                    ? 'bg-purple-600 text-white hover:bg-purple-700'
-                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                }`}
-              >
-                <span>Continue</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
+              <div className="relative group">
+                <button
+                  onClick={() => {
+                    if (validateStep1()) {
+                      setCurrentStep(2)
+                    }
+                  }}
+                  disabled={!canProceedToStep2()}
+                  className={`flex items-center space-x-2 px-6 py-2 rounded-lg transition-all ${
+                    canProceedToStep2()
+                      ? 'bg-purple-600 text-white hover:bg-purple-700'
+                      : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  }`}
+                >
+                  <span>Continue</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+                
+                {/* Simple Tooltip */}
+                {!canProceedToStep2() && (
+                  <div className="absolute bottom-full right-0 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 max-w-xs whitespace-nowrap">
+                    {getDisabledReason().split('\n• ').join(' • ')}
+                    <div className="absolute top-full right-6 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+                  </div>
+                )}
+              </div>
             ) : currentStep === 2 ? (
               <button
                 onClick={handleCreateVoice}
