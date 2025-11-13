@@ -126,22 +126,20 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, projectId }) => {
           href: `/project/${projectId}/behavior-settings`,
           icon: Brain
         },
-        {
+         {
           title: 'Profile Settings',
           href: `/project/${projectId}/profile-settings`,
           icon: User
-        }
-      ]
-      
-      // Only show Publish Manager if NOT super admin viewing someone else's expert
-      if (!isAdminViewing) {
-        items.push({
+        },
+      {
           title: 'Publish Manager',
           href: `/project/${projectId}/publish`,
           icon: Share2
-
-        })
       }
+      ]
+      
+      // Only show Publish Manager if NOT super admin viewing someone else's expert
+   
       
       return items
     }

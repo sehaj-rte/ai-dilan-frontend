@@ -8,12 +8,18 @@ import { Button } from '@/components/ui/button'
 import { Switch } from '@/components/ui/switch'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
+import { useToast, ToastContainer } from '@/components/ui/toast'
+import { useSlugValidation } from '@/hooks/useSlugValidation'
 import { 
   Globe, 
   Lock, 
   Eye,
   CheckCircle,
-  Radio
+  Radio,
+  AlertCircle,
+  Loader2,
+  Copy,
+  Check
 } from 'lucide-react'
 import { API_URL } from '@/lib/config'
 import { fetchWithAuth, getAuthHeaders } from '@/lib/api-client'
@@ -36,11 +42,13 @@ interface Publication {
 const PublishManagerPage = () => {
   const params = useParams()
   const projectId = params.id as string
+  const { toasts, removeToast, success, error, warning, info } = useToast()
 
   const [publication, setPublication] = useState<Publication | null>(null)
   const [loading, setLoading] = useState(true)
   const [isPublishing, setIsPublishing] = useState(false)
   const [expert, setExpert] = useState<any>(null)
+  const [isCopied, setIsCopied] = useState(false)
 
   // Publish form state
   const [publishForm, setPublishForm] = useState({
@@ -48,6 +56,16 @@ const PublishManagerPage = () => {
     is_published: false,
     is_private: false // Requires authentication
   })
+
+  // Slug validation
+  const {
+    validateSlug,
+    isChecking: isCheckingSlug,
+    validationResult,
+    getValidationStatus,
+    getStatusMessage,
+    getStatusColor
+  } = useSlugValidation({ expertId: projectId })
 
   // Pricing plans state
   const [selectedPlan, setSelectedPlan] = useState('basic')
@@ -61,6 +79,13 @@ const PublishManagerPage = () => {
     fetchPublicationData()
     fetchExpertData()
   }, [projectId])
+
+  // Validate slug when form slug changes
+  useEffect(() => {
+    if (publishForm.slug && publishForm.slug.length >= 2) {
+      validateSlug(publishForm.slug)
+    }
+  }, [publishForm.slug, validateSlug])
 
   const fetchExpertData = async () => {
     try {
@@ -135,19 +160,19 @@ const PublishManagerPage = () => {
       
       if (data.success) {
         setPublishForm({ ...publishForm, is_published: published })
-        alert(`Expert ${published ? 'published' : 'unpublished'} successfully!`)
+        success(`Expert ${published ? 'published' : 'unpublished'} successfully!`)
         if (published && data.public_url) {
           console.log(`Expert is now live at: ${data.public_url}`)
         }
         fetchPublicationData() // Refresh data
       } else {
-        alert(`Failed to ${published ? 'publish' : 'unpublish'} expert: ` + (data.detail || data.error))
+        error(`Failed to ${published ? 'publish' : 'unpublish'} expert: ` + (data.detail || data.error))
         // Reset toggle if failed
         setPublishForm({ ...publishForm, is_published: !published })
       }
-    } catch (error) {
-      console.error('Error toggling publish status:', error)
-      alert('Error updating publish status. Please try again.')
+    } catch (err) {
+      console.error('Error toggling publish status:', err)
+      error('Error updating publish status. Please try again.')
       // Reset toggle if failed
       setPublishForm({ ...publishForm, is_published: !publishForm.is_published })
     } finally {
@@ -158,7 +183,23 @@ const PublishManagerPage = () => {
   const createPublication = async () => {
     try {
       if (!publishForm.slug) {
-        alert('Please enter a slug first')
+        warning('Please enter a slug first')
+        return
+      }
+
+      // Check slug availability before creating
+      if (getValidationStatus() === 'unavailable') {
+        error('Slug is not available. Please choose a different one.')
+        return
+      }
+
+      if (getValidationStatus() === 'invalid') {
+        error('Slug is invalid. Please fix the validation errors.')
+        return
+      }
+
+      if (getValidationStatus() === 'checking') {
+        warning('Please wait for slug validation to complete')
         return
       }
 
@@ -201,7 +242,7 @@ const PublishManagerPage = () => {
       console.log('Response data:', data)
 
       if (data.success) {
-        alert('Publication created successfully!')
+        success('Publication created successfully!')
         
         // Auto-publish after creation
         const publishResponse = await fetchWithAuth(`${API_URL}/publishing/experts/${projectId}/publish`, {
@@ -212,21 +253,21 @@ const PublishManagerPage = () => {
         const publishData = await publishResponse.json()
 
         if (publishData.success) {
-          alert('Expert published successfully!')
+          success('Expert published successfully!')
         } else {
-          alert('Publication created but failed to publish: ' + (publishData.detail || publishData.error))
+          error('Publication created but failed to publish: ' + (publishData.detail || publishData.error))
         }
         
         fetchPublicationData()
       } else {
         const errorMsg = data.detail || data.error || 'Unknown error'
         console.error('Publication creation error:', data)
-        alert('Failed to create publication: ' + errorMsg)
+        error('Failed to create publication: ' + errorMsg)
       }
-    } catch (error: any) {
-      console.error('Error creating publication:', error)
-      const errorMsg = error.response?.data?.detail || error.message || 'Please try again'
-      alert('Error creating publication: ' + errorMsg)
+    } catch (err: any) {
+      console.error('Error creating publication:', err)
+      const errorMsg = err.response?.data?.detail || err.message || 'Please try again'
+      error('Error creating publication: ' + errorMsg)
     } finally {
       setIsPublishing(false)
     }
@@ -240,6 +281,24 @@ const PublishManagerPage = () => {
       if (!publication) {
         await createPublication()
         return
+      }
+
+      // Check slug availability if slug has changed
+      if (publishForm.slug !== publication.slug) {
+        if (getValidationStatus() === 'unavailable') {
+          error('Slug is not available. Please choose a different one.')
+          return
+        }
+
+        if (getValidationStatus() === 'invalid') {
+          error('Slug is invalid. Please fix the validation errors.')
+          return
+        }
+
+        if (getValidationStatus() === 'checking') {
+          warning('Please wait for slug validation to complete')
+          return
+        }
       }
 
       // Update publication with latest expert data
@@ -267,14 +326,14 @@ const PublishManagerPage = () => {
       const data = await response.json()
 
       if (data.success) {
-        alert('Publication updated successfully!')
+        success('Publication updated successfully!')
         fetchPublicationData()
       } else {
-        alert('Failed to update publication: ' + (data.detail || data.error))
+        error('Failed to update publication: ' + (data.detail || data.error))
       }
-    } catch (error) {
-      console.error('Error republishing:', error)
-      alert('Error republishing. Please try again.')
+    } catch (err) {
+      console.error('Error republishing:', err)
+      error('Error republishing. Please try again.')
     } finally {
       setIsPublishing(false)
     }
@@ -282,10 +341,39 @@ const PublishManagerPage = () => {
 
   const handlePublishChange = (field: string, value: any) => {
     setPublishForm({ ...publishForm, [field]: value })
+    
+    // Trigger slug validation when slug changes
+    if (field === 'slug' && value) {
+      validateSlug(value)
+    }
+  }
+
+  // Clean slug input to only allow valid characters
+  const handleSlugChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const rawValue = e.target.value
+    // Allow only lowercase letters, numbers, and hyphens
+    const cleanedValue = rawValue.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-')
+    handlePublishChange('slug', cleanedValue)
   }
 
   const handlePlanSelect = (planId: string) => {
     setSelectedPlan(planId)
+  }
+
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      setIsCopied(true)
+      success('URL copied to clipboard!')
+      
+      // Reset the copied state after 2 seconds
+      setTimeout(() => {
+        setIsCopied(false)
+      }, 2000)
+    } catch (err) {
+      console.error('Failed to copy text: ', err)
+      error('Failed to copy URL')
+    }
   }
 
   if (loading) {
@@ -300,6 +388,7 @@ const PublishManagerPage = () => {
 
   return (
     <DashboardLayout>
+      <ToastContainer toasts={toasts} onClose={removeToast} />
       <div className="max-w-4xl mx-auto p-6">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-gray-900">Publish Manager</h1>
@@ -321,7 +410,7 @@ const PublishManagerPage = () => {
               <Button 
                 className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
                 onClick={handleRepublish}
-                disabled={!publishForm.slug || isPublishing}
+                disabled={!publishForm.slug || isPublishing || isCheckingSlug || getValidationStatus() === 'unavailable' || getValidationStatus() === 'invalid'}
               >
                 {isPublishing ? (
                   <>
@@ -350,26 +439,82 @@ const PublishManagerPage = () => {
               {/* Slug */}
               <div>
                 <Label className="block text-sm font-medium text-gray-700 mb-2">
-                  Public URL Slug
+                  Public URL Slug *
                 </Label>
                 <div className="flex items-center flex-1">
                   <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500 text-sm">
                     /expert/
                   </span>
-                  <Input
-                    value={publishForm.slug}
-                    onChange={(e) => handlePublishChange('slug', e.target.value)}
-                    placeholder="your-expert-name"
-                    className="flex-1 min-w-0 block w-full px-3 py-2 rounded-none rounded-r-md"
-                  />
+                  <div className="relative flex-1">
+                    <Input
+                      value={publishForm.slug}
+                      onChange={handleSlugChange}
+                      placeholder="your-expert-name"
+                      className={`flex-1 min-w-0 block w-full px-3 py-2 rounded-none rounded-r-md pr-10 ${
+                        getValidationStatus() === 'available' ? 'border-green-500 focus:border-green-500' :
+                        getValidationStatus() === 'unavailable' ? 'border-red-500 focus:border-red-500' :
+                        getValidationStatus() === 'invalid' ? 'border-orange-500 focus:border-orange-500' :
+                        getValidationStatus() === 'error' ? 'border-red-500 focus:border-red-500' :
+                        'border-gray-300'
+                      }`}
+                      required
+                    />
+                    {/* Status Icon */}
+                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                      {isCheckingSlug && (
+                        <Loader2 className="h-4 w-4 text-blue-500 animate-spin" />
+                      )}
+                      {!isCheckingSlug && getValidationStatus() === 'available' && (
+                        <CheckCircle className="h-4 w-4 text-green-500" />
+                      )}
+                      {!isCheckingSlug && getValidationStatus() === 'invalid' && (
+                        <AlertCircle className="h-4 w-4 text-orange-500" />
+                      )}
+                      {!isCheckingSlug && (getValidationStatus() === 'unavailable' || getValidationStatus() === 'error') && (
+                        <AlertCircle className="h-4 w-4 text-red-500" />
+                      )}
+                    </div>
+                  </div>
                 </div>
-                <p className="text-xs text-gray-500 mt-1">
-                  {publishForm.slug ? (
-                    <>
-                      Your public URL: <span className="text-blue-600 font-medium">{typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}/expert/{publishForm.slug}</span>
-                    </>
-                  ) : 'Enter a unique slug for your expert'}
-                </p>
+                
+                {/* Status Message */}
+                {publishForm.slug && (
+                  <div className={`text-xs mt-1 flex items-center ${getStatusColor()}`}>
+                    {getStatusMessage()}
+                  </div>
+                )}
+                
+                {/* URL Preview */}
+                <div className="text-xs text-gray-500 mt-1">
+                  {publishForm.slug && getValidationStatus() === 'available' ? (
+                    <div className="flex items-center gap-2">
+                      <span>✅ Your public URL:</span>
+                      <span className="text-blue-600 font-medium">
+                        {typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}/expert/{validationResult?.slug || publishForm.slug}
+                      </span>
+                      <button
+                        onClick={() => copyToClipboard(`${typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}/expert/${validationResult?.slug || publishForm.slug}`)}
+                        className="inline-flex items-center justify-center w-5 h-5 rounded hover:bg-gray-100 transition-colors"
+                        title="Copy URL to clipboard"
+                      >
+                        {isCopied ? (
+                          <Check className="w-3 h-3 text-green-500" />
+                        ) : (
+                          <Copy className="w-3 h-3 text-gray-400 hover:text-gray-600" />
+                        )}
+                      </button>
+                    </div>
+                  ) : publishForm.slug ? (
+                    <div className="flex items-center gap-2">
+                      <span>Preview URL:</span>
+                      <span className="text-gray-400">
+                        {typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}/expert/{publishForm.slug}
+                      </span>
+                    </div>
+                  ) : (
+                    <span>Enter a unique slug for your expert (only lowercase letters, numbers, and hyphens)</span>
+                  )}
+                </div>
               </div>
 
               {/* Visibility Radio Buttons */}
