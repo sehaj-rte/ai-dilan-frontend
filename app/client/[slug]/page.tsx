@@ -10,6 +10,7 @@ import SpeechToTextInput from '@/components/ui/speech-to-text-input'
 import { API_URL } from '@/lib/config'
 import { RootState } from '@/store/store'
 import { loadUserFromStorage, logout } from '@/store/slices/authSlice'
+import PaymentModal from '@/components/client/PaymentModal'
 import { 
   MessageCircle, 
   Phone, 
@@ -79,7 +80,7 @@ interface Template {
   }
 }
 
-const PublicExpertPage = () => {
+const ClientExpertPage = () => {
   const params = useParams()
   const router = useRouter()
   const dispatch = useDispatch()
@@ -96,6 +97,8 @@ const PublicExpertPage = () => {
   const [error, setError] = useState<string | null>(null)
   const [showFullDescription, setShowFullDescription] = useState(false)
   const [questionText, setQuestionText] = useState('')
+  const [showPaymentModal, setShowPaymentModal] = useState(false)
+  const [selectedSessionType, setSelectedSessionType] = useState<'chat' | 'call'>('chat')
 
   const convertS3UrlToProxy = (s3Url: string): string => {
     if (!s3Url) return s3Url
@@ -120,45 +123,19 @@ const PublicExpertPage = () => {
     try {
       setLoading(true)
       
-      // Fetch expert data directly by ID (no publication required)
-      const response = await fetch(`${API_URL}/experts/${slug}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('dilan_ai_token')}`,
-          'Content-Type': 'application/json'
-        }
-      })
+      const response = await fetch(`${API_URL}/publishing/public/expert/${slug}`)
       const data = await response.json()
       
-      if (data.success && data.expert) {
+      if (data.success) {
         setExpert({
           ...data.expert,
           avatar_url: data.expert?.avatar_url ? convertS3UrlToProxy(data.expert.avatar_url) : null
         })
-        // Set default publication data for styling
-        setPublication({
-          id: data.expert.id,
-          slug: data.expert.id,
-          display_name: data.expert.name,
-          tagline: data.expert.headline || '',
-          description: data.expert.description || '',
-          is_private: false,
-          category: 'general',
-          specialty: 'general',
-          pricing_model: 'free',
-          price_per_session: 0,
-          price_per_minute: 0,
-          monthly_subscription_price: 0,
-          free_trial_minutes: 0,
-          primary_color: '#3B82F6',
-          secondary_color: '#1E40AF',
-          theme: 'default',
-          view_count: 0,
-          template_category: 'general'
-        })
-        setContentSections([])
-        setTemplate(null)
+        setPublication(data.publication)
+        setContentSections(data.content_sections || [])
+        setTemplate(data.template)
       } else {
-        setError('Expert not found or access denied')
+        setError('Expert not found or not published')
       }
     } catch (error) {
       console.error('Error fetching expert data:', error)
@@ -169,21 +146,44 @@ const PublicExpertPage = () => {
   }
 
   const handleStartChat = () => {
-    // Redirect to chat interface with slug
-    router.push(`/expert/${slug}/chat`)
+    if (!isAuthenticated) {
+      router.push(`/client/login?redirect=/client/${slug}`)
+      return
+    }
+    
+    // Show payment modal for chat
+    setSelectedSessionType('chat')
+    setShowPaymentModal(true)
   }
 
   const handleStartCall = () => {
-    // Redirect to call interface with slug
-    router.push(`/expert/${slug}/call`)
+    if (!isAuthenticated) {
+      router.push(`/client/login?redirect=/client/${slug}`)
+      return
+    }
+    
+    // Show payment modal for call
+    setSelectedSessionType('call')
+    setShowPaymentModal(true)
+  }
+
+  const handlePaymentSuccess = (sessionId: string) => {
+    // Close modal and redirect to chat/call interface
+    setShowPaymentModal(false)
+    router.push(`/client/${slug}/${selectedSessionType}?session_id=${sessionId}`)
+  }
+
+  const getUserToken = () => {
+    // Get token from localStorage
+    return localStorage.getItem('token')
   }
 
   const handleQuestionSubmit = () => {
     // Redirect to chat page with the question as URL parameter
     if (questionText.trim()) {
-      router.push(`/expert/${slug}/chat?q=${encodeURIComponent(questionText.trim())}`)
+      router.push(`/client/${slug}/chat?q=${encodeURIComponent(questionText.trim())}`)
     } else {
-      router.push(`/expert/${slug}/chat`)
+      router.push(`/client/${slug}/chat`)
     }
   }
 
@@ -223,7 +223,7 @@ const PublicExpertPage = () => {
         <div className="text-center">
           <h1 className="text-2xl font-bold text-gray-900 mb-4">Expert Not Found</h1>
           <p className="text-gray-600 mb-6">{error || 'The expert you are looking for is not available.'}</p>
-          <Button onClick={() => router.push('/experts')}>
+          <Button onClick={() => router.push('/client/dashboard')}>
             Browse All Experts
           </Button>
         </div>
@@ -235,9 +235,9 @@ const PublicExpertPage = () => {
   const primaryColor = publication.primary_color || '#3B82F6'
   const secondaryColor = publication.secondary_color || '#1E40AF'
 
-  // Redirect to login if not authenticated (expert testing requires auth)
-  if (!loading && !isAuthenticated) {
-    router.push(`/expert/login?redirect=/expert/${slug}`)
+  // Redirect to login for private publications
+  if (!loading && publication?.is_private && !isAuthenticated) {
+    router.push(`/client/login?redirect=/client/${slug}`)
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
@@ -256,7 +256,7 @@ const PublicExpertPage = () => {
             </div>
             
             {/* User Info & Logout */}
-            {isAuthenticated && user && (
+            {isAuthenticated && user ? (
               <div className="flex items-center gap-3">
                 <div className="text-right">
                   <p className="text-sm font-medium text-gray-900">{user.email}</p>
@@ -266,12 +266,32 @@ const PublicExpertPage = () => {
                   size="sm"
                   onClick={() => {
                     dispatch(logout())
-                    router.push('/auth/login')
+                    router.push('/client/login')
                   }}
                   className="flex items-center gap-2"
                 >
                   <LogOut className="h-4 w-4" />
                   Logout
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => router.push('/client/login')}
+                  className="flex items-center gap-2"
+                >
+                  <LogIn className="h-4 w-4" />
+                  Login
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => router.push('/client/signup')}
+                  className="flex items-center gap-2"
+                  style={{ backgroundColor: primaryColor }}
+                >
+                  Sign Up
                 </Button>
               </div>
             )}
@@ -380,8 +400,20 @@ const PublicExpertPage = () => {
 
         </div>
       </div>
+
+      {/* Payment Modal */}
+      {publication && (
+        <PaymentModal
+          isOpen={showPaymentModal}
+          onClose={() => setShowPaymentModal(false)}
+          publication={publication}
+          sessionType={selectedSessionType}
+          onPaymentSuccess={handlePaymentSuccess}
+          userToken={getUserToken() || undefined}
+        />
+      )}
     </div>
   )
 }
 
-export default PublicExpertPage
+export default ClientExpertPage

@@ -58,7 +58,7 @@ interface Publication {
   is_private: boolean
 }
 
-const ExpertChatPage = () => {
+const ClientChatPage = () => {
   const params = useParams()
   const searchParams = useSearchParams()
   const router = useRouter()
@@ -102,6 +102,8 @@ const ExpertChatPage = () => {
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [inputText, setInputText] = useState('')
   const [sessionId, setSessionId] = useState<string | null>(null) // OpenAI session
+  const [paymentSessionId, setPaymentSessionId] = useState<string | null>(null) // Payment session
+  const [paymentSessionValid, setPaymentSessionValid] = useState<boolean | null>(null)
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [currentConvId, setCurrentConvId] = useState<string | null>(null)
   const [editingTitleId, setEditingTitleId] = useState<string | null>(null)
@@ -147,6 +149,58 @@ const ExpertChatPage = () => {
     dispatch(loadUserFromStorage())
   }, [])
 
+  // Check for payment session ID and validate it
+  useEffect(() => {
+    const sessionIdParam = searchParams.get('session_id')
+    if (sessionIdParam) {
+      setPaymentSessionId(sessionIdParam)
+      validatePaymentSession(sessionIdParam)
+    } else {
+      // If no session ID, check if user needs to pay
+      checkPaymentRequirement()
+    }
+  }, [searchParams, isAuthenticated])
+
+  const validatePaymentSession = async (sessionId: string) => {
+    if (!isAuthenticated) {
+      setPaymentSessionValid(false)
+      return
+    }
+
+    try {
+      const token = localStorage.getItem('token')
+      const response = await fetch(`${API_URL}/payments/session/${sessionId}/status`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      const data = await response.json()
+      if (data.success && data.session.payment_status === 'succeeded') {
+        setPaymentSessionValid(true)
+      } else {
+        setPaymentSessionValid(false)
+        // Redirect back to expert page for payment
+        router.push(`/client/${slug}`)
+      }
+    } catch (error) {
+      console.error('Error validating payment session:', error)
+      setPaymentSessionValid(false)
+      router.push(`/client/${slug}`)
+    }
+  }
+
+  const checkPaymentRequirement = () => {
+    // If no payment session and user is authenticated, they need to pay
+    if (isAuthenticated && !paymentSessionId) {
+      // For now, allow free access - in production you might want to redirect to payment
+      setPaymentSessionValid(true)
+    } else if (!isAuthenticated) {
+      // Redirect to login
+      router.push(`/client/login?redirect=/client/${slug}/chat`)
+    }
+  }
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -181,26 +235,14 @@ const ExpertChatPage = () => {
     const loadExpert = async () => {
       try {
         setIsLoadingExpert(true)
-        // Fetch expert data directly by ID (no publication required)
-        const res = await fetch(`${API_URL}/experts/${slug}`, {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('dilan_ai_token')}`,
-            'Content-Type': 'application/json'
-          }
-        })
+        const res = await fetch(`${API_URL}/publishing/public/expert/${slug}`)
         const data = await res.json()
-        if (data.success && data.expert) {
+        if (data.success) {
           setExpert({
             ...data.expert,
             avatar_url: data.expert?.avatar_url ? convertS3UrlToProxy(data.expert.avatar_url) : null
           })
-          // Set default publication data for styling
-          setPublication({
-            primary_color: '#3B82F6',
-            secondary_color: '#1E40AF',
-            theme: 'default',
-            is_private: false
-          })
+          setPublication(data.publication)
           // Reset image loading states when expert data changes
           if (data.expert?.avatar_url) {
             setExpertImageLoading(true)
@@ -1102,9 +1144,9 @@ const ExpertChatPage = () => {
   const primaryColor = publication?.primary_color || '#3B82F6'
   const secondaryColor = publication?.secondary_color || '#1E40AF'
 
-  // Redirect to login if not authenticated (expert testing requires auth)
-  if (!isLoadingExpert && !isAuthenticated) {
-    router.push(`/expert/login?redirect=/expert/${slug}/chat`)
+  // Redirect to login for private publications
+  if (!isLoadingExpert && publication?.is_private && !isAuthenticated) {
+    router.push(`/client/login?redirect=/client/${slug}/chat`)
     return (
       <div className="flex h-screen items-center justify-center bg-white">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
@@ -1133,10 +1175,36 @@ const ExpertChatPage = () => {
       <div className="flex h-screen items-center justify-center bg-white">
         <div className="text-center">
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Failed to load expert</h2>
-          <p className="text-gray-500 mb-4">The expert could not be found or is not published</p>
-          <Button onClick={() => router.push(`/project/${slug}/chat`)} className="bg-gray-900 hover:bg-gray-800">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Project
+          <p className="text-gray-600 mb-4">Please try again later</p>
+          <Button onClick={() => router.push(`/client/${slug}`)}>
+            Go Back
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  // Show loading screen while validating payment
+  if (paymentSessionValid === null) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-white">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
+          <p className="text-gray-600">Validating access...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Show payment required screen if payment session is invalid
+  if (paymentSessionValid === false) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-white">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Payment Required</h2>
+          <p className="text-gray-600 mb-4">Please complete payment to access this chat</p>
+          <Button onClick={() => router.push(`/client/${slug}`)}>
+            Go to Payment
           </Button>
         </div>
       </div>
@@ -1182,7 +1250,7 @@ const ExpertChatPage = () => {
               <LogIn className="h-8 w-8 mx-auto mb-2 opacity-50" />
               <p className="mb-2">Login to save your chat history</p>
               <Button
-                onClick={() => router.push('/auth/login')}
+                onClick={() => router.push('/client/login')}
                 size="sm"
                 className="w-full"
                 style={{ backgroundColor: primaryColor }}
@@ -1530,7 +1598,7 @@ const ExpertChatPage = () => {
               </>
             ) : (
               <Button
-                onClick={() => router.push('/auth/login')}
+                onClick={() => router.push('/client/login')}
                 size="sm"
                 className="text-xs sm:text-sm"
                 style={{ backgroundColor: primaryColor }}
@@ -2016,4 +2084,4 @@ const ExpertChatPage = () => {
   )
 }
 
-export default ExpertChatPage
+export default ClientChatPage

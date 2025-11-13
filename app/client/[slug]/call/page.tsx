@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { useSelector, useDispatch } from 'react-redux'
 import { Button } from '@/components/ui/button'
 import { API_URL } from '@/lib/config'
@@ -29,8 +29,9 @@ interface Publication {
   theme: string
 }
 
-const ExpertCallPage = () => {
+const ClientCallPage = () => {
   const params = useParams()
+  const searchParams = useSearchParams()
   const router = useRouter()
   const dispatch = useDispatch()
   const slug = params.slug as string
@@ -44,6 +45,8 @@ const ExpertCallPage = () => {
   const [error, setError] = useState<string | null>(null)
   const [callDuration, setCallDuration] = useState(0)
   const [timerInterval, setTimerInterval] = useState<NodeJS.Timeout | null>(null)
+  const [paymentSessionId, setPaymentSessionId] = useState<string | null>(null)
+  const [paymentSessionValid, setPaymentSessionValid] = useState<boolean | null>(null)
 
   const convertS3UrlToProxy = (s3Url: string): string => {
     if (!s3Url) return s3Url as any
@@ -77,34 +80,73 @@ const ExpertCallPage = () => {
     fetchExpertData()
   }, [slug])
 
-  const fetchExpertData = async () => {
+  // Check for payment session ID and validate it
+  useEffect(() => {
+    const sessionIdParam = searchParams.get('session_id')
+    if (sessionIdParam) {
+      setPaymentSessionId(sessionIdParam)
+      validatePaymentSession(sessionIdParam)
+    } else {
+      // If no session ID, check if user needs to pay
+      checkPaymentRequirement()
+    }
+  }, [searchParams, isAuthenticated])
+
+  const validatePaymentSession = async (sessionId: string) => {
+    if (!isAuthenticated) {
+      setPaymentSessionValid(false)
+      return
+    }
+
     try {
-      // Fetch expert data directly by ID (no publication required)
-      const response = await fetch(`${API_URL}/experts/${slug}`, {
+      const token = localStorage.getItem('token')
+      const response = await fetch(`${API_URL}/payments/session/${sessionId}/status`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('dilan_ai_token')}`,
-          'Content-Type': 'application/json'
+          'Authorization': `Bearer ${token}`
         }
       })
+
+      const data = await response.json()
+      if (data.success && data.session.payment_status === 'succeeded') {
+        setPaymentSessionValid(true)
+      } else {
+        setPaymentSessionValid(false)
+        // Redirect back to expert page for payment
+        router.push(`/client/${slug}`)
+      }
+    } catch (error) {
+      console.error('Error validating payment session:', error)
+      setPaymentSessionValid(false)
+      router.push(`/client/${slug}`)
+    }
+  }
+
+  const checkPaymentRequirement = () => {
+    // If no payment session and user is authenticated, they need to pay
+    if (isAuthenticated && !paymentSessionId) {
+      // For now, allow free access - in production you might want to redirect to payment
+      setPaymentSessionValid(true)
+    } else if (!isAuthenticated) {
+      // Redirect to login
+      router.push(`/client/login?redirect=/client/${slug}/call`)
+    }
+  }
+
+  const fetchExpertData = async () => {
+    try {
+      setLoading(true)
+      
+      const response = await fetch(`${API_URL}/publishing/public/expert/${slug}`)
       const data = await response.json()
       
-      if (data.success && data.expert) {
+      if (data.success) {
         setExpert({
           ...data.expert,
           avatar_url: data.expert?.avatar_url ? convertS3UrlToProxy(data.expert.avatar_url) : null
         })
-        // Set default publication data for styling
-        setPublication({
-          id: data.expert.id,
-          slug: data.expert.id,
-          display_name: data.expert.name,
-          is_published: true,
-          primary_color: '#3B82F6',
-          secondary_color: '#1E40AF',
-          theme: 'default'
-        })
+        setPublication(data.publication)
       } else {
-        setError('Expert not found or access denied')
+        setError('Expert not found or not published')
       }
     } catch (error) {
       console.error('Error fetching expert data:', error)
@@ -161,11 +203,11 @@ const ExpertCallPage = () => {
   }
 
   const handleBack = () => {
-    router.push(`/project/${slug}/chat`)
+    router.push(`/client/${slug}`)
   }
 
   const handleGoToChat = () => {
-    router.push(`/project/${slug}/chat`)
+    router.push(`/client/${slug}/chat`)
   }
 
   const handleLogout = () => {
@@ -214,6 +256,33 @@ const ExpertCallPage = () => {
           <p className="text-gray-600 mb-6">{error || 'The expert you are looking for is not available.'}</p>
           <Button onClick={() => router.push('/experts')}>
             Browse All Experts
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
+  // Show loading screen while validating payment
+  if (paymentSessionValid === null) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-white">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
+          <p className="text-gray-600">Validating access...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Show payment required screen if payment session is invalid
+  if (paymentSessionValid === false) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-white">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Payment Required</h2>
+          <p className="text-gray-600 mb-4">Please complete payment to access this call</p>
+          <Button onClick={() => router.push(`/client/${slug}`)}>
+            Go to Payment
           </Button>
         </div>
       </div>
@@ -561,4 +630,4 @@ const ExpertCallPage = () => {
   )
 }
 
-export default ExpertCallPage
+export default ClientCallPage

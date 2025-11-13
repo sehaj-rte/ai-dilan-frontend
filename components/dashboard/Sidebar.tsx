@@ -21,7 +21,8 @@ import {
   Plus,
   BookOpen,
   Mic2,
-  Share2
+  Share2,
+  TestTube
 } from 'lucide-react'
 
 const sidebarItems = [
@@ -120,6 +121,11 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, projectId }) => {
           title: 'Test Knowledge Base',
           href: `/project/${projectId}/chat`,
           icon: MessageSquare
+        },
+        {
+          title: 'Test Expert',
+          href: `/expert/test/${projectId}`,
+          icon: TestTube
         },
         {
           title: 'AI Behavior Settings',

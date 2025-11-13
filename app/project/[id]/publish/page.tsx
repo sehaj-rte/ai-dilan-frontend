@@ -490,10 +490,10 @@ const PublishManagerPage = () => {
                     <div className="flex items-center gap-2">
                       <span>✅ Your public URL:</span>
                       <span className="text-blue-600 font-medium">
-                        {typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}/expert/{validationResult?.slug || publishForm.slug}
+                        {typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}/client/{validationResult?.slug || publishForm.slug}
                       </span>
                       <button
-                        onClick={() => copyToClipboard(`${typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}/expert/${validationResult?.slug || publishForm.slug}`)}
+                        onClick={() => copyToClipboard(`${typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}/client/${validationResult?.slug || publishForm.slug}`)}
                         className="inline-flex items-center justify-center w-5 h-5 rounded hover:bg-gray-100 transition-colors"
                         title="Copy URL to clipboard"
                       >
@@ -508,7 +508,7 @@ const PublishManagerPage = () => {
                     <div className="flex items-center gap-2">
                       <span>Preview URL:</span>
                       <span className="text-gray-400">
-                        {typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}/expert/{publishForm.slug}
+                        {typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'}/client/{publishForm.slug}
                       </span>
                     </div>
                   ) : (

@@ -111,30 +111,15 @@ const ChatPage = () => {
   }
 
   const handleStartChat = () => {
-    console.log('🖱️ Chat button clicked')
-    console.log('📋 Current publication state:', publication)
-    
-    // If published, redirect to public slug chat
-    if (publication && publication.slug) {
-      console.log('✅ Redirecting to:', `/expert/${publication.slug}/chat`)
-      router.push(`/expert/${publication.slug}/chat`)
-    } else {
-      console.log('❌ No publication found, redirecting to publish manager')
-      // If not published, show alert and redirect to publish page
-      alert('Please publish your expert first to enable chat functionality.')
-      router.push(`/project/${expertId}/publish-manager`)
-    }
+    console.log('🖱️ Redirecting to expert chat using ID:', expertId)
+    // Redirect to expert chat using expert ID (no publication required)
+    router.push(`/expert/${expertId}/chat`)
   }
 
   const handleStartCall = () => {
-    // If published, redirect to public slug call
-    if (publication && publication.slug) {
-      router.push(`/expert/${publication.slug}/call`)
-    } else {
-      // If not published, show alert and redirect to publish page
-      alert('Please publish your expert first to enable call functionality.')
-      router.push(`/project/${expertId}/publish-manager`)
-    }
+    console.log('📋 Redirecting to expert call using ID:', expertId)
+    // Redirect to expert call using expert ID (no publication required)
+    router.push(`/expert/${expertId}/call`)
   }
 
 
