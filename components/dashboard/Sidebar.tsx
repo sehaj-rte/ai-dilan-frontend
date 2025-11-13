@@ -21,7 +21,16 @@ import {
   Plus,
   BookOpen,
   Mic2,
-  Share2
+  Share2,
+  Puzzle,
+  ChevronDown,
+  ChevronRight,
+  Video,
+  Slack,
+  Upload,
+  FileAudio,
+  FileText,
+  Hash
 } from 'lucide-react'
 
 const sidebarItems = [
@@ -54,6 +63,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, projectId }) => {
   const { user } = useAppSelector((state) => state.auth)
   const [projectName, setProjectName] = useState<string>('')
   const [expertOwnerId, setExpertOwnerId] = useState<string | null>(null)
+  const [isIntegrationsOpen, setIsIntegrationsOpen] = useState(false)
 
   // Debug: Log user data
   useEffect(() => {
@@ -98,6 +108,40 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, projectId }) => {
     fetchProjectName()
   }, [projectId])
 
+  // Define integrations sub-items
+  const integrationItems = [
+    {
+      title: 'Meetings',
+      href: `/project/${projectId}/meetings`,
+      icon: Video
+    },
+    {
+      title: 'Slack',
+      href: `/project/${projectId}/integrations/slack`,
+      icon: Slack
+    },
+    {
+      title: 'Upload Files',
+      href: `/project/${projectId}/integrations/upload-files`,
+      icon: Upload
+    },
+    {
+      title: 'Voice Notes',
+      href: `/project/${projectId}/integrations/voice-notes`,
+      icon: Mic
+    },
+    {
+      title: 'Audio Files',
+      href: `/project/${projectId}/integrations/audio-files`,
+      icon: FileAudio
+    },
+    {
+      title: 'Text Notes',
+      href: `/project/${projectId}/integrations/text-notes`,
+      icon: FileText
+    }
+  ]
+
   // Create dynamic sidebar items based on context
   const dynamicSidebarItems = React.useMemo(() => {
     if (projectId) {
@@ -110,7 +154,6 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, projectId }) => {
           href: `/project/${projectId}/knowledge-base`,
           icon: BookOpen
         },
-        
         {
           title: 'Voice Studio',
           href: `/project/${projectId}/voice-studio`,
@@ -224,6 +267,53 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, projectId }) => {
             </Link>
           )
         })}
+
+        {/* Integrations Section - Only show in project context */}
+        {projectId && (
+          <div className="mt-4">
+            <button
+              onClick={() => setIsIntegrationsOpen(!isIntegrationsOpen)}
+              className="flex items-center justify-between w-full px-3 py-2 text-sm font-medium text-gray-600 rounded-lg hover:bg-gray-50 hover:text-gray-900 transition-colors"
+            >
+              <div className="flex items-center">
+                <Puzzle className="mr-3 h-5 w-5" />
+                Integrations
+              </div>
+              {isIntegrationsOpen ? (
+                <ChevronDown className="h-4 w-4" />
+              ) : (
+                <ChevronRight className="h-4 w-4" />
+              )}
+            </button>
+            
+            {/* Integration Sub-items */}
+            {isIntegrationsOpen && (
+              <div className="ml-6 mt-1 space-y-1">
+                {integrationItems.map((item) => {
+                  const Icon = item.icon
+                  const isActive = pathname?.startsWith(item.href)
+                  
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={handleLinkClick}
+                      className={cn(
+                        'flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors',
+                        isActive
+                          ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-700'
+                          : 'text-gray-500 hover:bg-gray-50 hover:text-gray-700'
+                      )}
+                    >
+                      <Icon className="mr-3 h-4 w-4" />
+                      {item.title}
+                    </Link>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )}
       </nav>
 
       {/* Logout */}
