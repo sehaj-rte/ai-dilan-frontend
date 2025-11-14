@@ -7,7 +7,6 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
 import { 
-  X, 
   Loader2, 
   AlertCircle, 
   Mail, 
@@ -86,19 +85,9 @@ const AuthModal: React.FC<AuthModalProps> = ({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <div className="flex items-center justify-between">
-            <DialogTitle className="text-xl font-bold">
-              {isLoginMode ? 'Welcome Back' : 'Create Account'}
-            </DialogTitle>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onClose}
-              className="h-8 w-8 p-0"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
+          <DialogTitle className="text-xl font-bold">
+            {isLoginMode ? 'Welcome Back' : 'Create Account'}
+          </DialogTitle>
           
           {sessionType && expertName && (
             <div className="flex items-center gap-2 text-gray-600 text-sm">

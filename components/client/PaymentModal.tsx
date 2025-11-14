@@ -13,7 +13,6 @@ import {
   MessageCircle, 
   Phone, 
   CheckCircle2,
-  X,
   Loader2,
   AlertCircle
 } from 'lucide-react'
@@ -199,19 +198,9 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <div className="flex items-center justify-between">
-            <DialogTitle className="text-2xl font-bold">
-              Choose Your Plan
-            </DialogTitle>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onClose}
-              className="h-8 w-8 p-0"
-            >
-              <X className="h-4 w-4" />
-            </Button>
-          </div>
+          <DialogTitle className="text-2xl font-bold">
+            Choose Your Plan
+          </DialogTitle>
           <div className="flex items-center gap-2 text-gray-600">
             {sessionType === 'chat' ? (
               <MessageCircle className="h-5 w-5" />

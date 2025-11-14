@@ -1408,12 +1408,12 @@ const ClientChatPage = () => {
         
         <div className="p-3 border-t border-gray-700">
           <Button
-            onClick={() => router.push(`/project/${expert?.id}/chat`)}
+            onClick={() => router.push(`/client/${slug}`)}
             variant="ghost"
             className="w-full text-white hover:bg-gray-800 hover:text-white"
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Dashboard
+            Back to Expert Profile
           </Button>
         </div>
       </div>
@@ -1474,7 +1474,7 @@ const ClientChatPage = () => {
           <div className="flex items-center space-x-2 sm:space-x-3 flex-shrink-0">
             {/* Call Button */}
             <Button
-              onClick={() => router.push(`/expert/${slug}/call`)}
+              onClick={() => router.push(`/client/${slug}/call`)}
               size="sm"
               className="hidden sm:flex items-center justify-center w-9 h-9 text-white border-0 shadow-sm mr-2 rounded-full"
               style={{ backgroundColor: primaryColor }}
@@ -1490,7 +1490,7 @@ const ClientChatPage = () => {
             
             {/* Mobile Call Button */}
             <Button
-              onClick={() => router.push(`/expert/${slug}/call`)}
+              onClick={() => router.push(`/client/${slug}/call`)}
               size="sm"
               className="sm:hidden flex items-center justify-center w-9 h-9 text-white border-0 shadow-sm mr-2 rounded-full"
               style={{ backgroundColor: primaryColor }}
