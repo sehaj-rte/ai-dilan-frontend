@@ -88,12 +88,18 @@ export function ClientAuthFlowProvider({ children }: { children: React.ReactNode
 
     // Step 1: Check if user is logged in
     const token = localStorage.getItem('dilan_ai_token')
-    const user = currentUser || (localStorage.getItem('dilan_ai_user') ? JSON.parse(localStorage.getItem('dilan_ai_user')!) : null)
-
-    if (!token || !user) {
+    const savedUserStr = localStorage.getItem('dilan_ai_user')
+    
+    if (!token || !savedUserStr) {
       // Show authentication modal
       setShowAuthModal(true)
       return
+    }
+
+    // Ensure currentUser is set from localStorage if not already set
+    const user = JSON.parse(savedUserStr)
+    if (!currentUser) {
+      setCurrentUser(user)
     }
 
     // Step 2: Check if user is the expert owner (no payment needed)

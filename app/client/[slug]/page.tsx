@@ -260,7 +260,7 @@ const ClientExpertPage = () => {
                     setCurrentUser(null)
                     localStorage.removeItem('dilan_ai_token')
                     localStorage.removeItem('dilan_ai_user')
-                    router.push('/client/login')
+                    router.push(`/client/${slug}`)
                   }}
                   className="flex items-center gap-2"
                 >

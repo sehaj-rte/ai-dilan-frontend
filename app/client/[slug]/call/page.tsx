@@ -128,7 +128,7 @@ const ClientCallPage = () => {
       setPaymentSessionValid(true)
     } else if (!isAuthenticated) {
       // Redirect to login
-      router.push(`/client/login?redirect=/client/${slug}/call`)
+      router.push(`/client/${slug}`)
     }
   }
 

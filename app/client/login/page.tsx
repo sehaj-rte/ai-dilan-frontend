@@ -1,35 +1,31 @@
 'use client'
 
-import React from 'react'
-import LoginForm from '@/components/auth/LoginForm'
-import Link from 'next/link'
+import { useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 
-const ClientLoginPage = () => {
-  const handleLoginSuccess = () => {
-    // Get redirect URL from query params or use default
-    const urlParams = new URLSearchParams(window.location.search)
-    const redirectUrl = urlParams.get('redirect') || '/client/dashboard'
-    window.location.href = redirectUrl
-  }
+export default function ClientLoginRedirect() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  
+  useEffect(() => {
+    // Get the redirect parameter or default to client dashboard
+    const redirect = searchParams.get('redirect') || '/client/dashboard'
+    
+    // Extract slug from redirect if it's a client route
+    const slugMatch = redirect.match(/\/client\/([^\/]+)/)
+    if (slugMatch) {
+      const slug = slugMatch[1]
+      // Redirect to the expert page where they can use the auth modal
+      router.replace(`/client/${slug}`)
+    } else {
+      // Redirect to main auth login
+      router.replace('/auth/login')
+    }
+  }, [router, searchParams])
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        
-        
-        <LoginForm onSuccess={handleLoginSuccess} />
-        
-        <div className="text-center mt-6">
-          <p className="text-sm text-gray-600">
-            Don't have an account?{' '}
-            <Link href="/client/signup" className="text-blue-600 hover:text-blue-700 font-medium">
-              Sign up here
-            </Link>
-          </p>
-        </div>
-      </div>
+    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
     </div>
   )
 }
-
-export default ClientLoginPage

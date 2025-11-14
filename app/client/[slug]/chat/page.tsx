@@ -168,7 +168,7 @@ const ClientChatPage = () => {
     }
 
     try {
-      const token = localStorage.getItem('token')
+   const token = localStorage.getItem('dilan_ai_token')  // ✅ Correct key
       const response = await fetch(`${API_URL}/payments/session/${sessionId}/status`, {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -197,7 +197,7 @@ const ClientChatPage = () => {
       setPaymentSessionValid(true)
     } else if (!isAuthenticated) {
       // Redirect to login
-      router.push(`/client/login?redirect=/client/${slug}/chat`)
+      router.push(`/client/${slug}`)
     }
   }
 
@@ -1146,7 +1146,7 @@ const ClientChatPage = () => {
 
   // Redirect to login for private publications
   if (!isLoadingExpert && publication?.is_private && !isAuthenticated) {
-    router.push(`/client/login?redirect=/client/${slug}/chat`)
+    router.push(`/client/${slug}`)
     return (
       <div className="flex h-screen items-center justify-center bg-white">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900"></div>
@@ -1250,7 +1250,7 @@ const ClientChatPage = () => {
               <LogIn className="h-8 w-8 mx-auto mb-2 opacity-50" />
               <p className="mb-2">Login to save your chat history</p>
               <Button
-                onClick={() => router.push('/client/login')}
+                onClick={() => router.push(`/client/${slug}`)}
                 size="sm"
                 className="w-full"
                 style={{ backgroundColor: primaryColor }}
@@ -1598,7 +1598,7 @@ const ClientChatPage = () => {
               </>
             ) : (
               <Button
-                onClick={() => router.push('/client/login')}
+                onClick={() => router.push(`/client/${slug}`)}
                 size="sm"
                 className="text-xs sm:text-sm"
                 style={{ backgroundColor: primaryColor }}
