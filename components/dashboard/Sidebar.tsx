@@ -117,7 +117,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, projectId }) => {
     },
     {
       title: 'Slack',
-      href: `/project/${projectId}/integrations/slack`,
+      href: `/project/${projectId}/slack`,
       icon: Slack
     },
     {
