@@ -16,9 +16,10 @@ interface AuthContextType {
   user: User | null
   token: string | null
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>
-  register: (email: string, username: string, password: string, fullName?: string) => Promise<{ success: boolean; error?: string }>
+  register: (email: string, username: string, password: string, fullName?: string, role?: string) => Promise<{ success: boolean; error?: string }>
   logout: () => void
   isLoading: boolean
+  handleExpertAccess: (publication: any, sessionType: 'chat' | 'call') => Promise<{ needsAuth?: boolean; redirect?: string; needsPayment?: boolean }>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -39,6 +40,54 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     setIsLoading(false)
   }, [])
+
+  // Helper functions for expert access
+  const checkExpertOwnership = async (userId: string, expertId: string): Promise<boolean> => {
+    try {
+      if (!token) return false
+      const response = await fetch(`${API_URL}/experts/check-ownership/${expertId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      const data = await response.json()
+      return data.success && data.is_owner
+    } catch (error) {
+      console.error('Error checking expert ownership:', error)
+      return false
+    }
+  }
+
+  const checkPaymentAccess = async (userId: string, publicationId: string): Promise<boolean> => {
+    try {
+      if (!token) return false
+      const response = await fetch(`${API_URL}/payments/check-access/${publicationId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      const data = await response.json()
+      return data.success && data.has_access
+    } catch (error) {
+      console.error('Error checking payment access:', error)
+      return false
+    }
+  }
+
+  // Add expert access handler
+  const handleExpertAccess = async (publication: any, sessionType: 'chat' | 'call') => {
+    if (!user) {
+      return { needsAuth: true }
+    }
+    
+    // Check if user owns the expert
+    if (await checkExpertOwnership(user.id, publication.expert_id)) {
+      return { redirect: `/client/${publication.slug}/${sessionType}` }
+    }
+    
+    // Check if user has paid
+    if (await checkPaymentAccess(user.id, publication.id)) {
+      return { redirect: `/client/${publication.slug}/${sessionType}` }
+    }
+    
+    return { needsPayment: true }
+  }
 
   const login = async (email: string, password: string) => {
     try {
@@ -69,7 +118,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const register = async (email: string, username: string, password: string, fullName?: string) => {
+  const register = async (email: string, username: string, password: string, fullName?: string, role: string = 'user') => {
     try {
       const response = await fetch(`${API_URL}/auth/register`, {
         method: 'POST',
@@ -80,7 +129,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           email, 
           username, 
           password, 
-          full_name: fullName 
+          full_name: fullName,
+          role: role  // Add role support
         }),
       })
 
@@ -117,7 +167,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       login,
       register,
       logout,
-      isLoading
+      isLoading,
+      handleExpertAccess  // Add expert access handler
     }}>
       {children}
     </AuthContext.Provider>

@@ -168,8 +168,34 @@ const ClientChatPage = () => {
     }
 
     try {
-   const token = localStorage.getItem('dilan_ai_token')  // ✅ Correct key
-      const response = await fetch(`${API_URL}/payments/session/${sessionId}/status`, {
+      const token = localStorage.getItem('dilan_ai_token')
+      let databaseSessionId = sessionId
+
+      // Check if this is a Stripe checkout session ID (starts with 'cs_')
+      if (sessionId.startsWith('cs_')) {
+        console.log('🔄 Converting Stripe session ID to database session ID...')
+        
+        // Convert Stripe session ID to database session ID
+        const conversionResponse = await fetch(`${API_URL}/payments/stripe-session/${sessionId}/database-session`)
+        const conversionData = await conversionResponse.json()
+        
+        if (conversionData.success) {
+          databaseSessionId = conversionData.database_session_id
+          console.log('✅ Converted to database session ID:', databaseSessionId)
+          
+          // Update URL to use database session ID
+          const newUrl = `${window.location.pathname}?session_id=${databaseSessionId}`
+          window.history.replaceState({}, '', newUrl)
+        } else {
+          console.error('❌ Failed to convert Stripe session ID:', conversionData)
+          setPaymentSessionValid(false)
+          router.push(`/client/${slug}`)
+          return
+        }
+      }
+
+      // Validate the database session
+      const response = await fetch(`${API_URL}/payments/session/${databaseSessionId}/status`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -178,6 +204,7 @@ const ClientChatPage = () => {
       const data = await response.json()
       if (data.success && data.session.payment_status === 'succeeded') {
         setPaymentSessionValid(true)
+        setPaymentSessionId(databaseSessionId) // Update state with database session ID
       } else {
         setPaymentSessionValid(false)
         // Redirect back to expert page for payment

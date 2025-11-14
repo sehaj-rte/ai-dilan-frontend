@@ -84,7 +84,7 @@ const ClientExpertPage = () => {
   const router = useRouter()
   const slug = params.slug as string
 
-  // Auth flow context
+  // Use ClientAuthFlow context
   const {
     showAuthModal,
     setShowAuthModal,
@@ -120,16 +120,6 @@ const ClientExpertPage = () => {
     }
     return s3Url
   }
-
-  // Load user from storage on mount
-  useEffect(() => {
-    const savedToken = localStorage.getItem('dilan_ai_token')
-    const savedUser = localStorage.getItem('dilan_ai_user')
-    
-    if (savedToken && savedUser) {
-      setCurrentUser(JSON.parse(savedUser))
-    }
-  }, [])
 
   useEffect(() => {
     console.log("slug", slug)
@@ -173,7 +163,6 @@ const ClientExpertPage = () => {
   }
 
   const getUserToken = () => {
-    // Get token from localStorage
     return localStorage.getItem('dilan_ai_token')
   }
 
