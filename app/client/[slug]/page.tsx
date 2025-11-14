@@ -2,14 +2,12 @@
 
 import React, { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { useSelector, useDispatch } from 'react-redux'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import SpeechToTextInput from '@/components/ui/speech-to-text-input'
 import { API_URL } from '@/lib/config'
-import { RootState } from '@/store/store'
-import { loadUserFromStorage, logout } from '@/store/slices/authSlice'
+import { useClientAuthFlow } from '@/contexts/ClientAuthFlowContext'
+import AuthModal from '@/components/client/AuthModal'
 import PaymentModal from '@/components/client/PaymentModal'
 import { 
   MessageCircle, 
@@ -59,6 +57,7 @@ interface Publication {
   theme: string
   view_count: number
   template_category: string
+  expert_id: string
 }
 
 interface ContentSection {
@@ -83,11 +82,25 @@ interface Template {
 const ClientExpertPage = () => {
   const params = useParams()
   const router = useRouter()
-  const dispatch = useDispatch()
   const slug = params.slug as string
 
-  // Auth state from Redux
-  const { user, isAuthenticated } = useSelector((state: RootState) => state.auth)
+  // Auth flow context
+  const {
+    showAuthModal,
+    setShowAuthModal,
+    showPaymentModal,
+    setShowPaymentModal,
+    handleChatOrCall,
+    handleLogin,
+    handleSignup,
+    handlePaymentSuccess,
+    currentUser,
+    setCurrentUser
+  } = useClientAuthFlow()
+
+  // Derived auth state
+  const isAuthenticated = !!currentUser
+  const user = currentUser
 
   const [expert, setExpert] = useState<Expert | null>(null)
   const [publication, setPublication] = useState<Publication | null>(null)
@@ -97,7 +110,6 @@ const ClientExpertPage = () => {
   const [error, setError] = useState<string | null>(null)
   const [showFullDescription, setShowFullDescription] = useState(false)
   const [questionText, setQuestionText] = useState('')
-  const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [selectedSessionType, setSelectedSessionType] = useState<'chat' | 'call'>('chat')
 
   const convertS3UrlToProxy = (s3Url: string): string => {
@@ -111,13 +123,18 @@ const ClientExpertPage = () => {
 
   // Load user from storage on mount
   useEffect(() => {
-    dispatch(loadUserFromStorage())
+    const savedToken = localStorage.getItem('dilan_ai_token')
+    const savedUser = localStorage.getItem('dilan_ai_user')
+    
+    if (savedToken && savedUser) {
+      setCurrentUser(JSON.parse(savedUser))
+    }
   }, [])
 
   useEffect(() => {
     console.log("slug", slug)
     fetchExpertData()
-  }, [slug, isAuthenticated])
+  }, [slug])
 
   const fetchExpertData = async () => {
     try {
@@ -145,37 +162,19 @@ const ClientExpertPage = () => {
     }
   }
 
-  const handleStartChat = () => {
-    if (!isAuthenticated) {
-      router.push(`/client/login?redirect=/client/${slug}`)
-      return
-    }
-    
-    // Show payment modal for chat
-    setSelectedSessionType('chat')
-    setShowPaymentModal(true)
+  const handleStartChat = async () => {
+    if (!publication) return
+    await handleChatOrCall(publication, 'chat')
   }
 
-  const handleStartCall = () => {
-    if (!isAuthenticated) {
-      router.push(`/client/login?redirect=/client/${slug}`)
-      return
-    }
-    
-    // Show payment modal for call
-    setSelectedSessionType('call')
-    setShowPaymentModal(true)
-  }
-
-  const handlePaymentSuccess = (sessionId: string) => {
-    // Close modal and redirect to chat/call interface
-    setShowPaymentModal(false)
-    router.push(`/client/${slug}/${selectedSessionType}?session_id=${sessionId}`)
+  const handleStartCall = async () => {
+    if (!publication) return
+    await handleChatOrCall(publication, 'call')
   }
 
   const getUserToken = () => {
     // Get token from localStorage
-    return localStorage.getItem('token')
+    return localStorage.getItem('dilan_ai_token')
   }
 
   const handleQuestionSubmit = () => {
@@ -235,15 +234,8 @@ const ClientExpertPage = () => {
   const primaryColor = publication.primary_color || '#3B82F6'
   const secondaryColor = publication.secondary_color || '#1E40AF'
 
-  // Redirect to login for private publications
-  if (!loading && publication?.is_private && !isAuthenticated) {
-    router.push(`/client/login?redirect=/client/${slug}`)
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    )
-  }
+  // Remove authentication check - page should be public
+  // Authentication only happens when user clicks Chat or Call buttons
 
   return (
     <div className="min-h-screen bg-white">
@@ -265,7 +257,9 @@ const ClientExpertPage = () => {
                   variant="outline"
                   size="sm"
                   onClick={() => {
-                    dispatch(logout())
+                    setCurrentUser(null)
+                    localStorage.removeItem('dilan_ai_token')
+                    localStorage.removeItem('dilan_ai_user')
                     router.push('/client/login')
                   }}
                   className="flex items-center gap-2"
@@ -279,7 +273,7 @@ const ClientExpertPage = () => {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => router.push('/client/login')}
+                  onClick={() => setShowAuthModal(true)}
                   className="flex items-center gap-2"
                 >
                   <LogIn className="h-4 w-4" />
@@ -287,7 +281,7 @@ const ClientExpertPage = () => {
                 </Button>
                 <Button
                   size="sm"
-                  onClick={() => router.push('/client/signup')}
+                  onClick={() => setShowAuthModal(true)}
                   className="flex items-center gap-2"
                   style={{ backgroundColor: primaryColor }}
                 >
@@ -401,6 +395,16 @@ const ClientExpertPage = () => {
         </div>
       </div>
 
+      {/* Auth Modal */}
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        onLogin={handleLogin}
+        onSignup={handleSignup}
+        sessionType={selectedSessionType}
+        expertName={publication?.display_name || expert?.name}
+      />
+
       {/* Payment Modal */}
       {publication && (
         <PaymentModal
@@ -409,7 +413,7 @@ const ClientExpertPage = () => {
           publication={publication}
           sessionType={selectedSessionType}
           onPaymentSuccess={handlePaymentSuccess}
-          userToken={getUserToken() || undefined}
+          userToken={typeof window !== 'undefined' ? localStorage.getItem('dilan_ai_token') || undefined : undefined}
         />
       )}
     </div>
