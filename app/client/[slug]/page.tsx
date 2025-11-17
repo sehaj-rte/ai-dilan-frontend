@@ -9,6 +9,7 @@ import { API_URL } from '@/lib/config'
 import { useClientAuthFlow } from '@/contexts/ClientAuthFlowContext'
 import AuthModal from '@/components/client/AuthModal'
 import PaymentModal from '@/components/client/PaymentModal'
+import PrivateExpertPaymentModal from '@/components/client/PrivateExpertPaymentModal'
 import { 
   MessageCircle, 
   Phone, 
@@ -26,7 +27,9 @@ import {
   Lock,
   LogIn,
   ArrowLeft,
-  LogOut
+  LogOut,
+  Loader2,
+  AlertCircle
 } from 'lucide-react'
 
 interface Expert {
@@ -111,6 +114,9 @@ const ClientExpertPage = () => {
   const [showFullDescription, setShowFullDescription] = useState(false)
   const [questionText, setQuestionText] = useState('')
   const [selectedSessionType, setSelectedSessionType] = useState<'chat' | 'call'>('chat')
+  const [showPrivatePaymentModal, setShowPrivatePaymentModal] = useState(false)
+  const [hasActiveSubscription, setHasActiveSubscription] = useState(false)
+  const [checkingSubscription, setCheckingSubscription] = useState(false)
 
   const convertS3UrlToProxy = (s3Url: string): string => {
     if (!s3Url) return s3Url
@@ -125,6 +131,12 @@ const ClientExpertPage = () => {
     console.log("slug", slug)
     fetchExpertData()
   }, [slug])
+
+  useEffect(() => {
+    if (isAuthenticated && publication?.is_private) {
+      checkUserSubscription()
+    }
+  }, [isAuthenticated, publication])
 
   const fetchExpertData = async () => {
     try {
@@ -152,15 +164,75 @@ const ClientExpertPage = () => {
     }
   }
 
-  const handleStartChat = async () => {
-    if (!publication) return
-    await handleChatOrCall(publication, 'chat')
+  const checkUserSubscription = async () => {
+    if (!publication?.id || !isAuthenticated) return
+    
+    try {
+      setCheckingSubscription(true)
+      const response = await fetch(`${API_URL}/payments/subscriptions/check/${publication.id}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('dilan_ai_token')}`
+        }
+      })
+      const data = await response.json()
+      
+      if (data.success) {
+        setHasActiveSubscription(data.has_subscription)
+      }
+    } catch (error) {
+      console.error('Error checking subscription:', error)
+    } finally {
+      setCheckingSubscription(false)
+    }
   }
 
-  const handleStartCall = async () => {
-    if (!publication) return
-    await handleChatOrCall(publication, 'call')
+  const handleStartChat = () => {
+    setSelectedSessionType('chat')
+    handleSessionStart('chat')
   }
+
+  const handleStartCall = () => {
+    setSelectedSessionType('call')
+    handleSessionStart('call')
+  }
+
+  const handleSessionStart = (sessionType: 'chat' | 'call') => {
+    // If expert is private, check authentication and subscription
+    if (publication?.is_private) {
+      if (!isAuthenticated) {
+        // Show auth modal first
+        setShowAuthModal(true)
+        return
+      }
+      
+      if (!hasActiveSubscription) {
+        // Show private payment modal
+        setShowPrivatePaymentModal(true)
+        return
+      }
+    }
+    
+    // If public expert or user has subscription, proceed directly
+    if (sessionType === 'chat') {
+      router.push(`/client/${slug}/chat`)
+    } else {
+      router.push(`/client/${slug}/call`)
+    }
+  }
+
+  const handlePrivatePaymentSuccess = (subscriptionId: string) => {
+    setShowPrivatePaymentModal(false)
+    setHasActiveSubscription(true)
+    
+    // Redirect to the selected session type
+    if (selectedSessionType === 'chat') {
+      router.push(`/client/${slug}/chat`)
+    } else {
+      router.push(`/client/${slug}/call`)
+    }
+  }
+
+  // Remove duplicate functions - using the ones defined above
 
   const getUserToken = () => {
     return localStorage.getItem('dilan_ai_token')
@@ -324,6 +396,38 @@ const ClientExpertPage = () => {
             </p>
           )}
 
+          {/* Private Expert Badge */}
+          {publication?.is_private && (
+            <div className="flex justify-center mb-4">
+              <Badge className="bg-purple-100 text-purple-800 px-3 py-1 flex items-center gap-2">
+                <Lock className="h-4 w-4" />
+                Private Expert - Subscription Required
+              </Badge>
+            </div>
+          )}
+
+          {/* Subscription Status */}
+          {publication?.is_private && isAuthenticated && (
+            <div className="flex justify-center mb-4">
+              {checkingSubscription ? (
+                <Badge className="bg-gray-100 text-gray-600 px-3 py-1 flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Checking subscription...
+                </Badge>
+              ) : hasActiveSubscription ? (
+                <Badge className="bg-green-100 text-green-800 px-3 py-1 flex items-center gap-2">
+                  <CheckCircle2 className="h-4 w-4" />
+                  Active Subscription
+                </Badge>
+              ) : (
+                <Badge className="bg-yellow-100 text-yellow-800 px-3 py-1 flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4" />
+                  Subscription Required
+                </Badge>
+              )}
+            </div>
+          )}
+
           {/* CTA Buttons */}
           <div className="flex justify-center gap-3 mb-12">
             <Button 
@@ -331,18 +435,22 @@ const ClientExpertPage = () => {
               className="text-white px-8 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
               style={{ backgroundColor: primaryColor }}
               onClick={handleStartChat}
+              disabled={checkingSubscription}
             >
               <MessageCircle className="h-5 w-5 mr-2" />
-              Chat
+              {publication?.is_private && !isAuthenticated ? 'Login to Chat' : 
+               publication?.is_private && !hasActiveSubscription ? 'Subscribe to Chat' : 'Chat'}
             </Button>
             <Button 
               size="lg" 
               className="text-white px-8 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
               style={{ backgroundColor: primaryColor }}
               onClick={handleStartCall}
+              disabled={checkingSubscription}
             >
               <Phone className="h-5 w-5 mr-2" />
-              Call
+              {publication?.is_private && !isAuthenticated ? 'Login to Call' : 
+               publication?.is_private && !hasActiveSubscription ? 'Subscribe to Call' : 'Call'}
             </Button>
           </div>
 
@@ -403,6 +511,18 @@ const ClientExpertPage = () => {
           sessionType={selectedSessionType}
           onPaymentSuccess={handlePaymentSuccess}
           userToken={typeof window !== 'undefined' ? localStorage.getItem('dilan_ai_token') || undefined : undefined}
+        />
+      )}
+
+      {/* Private Expert Payment Modal */}
+      {publication?.is_private && user && (
+        <PrivateExpertPaymentModal
+          isOpen={showPrivatePaymentModal}
+          onClose={() => setShowPrivatePaymentModal(false)}
+          publication={publication}
+          sessionType={selectedSessionType}
+          onPaymentSuccess={handlePrivatePaymentSuccess}
+          user={user}
         />
       )}
     </div>

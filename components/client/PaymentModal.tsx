@@ -31,6 +31,20 @@ interface Publication {
   secondary_color: string
 }
 
+interface Plan {
+  id: string
+  expert_id: string
+  name: string
+  price: number
+  currency: string
+  billing_interval: string
+  stripe_product_id: string | null
+  stripe_price_id: string | null
+  is_active: boolean
+  created_at: string
+  updated_at: string
+}
+
 interface PaymentModalProps {
   isOpen: boolean
   onClose: () => void
@@ -51,93 +65,69 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [selectedPlan, setSelectedPlan] = useState<string>('')
+  const [plans, setPlans] = useState<Plan[]>([])
+  const [loadingPlans, setLoadingPlans] = useState(true)
 
   const primaryColor = publication.primary_color || '#3B82F6'
 
-  // Set default selected plan based on pricing model
+  // Fetch plans from API
   useEffect(() => {
-    if (publication.pricing_model === 'per_session') {
-      setSelectedPlan('session')
-    } else if (publication.pricing_model === 'per_minute') {
-      setSelectedPlan('minute')
-    } else if (publication.pricing_model === 'subscription') {
-      setSelectedPlan('subscription')
+    const fetchPlans = async () => {
+      if (!isOpen) return
+      
+      try {
+        setLoadingPlans(true)
+        setError(null)
+        
+        const response = await fetch(`${API_URL}/public/expert/${publication.slug}/plans`)
+        const data = await response.json()
+        
+        if (data.success && data.plans) {
+          setPlans(data.plans)
+          // Auto-select first plan if available
+          if (data.plans.length > 0 && !selectedPlan) {
+            setSelectedPlan(data.plans[0].id)
+          }
+        } else {
+          setError('No pricing plans available for this expert')
+        }
+      } catch (err) {
+        console.error('Error fetching plans:', err)
+        setError('Failed to load pricing plans')
+      } finally {
+        setLoadingPlans(false)
+      }
     }
-  }, [publication.pricing_model])
+
+    fetchPlans()
+  }, [isOpen, publication.slug])
 
   const getPricingPlans = () => {
-    const plans = []
-
-    // Free trial (if available)
-    if (publication.free_trial_minutes > 0) {
-      plans.push({
-        id: 'free_trial',
-        name: 'Free Trial',
-        price: 0,
-        description: `${publication.free_trial_minutes} minutes free`,
+    // Map dynamic plans from API to display format
+    return plans.map((plan, index) => {
+      const billingDisplay = plan.billing_interval === 'month' 
+        ? '/month' 
+        : plan.billing_interval === 'year' 
+        ? '/year' 
+        : ''
+      
+      return {
+        id: plan.id,
+        name: plan.name,
+        price: plan.price,
+        description: `${plan.currency} ${plan.price}${billingDisplay}`,
         features: [
-          `${publication.free_trial_minutes} minutes included`,
+          `${plan.billing_interval.charAt(0).toUpperCase() + plan.billing_interval.slice(1)}ly billing`,
           'Full access to AI expert',
-          'No credit card required'
-        ],
-        badge: 'Popular',
-        badgeColor: 'bg-green-500'
-      })
-    }
-
-    // Per session pricing
-    if (publication.pricing_model === 'per_session' || publication.price_per_session > 0) {
-      plans.push({
-        id: 'session',
-        name: 'Per Session',
-        price: publication.price_per_session,
-        description: 'One-time session payment',
-        features: [
-          'Unlimited session duration',
-          'Full access to AI expert',
-          'Session recording available'
-        ],
-        badge: publication.pricing_model === 'per_session' ? 'Recommended' : '',
-        badgeColor: 'bg-blue-500'
-      })
-    }
-
-    // Per minute pricing
-    if (publication.pricing_model === 'per_minute' || publication.price_per_minute > 0) {
-      plans.push({
-        id: 'minute',
-        name: 'Per Minute',
-        price: publication.price_per_minute,
-        description: 'Pay as you go',
-        features: [
-          'Pay only for time used',
-          'Flexible duration',
-          'Stop anytime'
-        ],
-        badge: publication.pricing_model === 'per_minute' ? 'Recommended' : '',
-        badgeColor: 'bg-blue-500'
-      })
-    }
-
-    // Subscription pricing
-    if (publication.pricing_model === 'subscription' || publication.monthly_subscription_price > 0) {
-      plans.push({
-        id: 'subscription',
-        name: 'Monthly Subscription',
-        price: publication.monthly_subscription_price,
-        description: 'Unlimited access for 30 days',
-        features: [
-          'Unlimited sessions',
-          'Priority support',
-          'Advanced features',
+          'Session recording available',
           'Cancel anytime'
         ],
-        badge: publication.pricing_model === 'subscription' ? 'Best Value' : '',
-        badgeColor: 'bg-purple-500'
-      })
-    }
-
-    return plans
+        badge: index === 0 ? 'Recommended' : '',
+        badgeColor: 'bg-blue-500',
+        currency: plan.currency,
+        billing_interval: plan.billing_interval
+      }
+    })
   }
 
   const handlePayment = async () => {
@@ -192,7 +182,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     }
   }
 
-  const plans = getPricingPlans()
+  const displayPlans = getPricingPlans()
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -221,8 +211,19 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
             </div>
           )}
 
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {plans.map((plan) => (
+          {loadingPlans ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-gray-400" />
+              <span className="ml-3 text-gray-600">Loading pricing plans...</span>
+            </div>
+          ) : displayPlans.length === 0 ? (
+            <div className="flex items-center justify-center py-12 text-gray-500">
+              <AlertCircle className="h-5 w-5 mr-2" />
+              <span>No pricing plans available</span>
+            </div>
+          ) : (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {displayPlans.map((plan) => (
               <Card
                 key={plan.id}
                 className={`cursor-pointer transition-all duration-200 hover:shadow-lg ${
@@ -250,11 +251,11 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
                       'Free'
                     ) : (
                       <>
-                        <span className="text-sm text-gray-500">$</span>
+                        <span className="text-sm text-gray-500">{plan.currency || '$'}</span>
                         {plan.price}
                         <span className="text-sm text-gray-500">
-                          {plan.id === 'subscription' ? '/month' : 
-                           plan.id === 'minute' ? '/min' : ''}
+                          {plan.billing_interval === 'month' ? '/month' : 
+                           plan.billing_interval === 'year' ? '/year' : ''}
                         </span>
                       </>
                     )}
@@ -281,9 +282,12 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
                 </CardContent>
               </Card>
             ))}
-          </div>
+            </div>
+          )}
 
-          <Separator />
+          {!loadingPlans && displayPlans.length > 0 && (
+            <>
+              <Separator />
 
           <div className="flex items-center justify-between">
             <div className="text-sm text-gray-600">
@@ -313,13 +317,13 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
                     Processing...
                   </>
                 ) : (
-                  <>
-                    {selectedPlan === 'free_trial' ? 'Start Free Trial' : 'Continue to Payment'}
-                  </>
+                  'Continue to Payment'
                 )}
               </Button>
             </div>
           </div>
+            </>
+          )}
         </div>
       </DialogContent>
     </Dialog>
