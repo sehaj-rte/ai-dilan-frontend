@@ -10,20 +10,29 @@ import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { useToast, ToastContainer } from '@/components/ui/toast'
 import { useSlugValidation } from '@/hooks/useSlugValidation'
-import { 
-  Globe, 
-  Lock, 
+import {
+  Globe,
+  Lock,
   Eye,
   CheckCircle,
   Radio,
   AlertCircle,
   Loader2,
   Copy,
-  Check
+  Check,
+  Plus,
+  X
 } from 'lucide-react'
 import { API_URL } from '@/lib/config'
 import { fetchWithAuth, getAuthHeaders } from '@/lib/api-client'
-
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog"
 interface Publication {
   id: string
   slug: string
@@ -37,6 +46,15 @@ interface Publication {
   price_per_minute: number
   monthly_subscription_price: number
   free_trial_minutes: number
+}
+
+interface ConfirmDeleteDialogProps {
+  open: boolean
+  onClose: () => void
+  onConfirm: () => void
+  title?: string
+  description?: string
+  loading?: boolean
 }
 
 const PublishManagerPage = () => {
@@ -56,6 +74,48 @@ const PublishManagerPage = () => {
     is_published: false,
     is_private: false // Requires authentication
   })
+  const [deleteModal, setDeleteModal] = useState({
+    open: false,
+    planId: "",
+    planName: "",
+  })
+
+
+
+  function ConfirmDeleteDialog({
+    open,
+    onClose,
+    onConfirm,
+    title = "Confirm Deletion",
+    description = "Are you sure you want to delete this item?",
+    loading = false,
+  }: ConfirmDeleteDialogProps) {
+    return (
+      <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) onClose() }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>{title}</DialogTitle>
+            <DialogDescription>{description}</DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={onClose} disabled={loading}>
+              Cancel
+            </Button>
+
+            <Button variant="destructive" onClick={onConfirm} disabled={loading}>
+              {loading ? (
+                <Loader2 className="w-4 h-4 animate-spin" />
+              ) : (
+                "Delete"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    )
+  }
+
 
   // Slug validation
   const {
@@ -68,16 +128,19 @@ const PublishManagerPage = () => {
   } = useSlugValidation({ expertId: projectId })
 
   // Pricing plans state
-  const [selectedPlan, setSelectedPlan] = useState('basic')
-  const [pricingPlans] = useState([
-    { id: 'basic', name: 'Basic', description: 'Perfect for getting started', price: 29, features: ['Limited access', 'Basic support', '1 session per day'] },
-    { id: 'pro', name: 'Professional', description: 'For regular users', price: 79, features: ['Unlimited access', 'Priority support', 'Unlimited sessions'] },
-    { id: 'premium', name: 'Premium', description: 'For power users', price: 149, features: ['Unlimited access', '24/7 support', 'Priority responses', 'Custom features'] }
-  ])
+  const [plans, setPlans] = useState<any[]>([])
+  const [isLoadingPlans, setIsLoadingPlans] = useState(false)
+  const [showCreatePlan, setShowCreatePlan] = useState(false)
+  const [isCreatingPlan, setIsCreatingPlan] = useState(false)
+  const [createPlanForm, setCreatePlanForm] = useState({
+    name: '',
+    price: ''
+  })
 
   useEffect(() => {
     fetchPublicationData()
     fetchExpertData()
+    fetchPlans()
   }, [projectId])
 
   // Validate slug when form slug changes
@@ -93,7 +156,7 @@ const PublishManagerPage = () => {
         headers: getAuthHeaders(),
       })
       const expertData = await expertResponse.json()
-      
+
       if (expertData.success && expertData.expert) {
         setExpert(expertData.expert)
       }
@@ -105,13 +168,13 @@ const PublishManagerPage = () => {
   const fetchPublicationData = async () => {
     try {
       setLoading(true)
-      
+
       // Fetch publication data using the correct endpoint
       const publicationResponse = await fetchWithAuth(`${API_URL}/publishing/experts/${projectId}/publication`, {
         headers: getAuthHeaders(),
       })
       const publicationData = await publicationResponse.json()
-      
+
       if (publicationData.success) {
         if (publicationData.publication) {
           setPublication(publicationData.publication)
@@ -140,24 +203,24 @@ const PublishManagerPage = () => {
   const handlePublishToggle = async (published: boolean) => {
     try {
       setIsPublishing(true)
-      
+
       if (published && !publication) {
         // Need to create publication first
         await createPublication()
         return
       }
-      
-      const endpoint = published 
+
+      const endpoint = published
         ? `${API_URL}/publishing/experts/${projectId}/publish`
         : `${API_URL}/publishing/experts/${projectId}/unpublish`
-      
+
       const response = await fetchWithAuth(endpoint, {
         method: 'POST',
         headers: getAuthHeaders(),
       })
-      
+
       const data = await response.json()
-      
+
       if (data.success) {
         setPublishForm({ ...publishForm, is_published: published })
         success(`Expert ${published ? 'published' : 'unpublished'} successfully!`)
@@ -227,7 +290,7 @@ const PublishManagerPage = () => {
       }
 
       console.log('Creating publication with data:', publicationData)
-      
+
       const response = await fetchWithAuth(`${API_URL}/publishing/experts/${projectId}/publication`, {
         method: 'POST',
         headers: {
@@ -243,7 +306,7 @@ const PublishManagerPage = () => {
 
       if (data.success) {
         success('Publication created successfully!')
-        
+
         // Auto-publish after creation
         const publishResponse = await fetchWithAuth(`${API_URL}/publishing/experts/${projectId}/publish`, {
           method: 'POST',
@@ -257,7 +320,7 @@ const PublishManagerPage = () => {
         } else {
           error('Publication created but failed to publish: ' + (publishData.detail || publishData.error))
         }
-        
+
         fetchPublicationData()
       } else {
         const errorMsg = data.detail || data.error || 'Unknown error'
@@ -308,7 +371,7 @@ const PublishManagerPage = () => {
         description: expert?.description,
         is_private: publishForm.is_private,
       }
-      
+
       // Include slug if changed
       if (publishForm.slug && publishForm.slug !== publication.slug) {
         updateData.slug = publishForm.slug
@@ -341,7 +404,7 @@ const PublishManagerPage = () => {
 
   const handlePublishChange = (field: string, value: any) => {
     setPublishForm({ ...publishForm, [field]: value })
-    
+
     // Trigger slug validation when slug changes
     if (field === 'slug' && value) {
       validateSlug(value)
@@ -356,16 +419,123 @@ const PublishManagerPage = () => {
     handlePublishChange('slug', cleanedValue)
   }
 
-  const handlePlanSelect = (planId: string) => {
-    setSelectedPlan(planId)
+  const fetchPlans = async () => {
+    try {
+      setIsLoadingPlans(true)
+
+      // Debug: Check current user and token
+      const token = localStorage.getItem('dilan_ai_token')
+      const user = localStorage.getItem('dilan_ai_user')
+      console.log('🔍 Debug - Current token:', token ? token.substring(0, 20) + '...' : 'No token')
+      console.log('🔍 Debug - Current user:', user ? JSON.parse(user) : 'No user')
+      console.log('🔍 Debug - Expert ID:', projectId)
+
+      const response = await fetchWithAuth(`${API_URL}/plans/experts/${projectId}`, {
+        headers: getAuthHeaders(),
+      })
+
+      console.log('🔍 Debug - Response status:', response.status)
+
+      const data = await response.json()
+      console.log('🔍 Debug - Response data:', data)
+
+      if (data.success) {
+        setPlans(data.plans || [])
+      } else {
+        error('Failed to fetch plans: ' + (data.detail || 'Unknown error'))
+      }
+    } catch (err) {
+      console.error('Error fetching plans:', err)
+      error('Error fetching plans')
+    } finally {
+      setIsLoadingPlans(false)
+    }
   }
+
+  const handleCreatePlan = async () => {
+    if (!createPlanForm.name || !createPlanForm.price) {
+      warning('Please fill in all fields')
+      return
+    }
+
+    const price = parseFloat(createPlanForm.price)
+    if (isNaN(price) || price <= 0) {
+      warning('Please enter a valid price')
+      return
+    }
+
+    try {
+      setIsCreatingPlan(true)
+
+      const response = await fetchWithAuth(`${API_URL}/plans/experts/${projectId}`, {
+        method: 'POST',
+        headers: {
+          ...getAuthHeaders(),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: createPlanForm.name,
+          price: price,
+          currency: 'USD',
+          billing_interval: 'month'
+        })
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        success(`Plan "${createPlanForm.name}" created successfully!`)
+        setCreatePlanForm({ name: '', price: '' })
+        setShowCreatePlan(false)
+        fetchPlans() // Refresh plans list
+      } else {
+        error(`Failed to create plan: ${data.detail || 'Unknown error'}`)
+      }
+    } catch (err) {
+      console.error('Error creating plan:', err)
+      error('Error creating plan. Please try again.')
+    } finally {
+      setIsCreatingPlan(false)
+    }
+  }
+  const openDeleteModal = (planId: string, planName: string) => {
+    setDeleteModal({ open: true, planId, planName })
+  }
+
+  const handleDeletePlan = async () => {
+    setLoading(true);
+    const { planId, planName } = deleteModal
+
+    try {
+      const response = await fetchWithAuth(`${API_URL}/plans/experts/${projectId}/${planId}`, {
+        method: "DELETE",
+        headers: getAuthHeaders(),
+      })
+
+      const data = await response.json()
+
+      if (data.success) {
+        success(`Plan "${planName}" deleted successfully!`)
+        fetchPlans()
+      } else {
+        error(`Failed to delete plan: ${data.detail || "Unknown error"}`)
+      }
+    } catch (err) {
+      console.error("Error deleting plan:", err)
+      error("Error deleting plan. Please try again.")
+    } finally {
+      setLoading(false);
+      setDeleteModal({ open: false, planId: "", planName: "" })
+    }
+  }
+
 
   const copyToClipboard = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text)
       setIsCopied(true)
       success('URL copied to clipboard!')
-      
+
       // Reset the copied state after 2 seconds
       setTimeout(() => {
         setIsCopied(false)
@@ -407,7 +577,7 @@ const PublishManagerPage = () => {
                   Manage your expert's publication status and visibility
                 </CardDescription>
               </div>
-              <Button 
+              <Button
                 className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
                 onClick={handleRepublish}
                 disabled={!publishForm.slug || isPublishing || isCheckingSlug || getValidationStatus() === 'unavailable' || getValidationStatus() === 'invalid'}
@@ -431,7 +601,7 @@ const PublishManagerPage = () => {
               {/* Info Message */}
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <p className="text-sm text-blue-800">
-                  <strong>Note:</strong> Display name, headline, and description are automatically synced from your Profile Settings. 
+                  <strong>Note:</strong> Display name, headline, and description are automatically synced from your Profile Settings.
                   Update them in the Profile Settings page.
                 </p>
               </div>
@@ -450,13 +620,12 @@ const PublishManagerPage = () => {
                       value={publishForm.slug}
                       onChange={handleSlugChange}
                       placeholder="your-expert-name"
-                      className={`flex-1 min-w-0 block w-full px-3 py-2 rounded-none rounded-r-md pr-10 ${
-                        getValidationStatus() === 'available' ? 'border-green-500 focus:border-green-500' :
+                      className={`flex-1 min-w-0 block w-full px-3 py-2 rounded-none rounded-r-md pr-10 ${getValidationStatus() === 'available' ? 'border-green-500 focus:border-green-500' :
                         getValidationStatus() === 'unavailable' ? 'border-red-500 focus:border-red-500' :
-                        getValidationStatus() === 'invalid' ? 'border-orange-500 focus:border-orange-500' :
-                        getValidationStatus() === 'error' ? 'border-red-500 focus:border-red-500' :
-                        'border-gray-300'
-                      }`}
+                          getValidationStatus() === 'invalid' ? 'border-orange-500 focus:border-orange-500' :
+                            getValidationStatus() === 'error' ? 'border-red-500 focus:border-red-500' :
+                              'border-gray-300'
+                        }`}
                       required
                     />
                     {/* Status Icon */}
@@ -476,14 +645,14 @@ const PublishManagerPage = () => {
                     </div>
                   </div>
                 </div>
-                
+
                 {/* Status Message */}
                 {publishForm.slug && (
                   <div className={`text-xs mt-1 flex items-center ${getStatusColor()}`}>
                     {getStatusMessage()}
                   </div>
                 )}
-                
+
                 {/* URL Preview */}
                 <div className="text-xs text-gray-500 mt-1">
                   {publishForm.slug && getValidationStatus() === 'available' ? (
@@ -524,36 +693,31 @@ const PublishManagerPage = () => {
                 </Label>
                 <div className="space-y-3">
                   {/* Public Option */}
-                  <div 
-                    className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                      !publishForm.is_private 
-                        ? 'border-green-500 bg-green-50' 
-                        : 'border-gray-200 hover:border-green-300'
-                    }`}
+                  <div
+                    className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${!publishForm.is_private
+                      ? 'border-green-500 bg-green-50'
+                      : 'border-gray-200 hover:border-green-300'
+                      }`}
                     onClick={() => setPublishForm({ ...publishForm, is_private: false })}
                   >
                     <div className="flex items-center">
-                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mr-3 ${
-                        !publishForm.is_private 
-                          ? 'border-green-500 bg-green-500' 
-                          : 'border-gray-300'
-                      }`}>
+                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mr-3 ${!publishForm.is_private
+                        ? 'border-green-500 bg-green-500'
+                        : 'border-gray-300'
+                        }`}>
                         {!publishForm.is_private && (
                           <div className="w-2.5 h-2.5 rounded-full bg-white"></div>
                         )}
                       </div>
-                      <Globe className={`h-5 w-5 mr-2 ${
-                        !publishForm.is_private ? 'text-green-600' : 'text-gray-400'
-                      }`} />
+                      <Globe className={`h-5 w-5 mr-2 ${!publishForm.is_private ? 'text-green-600' : 'text-gray-400'
+                        }`} />
                       <div className="flex-1">
-                        <h4 className={`text-sm font-medium ${
-                          !publishForm.is_private ? 'text-green-900' : 'text-gray-900'
-                        }`}>
+                        <h4 className={`text-sm font-medium ${!publishForm.is_private ? 'text-green-900' : 'text-gray-900'
+                          }`}>
                           Public
                         </h4>
-                        <p className={`text-xs ${
-                          !publishForm.is_private ? 'text-green-700' : 'text-gray-500'
-                        }`}>
+                        <p className={`text-xs ${!publishForm.is_private ? 'text-green-700' : 'text-gray-500'
+                          }`}>
                           Anyone can discover and access your expert
                         </p>
                       </div>
@@ -561,36 +725,31 @@ const PublishManagerPage = () => {
                   </div>
 
                   {/* Private Option */}
-                  <div 
-                    className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                      publishForm.is_private 
-                        ? 'border-blue-500 bg-blue-50' 
-                        : 'border-gray-200 hover:border-blue-300'
-                    }`}
+                  <div
+                    className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${publishForm.is_private
+                      ? 'border-blue-500 bg-blue-50'
+                      : 'border-gray-200 hover:border-blue-300'
+                      }`}
                     onClick={() => setPublishForm({ ...publishForm, is_private: true })}
                   >
                     <div className="flex items-center">
-                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mr-3 ${
-                        publishForm.is_private 
-                          ? 'border-blue-500 bg-blue-500' 
-                          : 'border-gray-300'
-                      }`}>
+                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center mr-3 ${publishForm.is_private
+                        ? 'border-blue-500 bg-blue-500'
+                        : 'border-gray-300'
+                        }`}>
                         {publishForm.is_private && (
                           <div className="w-2.5 h-2.5 rounded-full bg-white"></div>
                         )}
                       </div>
-                      <Lock className={`h-5 w-5 mr-2 ${
-                        publishForm.is_private ? 'text-blue-600' : 'text-gray-400'
-                      }`} />
+                      <Lock className={`h-5 w-5 mr-2 ${publishForm.is_private ? 'text-blue-600' : 'text-gray-400'
+                        }`} />
                       <div className="flex-1">
-                        <h4 className={`text-sm font-medium ${
-                          publishForm.is_private ? 'text-blue-900' : 'text-gray-900'
-                        }`}>
+                        <h4 className={`text-sm font-medium ${publishForm.is_private ? 'text-blue-900' : 'text-gray-900'
+                          }`}>
                           Private
                         </h4>
-                        <p className={`text-xs ${
-                          publishForm.is_private ? 'text-blue-700' : 'text-gray-500'
-                        }`}>
+                        <p className={`text-xs ${publishForm.is_private ? 'text-blue-700' : 'text-gray-500'
+                          }`}>
                           Users must sign in to access this expert
                         </p>
                       </div>
@@ -599,44 +758,174 @@ const PublishManagerPage = () => {
                 </div>
               </div>
 
-              {/* Pricing Plans - Only show when Private is selected */}
+              {/* Pricing Plans Management - Only show when Private is selected */}
               {publishForm.is_private && (
                 <div>
-                  <Label className="block text-sm font-medium text-gray-700 mb-3">
-                    Select Pricing Plan
-                  </Label>
-                  <div className="grid grid-cols-1 gap-3">
-                    {pricingPlans.map((plan) => (
-                      <div 
-                        key={plan.id}
-                        className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${selectedPlan === plan.id ? 'border-blue-500 ring-2 ring-blue-200 bg-blue-50' : 'border-gray-200 hover:border-blue-300'}`}
-                        onClick={() => handlePlanSelect(plan.id)}
-                      >
-                        <div className="flex justify-between items-center">
-                          <div>
-                            <h6 className="font-bold text-gray-900 flex items-center">
-                              {plan.name}
-                              {selectedPlan === plan.id && (
-                                <CheckCircle className="h-4 w-4 text-blue-600 ml-2" />
-                              )}
-                            </h6>
-                            <p className="text-sm text-gray-600 mt-1">{plan.description}</p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-xl font-bold text-gray-900">${plan.price}<span className="text-sm font-normal text-gray-600">/mo</span></p>
+                  <div className="flex items-center justify-between mb-4">
+                    <Label className="block text-sm font-medium text-gray-700">
+                      Pricing Plans
+                    </Label>
+                    <Button
+                      type="button"
+                      onClick={() => setShowCreatePlan(true)}
+                      className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white text-sm px-4 py-2"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Create Plan
+                    </Button>
+                  </div>
+
+                  {isLoadingPlans ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin text-blue-600" />
+                    </div>
+                  ) : plans.length === 0 ? (
+                    <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                      <div className="text-gray-500 mb-2">No pricing plans created yet</div>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 gap-3">
+                      {plans.map((plan: any) => (
+                        <div
+                          key={plan.id}
+                          className="p-4 border-2 rounded-lg border-gray-200 hover:border-blue-300 transition-all"
+                        >
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                              <div className="flex items-center justify-between">
+                                <h6 className="font-bold text-gray-900 flex items-center">
+                                  {plan.name}
+                                  <CheckCircle className="h-4 w-4 text-green-600 ml-2" />
+                                </h6>
+                                <Button
+                                  type="button"
+                                  onClick={() => openDeleteModal(plan.id, plan.name)}
+                                  variant="outline"
+                                  size="sm"
+                                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                >
+                                  Delete
+                                </Button>
+                              </div>
+                              <div className="mt-2">
+                                <p className="text-2xl font-bold text-gray-900">
+                                  ${plan.price}
+                                  <span className="text-sm font-normal text-gray-600">/{plan.billing_interval}</span>
+                                </p>
+                                <p className="text-xs text-gray-500 mt-1">
+                                  Currency: {plan.currency} • Created: {new Date(plan.created_at).toLocaleDateString()}
+                                </p>
+                                {plan.stripe_product_id && (
+                                  <div className="text-xs text-green-600 font-medium mt-1">
+                                    ✓ Stripe Ready (Product: {plan.stripe_product_id.substring(0, 12)}...)
+                                  </div>
+                                )}
+                              </div>
+                            </div>
                           </div>
                         </div>
-                        <ul className="mt-3 text-sm text-gray-700 space-y-1">
-                          {plan.features.map((feature, idx) => (
-                            <li key={idx} className="flex items-center">
-                              <div className="w-1.5 h-1.5 rounded-full bg-green-500 mr-3"></div>
-                              <span>{feature}</span>
-                            </li>
-                          ))}
-                        </ul>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Create Plan Modal */}
+                  {showCreatePlan && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                      <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+                        <div className="flex items-center justify-between mb-4">
+                          <h3 className="text-lg font-semibold text-gray-900">Create New Plan</h3>
+                          <Button
+                            type="button"
+                            onClick={() => {
+                              setShowCreatePlan(false)
+                              setCreatePlanForm({ name: '', price: '' })
+                            }}
+                            variant="outline"
+                            size="sm"
+                          >
+                            ×
+                          </Button>
+                        </div>
+
+                        <div className="space-y-4">
+                          <div>
+                            <Label className="block text-sm font-medium text-gray-700 mb-2">
+                              Plan Name
+                            </Label>
+                            <Input
+                              value={createPlanForm.name}
+                              onChange={(e) => setCreatePlanForm({ ...createPlanForm, name: e.target.value })}
+                              placeholder="e.g., Basic Plan, Premium Access"
+                              className="w-full"
+                            />
+                          </div>
+
+                          <div>
+                            <Label className="block text-sm font-medium text-gray-700 mb-2">
+                              Monthly Price (USD)
+                            </Label>
+                            <div className="relative">
+                              <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
+                              <Input
+                                type="number"
+                                min="1"
+                                step="0.01"
+                                value={createPlanForm.price}
+                                onChange={(e) => setCreatePlanForm({ ...createPlanForm, price: e.target.value })}
+                                placeholder="29.99"
+                                className="w-full pl-8"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="bg-blue-50 p-3 rounded-lg">
+                            <p className="text-sm text-blue-800">
+                              💡 This will create a Stripe product with the same name for subscription billing.
+                            </p>
+                          </div>
+
+                          <div className="flex gap-3 pt-4">
+                            <Button
+                              type="button"
+                              onClick={() => {
+                                setShowCreatePlan(false)
+                                setCreatePlanForm({ name: '', price: '' })
+                              }}
+                              variant="outline"
+                              className="flex-1"
+                            >
+                              Cancel
+                            </Button>
+                            <Button
+                              type="button"
+                              onClick={handleCreatePlan}
+                              disabled={isCreatingPlan || !createPlanForm.name || !createPlanForm.price}
+                              className="flex-1 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700"
+                            >
+                              {isCreatingPlan ? (
+                                <>
+                                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                  Creating...
+                                </>
+                              ) : (
+                                'Create Plan'
+                              )}
+                            </Button>
+                          </div>
+                        </div>
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  )}
+
+                  {/* Delete Plan Confirmation Modal */}
+                  <ConfirmDeleteDialog
+                    open={deleteModal.open}
+                    onClose={() => setDeleteModal({ open: false, planId: '', planName: '' })}
+                    onConfirm={handleDeletePlan}
+                    title="Delete Plan"
+                    description={`Are you sure you want to delete the plan "${deleteModal.planName}"? This action cannot be undone.`}
+                    loading={loading}
+                  />
                 </div>
               )}
             </div>
