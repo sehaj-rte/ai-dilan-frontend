@@ -88,15 +88,14 @@ const PaymentMethodForm: React.FC<{
       }
 
       // Save payment method to backend
-      const response = await fetch(`${API_URL}/payments/payment-methods`, {
+      const response = await fetch(`${API_URL}/payments/payment-methods/attach`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('dilan_ai_token')}`
         },
         body: JSON.stringify({
-          payment_method_id: paymentMethod.id,
-          set_as_default: true
+          payment_method_id: paymentMethod.id
         })
       })
 
