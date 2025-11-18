@@ -163,60 +163,58 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-2xl font-bold text-center">
+          <DialogTitle className="text-3xl font-bold text-center">
             Subscribe to {expertName}
           </DialogTitle>
-          <p className="text-center text-gray-600 mt-2">
+          <p className="text-center text-gray-600 mt-2 text-lg">
             Choose your plan and get instant access
           </p>
         </DialogHeader>
 
-        <div className="space-y-6">
-          {/* Plan Selection */}
-          <div className="space-y-4">
+        <div className="space-y-8 py-6">
+          {/* Plan Selection - Increased height with min-h-[400px] */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 min-h-[400px]">
             {plans.map((plan) => (
               <Card
                 key={plan.id}
-                className={`cursor-pointer transition-all duration-200 hover:shadow-lg ${
+                className={`cursor-pointer transition-all duration-200 hover:shadow-xl h-full ${
                   selectedPlan?.id === plan.id
-                    ? 'ring-2 ring-blue-500 ring-offset-2 border-blue-200'
+                    ? 'ring-4 ring-blue-500 ring-offset-2 border-blue-200'
                     : 'hover:border-gray-300'
                 }`}
                 onClick={() => setSelectedPlan(plan)}
               >
-                <CardHeader className="pb-3">
+                <CardHeader className="pb-4">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="flex flex-col">
-                        <CardTitle className="text-lg flex items-center gap-2">
-                          {plan.name}
-                          {plan.recommended && (
-                            <Badge className="bg-blue-500 text-white text-xs">
-                              <Star className="w-3 h-3 mr-1" />
-                              Recommended
-                            </Badge>
-                          )}
-                        </CardTitle>
-                        <div className="text-2xl font-bold text-blue-600 mt-1">
-                          ${plan.price}
-                          <span className="text-sm text-gray-500 font-normal">
-                            /{plan.billing_interval}
-                          </span>
-                        </div>
+                    <div className="flex flex-col">
+                      <CardTitle className="text-xl flex items-center gap-2">
+                        {plan.name}
+                        {plan.recommended && (
+                          <Badge className="bg-blue-500 text-white text-sm px-2 py-1">
+                            <Star className="w-4 h-4 mr-1" />
+                            Recommended
+                          </Badge>
+                        )}
+                      </CardTitle>
+                      <div className="text-3xl font-bold text-blue-600 mt-2">
+                        ${plan.price}
+                        <span className="text-base text-gray-500 font-normal">
+                          /{plan.billing_interval}
+                        </span>
                       </div>
                     </div>
                     {selectedPlan?.id === plan.id && (
-                      <CheckCircle2 className="w-6 h-6 text-blue-600" />
+                      <CheckCircle2 className="w-8 h-8 text-blue-600" />
                     )}
                   </div>
                 </CardHeader>
-                <CardContent className="pt-0">
-                  <ul className="space-y-2 text-sm">
+                <CardContent className="pt-2 flex-grow">
+                  <ul className="space-y-3 text-base">
                     {plan.features.map((feature, index) => (
-                      <li key={index} className="flex items-center gap-2">
-                        <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0" />
+                      <li key={index} className="flex items-start gap-3">
+                        <CheckCircle2 className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
                         <span>{feature}</span>
                       </li>
                     ))}
@@ -226,13 +224,13 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
             ))}
           </div>
 
-          {/* Payment Method Info */}
+          {/* Payment Method Info - Decreased height with smaller text */}
           {!checkingPaymentMethods && (
-            <div className="bg-gray-50 rounded-lg p-4">
+            <div className="bg-gray-50 rounded-xl p-4">
               <div className="flex items-center gap-3">
                 {hasExistingCard ? (
                   <>
-                    <CreditCard className="w-5 h-5 text-blue-600" />
+                    <CreditCard className="w-6 h-6 text-blue-600" />
                     <div>
                       <p className="font-medium text-gray-900">Saved Payment Method</p>
                       <p className="text-sm text-gray-600">
@@ -242,7 +240,7 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
                   </>
                 ) : (
                   <>
-                    <Shield className="w-5 h-5 text-blue-600" />
+                    <Shield className="w-6 h-6 text-blue-600" />
                     <div>
                       <p className="font-medium text-gray-900">Secure Checkout</p>
                       <p className="text-sm text-gray-600">
@@ -257,46 +255,45 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
 
           {/* Error Display */}
           {error && (
-            <div className="flex items-center gap-2 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
-              <AlertCircle className="h-5 w-5 flex-shrink-0" />
+            <div className="flex items-center gap-3 p-6 bg-red-50 border border-red-200 rounded-xl text-red-700 text-lg">
+              <AlertCircle className="h-6 w-6 flex-shrink-0" />
               <span>{error}</span>
             </div>
           )}
 
           {/* Action Buttons */}
-          <div className="flex gap-3">
+          <div className="flex flex-col sm:flex-row gap-4">
             <Button
               variant="outline"
               onClick={onClose}
               disabled={loading}
-              className="flex-1"
+              className="flex-1 py-6 text-lg"
             >
               Cancel
             </Button>
             <Button
               onClick={handleSubscribe}
               disabled={!selectedPlan || loading || checkingPaymentMethods}
-              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
-              size="lg"
+              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-6 text-lg"
             >
               {loading ? (
                 <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  <Loader2 className="h-5 w-5 mr-3 animate-spin" />
                   Processing...
                 </>
               ) : checkingPaymentMethods ? (
                 <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  <Loader2 className="h-5 w-5 mr-3 animate-spin" />
                   Loading...
                 </>
               ) : hasExistingCard ? (
                 <>
-                  <Zap className="h-4 w-4 mr-2" />
+                  <Zap className="h-5 w-5 mr-3" />
                   Subscribe Instantly
                 </>
               ) : (
                 <>
-                  <ArrowRight className="h-4 w-4 mr-2" />
+                  <ArrowRight className="h-5 w-5 mr-3" />
                   Continue to Payment
                 </>
               )}
@@ -304,9 +301,9 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
           </div>
 
           {/* Security Notice */}
-          <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
-            <Lock className="w-4 h-4" />
-            <span>Secure payment powered by Stripe</span>
+          <div className="flex items-center justify-center gap-3 text-gray-500">
+            <Lock className="w-5 h-5" />
+            <span className="text-lg">Secure payment powered by Stripe</span>
           </div>
         </div>
       </DialogContent>

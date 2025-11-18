@@ -14,7 +14,9 @@ import {
   Trash2,
   CheckCircle2,
   AlertCircle,
-  Loader2
+  Loader2,
+  Zap,
+  Star
 } from 'lucide-react'
 import { API_URL } from '@/lib/config'
 import AddPaymentMethodModal from './AddPaymentMethodModal'
@@ -36,6 +38,7 @@ interface Subscription {
   user_id: string
   created_at: string
   updated_at: string
+  plan_id?: string // Add plan_id to the interface
 }
 
 interface PaymentMethod {
@@ -53,6 +56,17 @@ interface PaymentMethod {
   }
 }
 
+// Add Plan interface
+interface Plan {
+  id: string
+  name: string
+  price: number
+  currency: string
+  billing_interval: string
+  features: string[]
+  recommended?: boolean
+}
+
 interface BillingSectionProps {
   isOpen: boolean
   onClose: () => void
@@ -66,9 +80,13 @@ const BillingSection: React.FC<BillingSectionProps> = ({
 }) => {
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([])
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([])
+  const [plans, setPlans] = useState<Plan[]>([]) // Add plans state
+  const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null) // Add selected plan state
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [showAddPaymentModal, setShowAddPaymentModal] = useState(false)
+  const [upgrading, setUpgrading] = useState(false) // Add upgrading state
+  const [selectedSubscription, setSelectedSubscription] = useState<Subscription | null>(null) // Add selected subscription for upgrade
 
   // Fetch billing data
   useEffect(() => {
@@ -104,6 +122,58 @@ const BillingSection: React.FC<BillingSectionProps> = ({
         if (paymentMethodsData.success) {
           setPaymentMethods(paymentMethodsData.payment_methods || [])
         }
+
+        // Fetch available plans
+        // In a real implementation, this would come from an API endpoint
+        // For now, we'll use mock data but in a more realistic way
+        const mockPlans: Plan[] = [
+          {
+            id: '1',
+            name: 'Basic Plan',
+            price: 29,
+            currency: 'USD',
+            billing_interval: 'month',
+            features: [
+              'Unlimited chat sessions',
+              'Email support',
+              'Cancel anytime',
+              'Basic analytics'
+            ]
+          },
+          {
+            id: '2',
+            name: 'Pro Plan',
+            price: 59,
+            currency: 'USD',
+            billing_interval: 'month',
+            features: [
+              'Unlimited chat & call sessions',
+              'Priority support',
+              'Advanced analytics',
+              'Custom integrations',
+              'Cancel anytime'
+            ],
+            recommended: true
+          },
+          {
+            id: '3',
+            name: 'Enterprise Plan',
+            price: 99,
+            currency: 'USD',
+            billing_interval: 'month',
+            features: [
+              'Everything in Pro',
+              'Dedicated support',
+              'Custom branding',
+              'API access',
+              'SLA guarantee'
+            ]
+          }
+        ]
+        setPlans(mockPlans)
+        // Auto-select the recommended plan or the first one
+        const recommendedPlan = mockPlans.find(p => p.recommended) || mockPlans[0]
+        setSelectedPlan(recommendedPlan)
 
       } catch (err) {
         console.error('Error fetching billing data:', err)
@@ -234,6 +304,41 @@ const BillingSection: React.FC<BillingSectionProps> = ({
     window.location.reload()
   }
 
+  // Handle plan upgrade
+  const handleUpgradePlan = async () => {
+    if (!selectedPlan || !selectedSubscription) return;
+    
+    setUpgrading(true);
+    try {
+      // Use the replace subscription endpoint to upgrade the plan
+      const response = await fetch(`${API_URL}/payments/subscriptions/${selectedSubscription.stripe_subscription_id}/replace`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${userToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          new_plan_id: selectedPlan.id
+        })
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        alert(`Successfully upgraded to ${selectedPlan.name} plan!`);
+        // Refresh subscriptions to show the updated plan
+        window.location.reload();
+      } else {
+        alert('Failed to upgrade plan: ' + (data.error || 'Unknown error'));
+      }
+    } catch (err) {
+      console.error('Error upgrading plan:', err);
+      alert('Failed to upgrade plan. Please try again.');
+    } finally {
+      setUpgrading(false);
+    }
+  }
+
   if (loading) {
     return (
       <Dialog open={isOpen} onOpenChange={onClose}>
@@ -262,6 +367,109 @@ const BillingSection: React.FC<BillingSectionProps> = ({
             <div className="flex items-center gap-2 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
               <AlertCircle className="h-5 w-5 flex-shrink-0" />
               <span>{error}</span>
+            </div>
+          )}
+
+          {/* Plan Selection - Added section */}
+          {subscriptions.length > 0 && (
+            <div>
+              <h3 className="text-lg font-semibold mb-4">Upgrade Your Plan</h3>
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Select Subscription to Upgrade
+                </label>
+                <select
+                  className="w-full p-2 border border-gray-300 rounded-md"
+                  value={selectedSubscription?.stripe_subscription_id || ''}
+                  onChange={(e) => {
+                    const subscription = subscriptions.find(s => s.stripe_subscription_id === e.target.value);
+                    setSelectedSubscription(subscription || null);
+                  }}
+                >
+                  <option value="">Select a subscription</option>
+                  {subscriptions.map((subscription) => (
+                    <option 
+                      key={subscription.stripe_subscription_id} 
+                      value={subscription.stripe_subscription_id}
+                    >
+                      {subscription.plan_name} - ${subscription.plan_price}/{subscription.plan_interval}
+                      {subscription.expert_name ? ` (${subscription.expert_name})` : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              
+              {selectedSubscription && (
+                <>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 min-h-[300px]">
+                    {plans.map((plan) => (
+                      <Card
+                        key={plan.id}
+                        className={`cursor-pointer transition-all duration-200 hover:shadow-xl h-full ${
+                          selectedPlan?.id === plan.id
+                            ? 'ring-4 ring-blue-500 ring-offset-2 border-blue-200'
+                            : 'hover:border-gray-300'
+                        }`}
+                        onClick={() => setSelectedPlan(plan)}
+                      >
+                        <CardHeader className="pb-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex flex-col">
+                              <CardTitle className="text-xl flex items-center gap-2">
+                                {plan.name}
+                                {plan.recommended && (
+                                  <Badge className="bg-blue-500 text-white text-sm px-2 py-1">
+                                    <Star className="w-4 h-4 mr-1" />
+                                    Recommended
+                                  </Badge>
+                                )}
+                              </CardTitle>
+                              <div className="text-2xl font-bold text-blue-600 mt-2">
+                                ${plan.price}
+                                <span className="text-base text-gray-500 font-normal">
+                                  /{plan.billing_interval}
+                                </span>
+                              </div>
+                            </div>
+                            {selectedPlan?.id === plan.id && (
+                              <CheckCircle2 className="w-6 h-6 text-blue-600" />
+                            )}
+                          </div>
+                        </CardHeader>
+                        <CardContent className="pt-2 flex-grow">
+                          <ul className="space-y-2 text-sm">
+                            {plan.features.map((feature, index) => (
+                              <li key={index} className="flex items-start gap-2">
+                                <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0 mt-0.5" />
+                                <span>{feature}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                  <div className="mt-4 flex justify-center">
+                    <Button 
+                      className="bg-blue-600 hover:bg-blue-700 text-white"
+                      onClick={handleUpgradePlan}
+                      disabled={!selectedPlan || upgrading || (selectedPlan.id === selectedSubscription.plan_id)}
+                    >
+                      {upgrading ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Upgrading...
+                        </>
+                      ) : (
+                        <>
+                          <Zap className="h-4 w-4 mr-2" />
+                          Upgrade Plan
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </>
+              )}
             </div>
           )}
 
