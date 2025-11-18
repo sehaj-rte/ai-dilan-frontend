@@ -10,6 +10,7 @@ import { useClientAuthFlow } from '@/contexts/ClientAuthFlowContext'
 import AuthModal from '@/components/client/AuthModal'
 import PaymentModal from '@/components/client/PaymentModal'
 import PrivateExpertPaymentModal from '@/components/client/PrivateExpertPaymentModal'
+import BillingButton from '@/components/billing/BillingButton'
 import { 
   MessageCircle, 
   Phone, 
@@ -133,10 +134,10 @@ const ClientExpertPage = () => {
   }, [slug])
 
   useEffect(() => {
-    if (isAuthenticated && publication?.is_private) {
+    if (isAuthenticated && publication?.is_private && expert?.id) {
       checkUserSubscription()
     }
-  }, [isAuthenticated, publication])
+  }, [isAuthenticated, publication, expert])
 
   const fetchExpertData = async () => {
     try {
@@ -165,11 +166,11 @@ const ClientExpertPage = () => {
   }
 
   const checkUserSubscription = async () => {
-    if (!publication?.id || !isAuthenticated) return
+    if (!expert?.id || !isAuthenticated) return
     
     try {
       setCheckingSubscription(true)
-      const response = await fetch(`${API_URL}/payments/subscriptions/check/${publication.id}`, {
+      const response = await fetch(`${API_URL}/payments/subscriptions/check-expert/${expert.id}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('dilan_ai_token')}`
         }
@@ -308,12 +309,20 @@ const ClientExpertPage = () => {
               <h1 className="text-xl font-bold text-gray-900">{publication?.display_name || expert?.name || 'Expert'}</h1>
             </div>
             
-            {/* User Info & Logout */}
+            {/* User Info & Actions */}
             {isAuthenticated && user ? (
               <div className="flex items-center gap-3">
                 <div className="text-right">
                   <p className="text-sm font-medium text-gray-900">{user.email}</p>
                 </div>
+                
+                {/* Billing Button */}
+                <BillingButton 
+                  userToken={typeof window !== 'undefined' ? localStorage.getItem('dilan_ai_token') || '' : ''}
+                  variant="outline"
+                  size="sm"
+                />
+                
                 <Button
                   variant="outline"
                   size="sm"
@@ -415,10 +424,15 @@ const ClientExpertPage = () => {
                   Checking subscription...
                 </Badge>
               ) : hasActiveSubscription ? (
-                <Badge className="bg-green-100 text-green-800 px-3 py-1 flex items-center gap-2">
-                  <CheckCircle2 className="h-4 w-4" />
-                  Active Subscription
-                </Badge>
+                <div className="flex flex-col items-center gap-2">
+                  <Badge className="bg-green-100 text-green-800 px-3 py-1 flex items-center gap-2">
+                    <CheckCircle2 className="h-4 w-4" />
+                    Active Subscription
+                  </Badge>
+                  <p className="text-xs text-gray-500">
+                    Manage your subscription in the billing section above
+                  </p>
+                </div>
               ) : (
                 <Badge className="bg-yellow-100 text-yellow-800 px-3 py-1 flex items-center gap-2">
                   <AlertCircle className="h-4 w-4" />
