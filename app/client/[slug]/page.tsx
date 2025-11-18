@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -86,6 +86,7 @@ interface Template {
 const ClientExpertPage = () => {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const slug = params.slug as string
 
   // Use ClientAuthFlow context
@@ -139,6 +140,17 @@ const ClientExpertPage = () => {
     }
   }, [isAuthenticated, publication, expert])
 
+  // Handle payment success from Stripe redirect
+  useEffect(() => {
+    const paymentSuccess = searchParams.get('payment_success')
+    const sessionId = searchParams.get('session_id')
+    
+    if (paymentSuccess === 'true' && sessionId) {
+      // Validate the payment session and update subscription status
+      validatePaymentSession(sessionId)
+    }
+  }, [searchParams, isAuthenticated])
+
   const fetchExpertData = async () => {
     try {
       setLoading(true)
@@ -165,6 +177,50 @@ const ClientExpertPage = () => {
     }
   }
 
+  const validatePaymentSession = async (sessionId: string) => {
+    if (!isAuthenticated) return
+
+    try {
+      const token = localStorage.getItem('dilan_ai_token')
+      let databaseSessionId = sessionId
+
+      // Check if this is a Stripe checkout session ID (starts with 'cs_')
+      if (sessionId.startsWith('cs_')) {
+        // Convert Stripe session ID to database session ID
+        const conversionResponse = await fetch(`${API_URL}/payments/stripe-session/${sessionId}/database-session`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        })
+        const conversionData = await conversionResponse.json()
+        
+        if (conversionData.success) {
+          databaseSessionId = conversionData.database_session_id
+        } else {
+          console.error('Failed to convert Stripe session ID:', conversionData)
+          return
+        }
+      }
+
+      // Validate the database session
+      const response = await fetch(`${API_URL}/payments/session/${databaseSessionId}/status`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      const data = await response.json()
+      if (data.success && data.session.payment_status === 'succeeded') {
+        // Payment successful, check/update subscription status
+        if (expert?.id) {
+          checkUserSubscription()
+        }
+      }
+    } catch (error) {
+      console.error('Error validating payment session:', error)
+    }
+  }
+
   const checkUserSubscription = async () => {
     if (!expert?.id || !isAuthenticated) return
     
@@ -179,6 +235,19 @@ const ClientExpertPage = () => {
       
       if (data.success) {
         setHasActiveSubscription(data.has_subscription)
+        // If subscription was just activated, redirect to chat/call
+        if (data.has_subscription && (showPrivatePaymentModal || searchParams.get('payment_success') === 'true')) {
+          // Close payment modal if open
+          if (showPrivatePaymentModal) {
+            setShowPrivatePaymentModal(false)
+          }
+          // Redirect to chat or call based on selected session type
+          if (selectedSessionType === 'chat') {
+            router.push(`/client/${slug}/chat`)
+          } else {
+            router.push(`/client/${slug}/call`)
+          }
+        }
       }
     } catch (error) {
       console.error('Error checking subscription:', error)
@@ -405,43 +474,6 @@ const ClientExpertPage = () => {
             </p>
           )}
 
-          {/* Private Expert Badge */}
-          {publication?.is_private && (
-            <div className="flex justify-center mb-4">
-              <Badge className="bg-purple-100 text-purple-800 px-3 py-1 flex items-center gap-2">
-                <Lock className="h-4 w-4" />
-                Private Expert - Subscription Required
-              </Badge>
-            </div>
-          )}
-
-          {/* Subscription Status */}
-          {publication?.is_private && isAuthenticated && (
-            <div className="flex justify-center mb-4">
-              {checkingSubscription ? (
-                <Badge className="bg-gray-100 text-gray-600 px-3 py-1 flex items-center gap-2">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Checking subscription...
-                </Badge>
-              ) : hasActiveSubscription ? (
-                <div className="flex flex-col items-center gap-2">
-                  <Badge className="bg-green-100 text-green-800 px-3 py-1 flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4" />
-                    Active Subscription
-                  </Badge>
-                  <p className="text-xs text-gray-500">
-                    Manage your subscription in the billing section above
-                  </p>
-                </div>
-              ) : (
-                <Badge className="bg-yellow-100 text-yellow-800 px-3 py-1 flex items-center gap-2">
-                  <AlertCircle className="h-4 w-4" />
-                  Subscription Required
-                </Badge>
-              )}
-            </div>
-          )}
-
           {/* CTA Buttons */}
           <div className="flex justify-center gap-3 mb-12">
             <Button 
@@ -452,8 +484,7 @@ const ClientExpertPage = () => {
               disabled={checkingSubscription}
             >
               <MessageCircle className="h-5 w-5 mr-2" />
-              {publication?.is_private && !isAuthenticated ? 'Login to Chat' : 
-               publication?.is_private && !hasActiveSubscription ? 'Subscribe to Chat' : 'Chat'}
+              Chat
             </Button>
             <Button 
               size="lg" 
@@ -463,8 +494,7 @@ const ClientExpertPage = () => {
               disabled={checkingSubscription}
             >
               <Phone className="h-5 w-5 mr-2" />
-              {publication?.is_private && !isAuthenticated ? 'Login to Call' : 
-               publication?.is_private && !hasActiveSubscription ? 'Subscribe to Call' : 'Call'}
+              Call
             </Button>
           </div>
 

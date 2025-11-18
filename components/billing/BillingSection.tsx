@@ -17,9 +17,11 @@ import {
   Loader2
 } from 'lucide-react'
 import { API_URL } from '@/lib/config'
+import AddPaymentMethodModal from './AddPaymentMethodModal'
 
 interface Subscription {
   id: string
+  stripe_subscription_id: string
   status: string
   current_period_start: string
   current_period_end: string
@@ -29,6 +31,11 @@ interface Subscription {
   plan_currency: string
   plan_interval: string
   expert_id: string
+  expert_name?: string
+  expert_description?: string
+  user_id: string
+  created_at: string
+  updated_at: string
 }
 
 interface PaymentMethod {
@@ -61,6 +68,7 @@ const BillingSection: React.FC<BillingSectionProps> = ({
   const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [showAddPaymentModal, setShowAddPaymentModal] = useState(false)
 
   // Fetch billing data
   useEffect(() => {
@@ -71,8 +79,8 @@ const BillingSection: React.FC<BillingSectionProps> = ({
         setLoading(true)
         setError(null)
 
-        // Fetch subscriptions
-        const subscriptionsResponse = await fetch(`${API_URL}/payments/subscriptions/active`, {
+        // Fetch subscriptions from database (more reliable)
+        const subscriptionsResponse = await fetch(`${API_URL}/payments/subscriptions/database`, {
           headers: {
             'Authorization': `Bearer ${userToken}`
           }
@@ -81,6 +89,8 @@ const BillingSection: React.FC<BillingSectionProps> = ({
 
         if (subscriptionsData.success) {
           setSubscriptions(subscriptionsData.subscriptions || [])
+        } else {
+          console.error('Failed to fetch subscriptions:', subscriptionsData.error)
         }
 
         // Fetch payment methods
@@ -132,7 +142,7 @@ const BillingSection: React.FC<BillingSectionProps> = ({
   }
 
   const handleCancelSubscription = async (subscriptionId: string) => {
-    if (!confirm('Are you sure you want to cancel this subscription?')) return
+    if (!confirm('Are you sure you want to cancel this subscription? It will remain active until the end of your current billing period.')) return
 
     try {
       const response = await fetch(`${API_URL}/payments/subscriptions/${subscriptionId}/cancel`, {
@@ -147,7 +157,7 @@ const BillingSection: React.FC<BillingSectionProps> = ({
         // Refresh subscriptions
         setSubscriptions(prev => 
           prev.map(sub => 
-            sub.id === subscriptionId 
+            sub.stripe_subscription_id === subscriptionId 
               ? { ...sub, cancel_at_period_end: true }
               : sub
           )
@@ -161,9 +171,67 @@ const BillingSection: React.FC<BillingSectionProps> = ({
     }
   }
 
+  const handleReactivateSubscription = async (subscriptionId: string) => {
+    if (!confirm('Are you sure you want to reactivate this subscription?')) return
+
+    try {
+      const response = await fetch(`${API_URL}/payments/subscriptions/${subscriptionId}/reactivate`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${userToken}`
+        }
+      })
+
+      const data = await response.json()
+      if (data.success) {
+        // Refresh subscriptions
+        setSubscriptions(prev => 
+          prev.map(sub => 
+            sub.stripe_subscription_id === subscriptionId 
+              ? { ...sub, cancel_at_period_end: false }
+              : sub
+          )
+        )
+      } else {
+        alert('Failed to reactivate subscription: ' + (data.error || 'Unknown error'))
+      }
+    } catch (err) {
+      console.error('Error reactivating subscription:', err)
+      alert('Failed to reactivate subscription')
+    }
+  }
+
+  const handleSetDefaultPaymentMethod = async (paymentMethodId: string) => {
+    try {
+      const response = await fetch(`${API_URL}/payments/payment-methods/${paymentMethodId}/default`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${userToken}`
+        }
+      })
+
+      const data = await response.json()
+      if (data.success) {
+        alert('Default payment method updated successfully')
+        // Refresh payment methods to show updated default
+        window.location.reload()
+      } else {
+        alert('Failed to update default payment method: ' + (data.error || 'Unknown error'))
+      }
+    } catch (err) {
+      console.error('Error setting default payment method:', err)
+      alert('Failed to update default payment method')
+    }
+  }
+
   const handleAddPaymentMethod = () => {
-    // This would typically open a Stripe Elements form or redirect to setup
-    alert('Add payment method functionality would be implemented here')
+    setShowAddPaymentModal(true)
+  }
+
+  const handlePaymentMethodAdded = () => {
+    setShowAddPaymentModal(false)
+    // Refresh billing data to show new payment method
+    window.location.reload()
   }
 
   if (loading) {
@@ -213,7 +281,14 @@ const BillingSection: React.FC<BillingSectionProps> = ({
                   <Card key={subscription.id}>
                     <CardHeader className="pb-3">
                       <div className="flex items-center justify-between">
-                        <CardTitle className="text-lg">{subscription.plan_name}</CardTitle>
+                        <div>
+                          <CardTitle className="text-lg">{subscription.plan_name}</CardTitle>
+                          {subscription.expert_name && (
+                            <p className="text-sm text-gray-600 mt-1">
+                              Expert: {subscription.expert_name}
+                            </p>
+                          )}
+                        </div>
                         {getStatusBadge(subscription.status)}
                       </div>
                     </CardHeader>
@@ -233,15 +308,25 @@ const BillingSection: React.FC<BillingSectionProps> = ({
                         </div>
                         <div className="flex items-center gap-2">
                           {subscription.cancel_at_period_end ? (
-                            <div className="text-sm text-red-600">
-                              <AlertCircle className="w-4 h-4 inline mr-1" />
-                              Cancels at period end
+                            <div className="space-y-2">
+                              <div className="text-sm text-red-600">
+                                <AlertCircle className="w-4 h-4 inline mr-1" />
+                                Cancels at period end
+                              </div>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleReactivateSubscription(subscription.stripe_subscription_id)}
+                                className="text-green-600 hover:text-green-700"
+                              >
+                                Reactivate
+                              </Button>
                             </div>
                           ) : (
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => handleCancelSubscription(subscription.id)}
+                              onClick={() => handleCancelSubscription(subscription.stripe_subscription_id)}
                               className="text-red-600 hover:text-red-700"
                             >
                               Cancel Subscription
@@ -294,13 +379,23 @@ const BillingSection: React.FC<BillingSectionProps> = ({
                             </p>
                           </div>
                         </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-red-600 hover:text-red-700"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleSetDefaultPaymentMethod(method.id)}
+                            className="text-blue-600 hover:text-blue-700"
+                          >
+                            Set Default
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-red-600 hover:text-red-700"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
                       </div>
                     </CardContent>
                   </Card>
@@ -309,6 +404,13 @@ const BillingSection: React.FC<BillingSectionProps> = ({
             )}
           </div>
         </div>
+
+        {/* Add Payment Method Modal */}
+        <AddPaymentMethodModal
+          isOpen={showAddPaymentModal}
+          onClose={() => setShowAddPaymentModal(false)}
+          onSuccess={handlePaymentMethodAdded}
+        />
       </DialogContent>
     </Dialog>
   )
