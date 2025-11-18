@@ -37,6 +37,11 @@ const sidebarItems = [
     icon: BookOpen
   },
   {
+    title: 'Earnings',
+    href: '/dashboard/earnings',
+    icon: BarChart3
+  },
+  {
     title: 'Professional Voice Clone',
     href: '/dashboard/pvc',
     icon: Mic
@@ -118,6 +123,11 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, projectId }) => {
           icon: Mic2
         },
         {
+          title: 'Earnings',
+          href: `/project/${projectId}/earnings`,
+          icon: BarChart3
+        },
+        {
           title: 'Test Knowledge Base',
           href: `/project/${projectId}/chat`,
           icon: MessageSquare
@@ -141,7 +151,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, projectId }) => {
           title: 'Publish Manager',
           href: `/project/${projectId}/publish`,
           icon: Share2
-      }
+      },
       ]
       
       // Only show Publish Manager if NOT super admin viewing someone else's expert
