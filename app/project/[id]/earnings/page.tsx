@@ -13,12 +13,23 @@ import { useParams } from "next/navigation"
 
 interface SubscriptionRecord {
   id: string
+  plan_id: string
   plan_name: string
   amount: number
   currency: string
   status: string
   started_at: string
   ended_at: string | null
+  user_name?: string | null
+  user_email?: string | null
+}
+
+interface PlanItem {
+  id: string
+  name: string
+  price: number
+  currency: string
+  billing_interval: string
 }
 
 interface SubscriptionSummary {
@@ -38,6 +49,10 @@ export default function SubscriptionHistoryPage() {
   const [selected, setSelected] = useState<SubscriptionRecord | null>(null)
   const [cancelModal, setCancelModal] = useState(false)
   const [isCancelling, setIsCancelling] = useState(false)
+  const [replaceModal, setReplaceModal] = useState(false)
+  const [isReplacing, setIsReplacing] = useState(false)
+  const [plans, setPlans] = useState<PlanItem[]>([])
+  const [selectedPlanId, setSelectedPlanId] = useState<string>("")
   const [summary, setSummary] = useState<SubscriptionSummary | null>(null)
 
   // Fetch subscription history
@@ -69,6 +84,74 @@ export default function SubscriptionHistoryPage() {
   useEffect(() => {
     fetchSubscriptions()
   }, [projectId])
+
+  // Open replace modal: preload expert plans
+  const openReplaceModal = async (record: SubscriptionRecord) => {
+    try {
+      setSelected(record)
+      setReplaceModal(true)
+      // Fetch expert plans to populate dropdown
+      const resp = await fetchWithAuth(
+        `${API_URL}/plans/experts/${projectId}`,
+        { headers: getAuthHeaders() }
+      )
+      const data = await resp.json()
+      if (data.success) {
+        const mapped: PlanItem[] = (data.plans || []).map((p: any) => ({
+          id: p.id,
+          name: p.name,
+          price: p.price,
+          currency: p.currency,
+          billing_interval: p.billing_interval,
+        }))
+        setPlans(mapped)
+        // Prefill with a different plan than current, if available
+        const alt = mapped.find((p) => p.id !== record.plan_id)
+        setSelectedPlanId(alt ? alt.id : (mapped[0]?.id || ""))
+      } else {
+        error(data.detail || "Failed to load plans")
+      }
+    } catch (e) {
+      console.error(e)
+      error("Error loading plans")
+    }
+  }
+
+  // Replace subscription now
+  const handleReplaceSubscription = async () => {
+    if (!selected || !selectedPlanId) return
+    try {
+      setIsReplacing(true)
+      const response = await fetchWithAuth(
+        `${API_URL}/payments/subscriptions/${selected.id}/replace`,
+        {
+          method: "POST",
+          headers: { ...getAuthHeaders(), "Content-Type": "application/json" },
+          body: JSON.stringify({ new_plan_id: selectedPlanId })
+        }
+      )
+      const data = await response.json()
+      if (data.success) {
+        // If Stripe requires checkout, redirect the user
+        if (data.use_checkout && data.checkout_url) {
+          success("Redirecting to Stripe to complete the replacement…")
+          window.location.href = data.checkout_url
+          return
+        }
+        success("Subscription replaced successfully")
+        setReplaceModal(false)
+        setSelected(null)
+        await fetchSubscriptions()
+      } else {
+        error(data.detail || "Failed to replace subscription")
+      }
+    } catch (e) {
+      console.error(e)
+      error("Error replacing subscription")
+    } finally {
+      setIsReplacing(false)
+    }
+  }
 
   // Cancel a subscription
   const handleCancelSubscription = async () => {
@@ -164,16 +247,22 @@ export default function SubscriptionHistoryPage() {
                 <table className="w-full text-sm">
                   <thead className="bg-gray-100">
                     <tr className="text-left">
+                      <th className="p-3">Subscriber</th>
                       <th className="p-3">Plan</th>
                       <th className="p-3">Amount</th>
                       <th className="p-3">Status</th>
                       <th className="p-3">Start Date</th>
                       <th className="p-3">End Date</th>
+                      {/* <th className="p-3">Actions</th> */}
                     </tr>
                   </thead>
                   <tbody>
                     {subscriptions.map((sub) => (
                       <tr key={sub.id} className="border-t hover:bg-gray-50">
+                        <td className="p-3">
+                          <div className="font-medium">{sub.user_name || "—"}</div>
+                          <div className="text-xs text-gray-500">{sub.user_email || ""}</div>
+                        </td>
                         <td className="p-3 font-medium">{sub.plan_name}</td>
                         <td className="p-3">
                           {sub.currency} {sub.amount}
@@ -197,6 +286,15 @@ export default function SubscriptionHistoryPage() {
                             ? new Date(sub.ended_at).toLocaleDateString()
                             : "—"}
                         </td>
+                        {/* <td className="p-3 space-x-2">
+                          <Button
+                            variant="secondary"
+                            onClick={() => openReplaceModal(sub)}
+                            disabled={sub.status !== "active" && sub.status !== "trialing"}
+                          >
+                            Replace plan
+                          </Button>
+                        </td> */}
                       </tr>
                     ))}
                   </tbody>
@@ -234,6 +332,40 @@ export default function SubscriptionHistoryPage() {
               ) : (
                 "Cancel Subscription"
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Replace Plan Modal */}
+      <Dialog open={replaceModal} onOpenChange={setReplaceModal}>
+        <DialogContent className="max-w-md">
+          <DialogTitle>Replace Subscription Plan</DialogTitle>
+          <DialogDescription>
+            Select a new plan for the subscriber. The current subscription will be canceled and a new one will be created.
+          </DialogDescription>
+
+          <div className="mt-4 space-y-2">
+            <label className="text-sm text-gray-600">New Plan</label>
+            <select
+              className="w-full border rounded p-2"
+              value={selectedPlanId}
+              onChange={(e) => setSelectedPlanId(e.target.value)}
+            >
+              {plans.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name} — {p.currency} {p.price} / {p.billing_interval}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReplaceModal(false)} disabled={isReplacing}>
+              Close
+            </Button>
+            <Button onClick={handleReplaceSubscription} disabled={isReplacing || !selectedPlanId}>
+              {isReplacing ? <Loader2 className="w-4 h-4 animate-spin" /> : "Replace now"}
             </Button>
           </DialogFooter>
         </DialogContent>
