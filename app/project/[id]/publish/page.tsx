@@ -282,10 +282,10 @@ const PublishManagerPage = () => {
         specialty: 'consultant',
         template_category: 'business',
         theme: 'professional',
-        pricing_model: selectedPlan === 'basic' ? 'per_session' : selectedPlan === 'pro' ? 'per_minute' : 'subscription',
-        price_per_session: selectedPlan === 'basic' ? 29.00 : null,
-        price_per_minute: selectedPlan === 'pro' ? 2.00 : null,
-        monthly_subscription_price: selectedPlan === 'premium' ? 149.00 : null,
+        pricing_model: 'subscription',
+        price_per_session: null,
+        price_per_minute: null,
+        monthly_subscription_price: 149.00,
         free_trial_minutes: 5
       }
 
