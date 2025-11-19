@@ -1,9 +1,9 @@
 'use client'
 
-import React, { useState } from 'react'
+import React from 'react'
 import { Button } from '@/components/ui/button'
 import { CreditCard } from 'lucide-react'
-import BillingSection from './BillingSection'
+import { useRouter } from 'next/navigation'
 
 interface BillingButtonProps {
   userToken?: string
@@ -12,6 +12,7 @@ interface BillingButtonProps {
   className?: string
   showIcon?: boolean
   children?: React.ReactNode
+  expertSlug?: string // Add expertSlug prop
 }
 
 const BillingButton: React.FC<BillingButtonProps> = ({
@@ -20,9 +21,10 @@ const BillingButton: React.FC<BillingButtonProps> = ({
   size = 'sm',
   className = '',
   showIcon = true,
-  children
+  children,
+  expertSlug // Add expertSlug prop
 }) => {
-  const [isBillingOpen, setIsBillingOpen] = useState(false)
+  const router = useRouter()
 
   const handleOpenBilling = () => {
     if (!userToken) {
@@ -30,27 +32,25 @@ const BillingButton: React.FC<BillingButtonProps> = ({
       alert('Please log in to access billing settings')
       return
     }
-    setIsBillingOpen(true)
+    
+    // Redirect to the new billing page, passing expertSlug as a query parameter if available
+    if (expertSlug) {
+      router.push(`/billing?expert=${expertSlug}`)
+    } else {
+      router.push('/billing')
+    }
   }
 
   return (
-    <>
-      <Button
-        variant={variant}
-        size={size}
-        onClick={handleOpenBilling}
-        className={`flex items-center gap-2 ${className}`}
-      >
-        {showIcon && <CreditCard className="w-4 h-4" />}
-        {children || 'Billing'}
-      </Button>
-
-      <BillingSection
-        isOpen={isBillingOpen}
-        onClose={() => setIsBillingOpen(false)}
-        userToken={userToken || ''}
-      />
-    </>
+    <Button
+      variant={variant}
+      size={size}
+      onClick={handleOpenBilling}
+      className={`flex items-center gap-2 ${className}`}
+    >
+      {showIcon && <CreditCard className="w-4 h-4" />}
+      {children || 'Billing'}
+    </Button>
   )
 }
 

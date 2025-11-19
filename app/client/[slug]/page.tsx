@@ -390,6 +390,7 @@ const ClientExpertPage = () => {
                   userToken={typeof window !== 'undefined' ? localStorage.getItem('dilan_ai_token') || '' : ''}
                   variant="outline"
                   size="sm"
+                  expertSlug={slug} // Pass the expert slug
                 />
                 
                 <Button
