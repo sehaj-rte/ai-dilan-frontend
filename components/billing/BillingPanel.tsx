@@ -16,7 +16,9 @@ import {
   AlertCircle,
   Loader2,
   Zap,
-  Star
+  Star,
+  MessageCircle,
+  Phone
 } from 'lucide-react'
 import { API_URL } from '@/lib/config'
 import AddPaymentMethodModal from './AddPaymentMethodModal'
@@ -54,9 +56,10 @@ interface PaymentMethod {
     name: string
     email: string
   }
+  is_default?: boolean
 }
 
-// Add Plan interface
+// Add Plan interface with limit fields
 interface Plan {
   id: string
   name: string
@@ -65,6 +68,8 @@ interface Plan {
   billing_interval: string
   features: string[]
   recommended?: boolean
+  message_limit?: number | null
+  minute_limit?: number | null
 }
 
 interface BillingPanelProps {
@@ -166,21 +171,21 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
             const plansData = await plansResponse.json()
             
             if (plansData.success && plansData.plans) {
-              // Transform plans to match our interface
-              const transformedPlans = plansData.plans.map((plan: any, index: number) => ({
+              // Transform plans to match our interface with limit fields
+              const transformedPlans = plansData.plans.map((plan: any) => ({
                 id: plan.id,
                 name: plan.name,
                 price: plan.price,
                 currency: plan.currency || 'USD',
                 billing_interval: plan.billing_interval,
+                message_limit: plan.message_limit,
+                minute_limit: plan.minute_limit,
                 features: [
-                  'Unlimited chat sessions',
-                  'Email support',
-                  'Cancel anytime',
-                  'Basic analytics'
+                'Priority support',
+                '24/7 access'
                 ],
                 // Always mark the second plan as recommended
-                recommended: index === 1
+                recommended: plan.name.toLowerCase().includes('pro') || plan.recommended
               }))
               
               setPlans(transformedPlans)
@@ -209,7 +214,7 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
     fetchBillingData()
   }, [userToken, expertSlug, expertId])
 
-  // Set mock plans as fallback
+  // Set mock plans as fallback with limit fields
   const setMockPlans = () => {
     const mockPlans: Plan[] = [
       {
@@ -218,8 +223,9 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
         price: 29,
         currency: 'USD',
         billing_interval: 'month',
+        message_limit: 100,
+        minute_limit: 30,
         features: [
-          'Unlimited chat sessions',
           'Email support',
           'Cancel anytime',
           'Basic analytics'
@@ -232,8 +238,9 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
         price: 59,
         currency: 'USD',
         billing_interval: 'month',
+        message_limit: 500,
+        minute_limit: 120,
         features: [
-          'Unlimited chat & call sessions',
           'Priority support',
           'Advanced analytics',
           'Custom integrations',
@@ -247,8 +254,9 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
         price: 99,
         currency: 'USD',
         billing_interval: 'month',
+        message_limit: null, // Unlimited
+        minute_limit: null, // Unlimited
         features: [
-          'Everything in Pro',
           'Dedicated support',
           'Custom branding',
           'API access',
@@ -258,7 +266,7 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
       }
     ]
     
-    setPlans(mockPlans)
+ 
     // Auto-select the recommended plan or the first one
     const recommendedPlan = mockPlans.find(p => p.recommended) || mockPlans[0]
     setSelectedPlan(recommendedPlan)
@@ -288,6 +296,37 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
       </Badge>
     )
   }
+
+  // Generate dynamic features based on plan limits
+  const generatePlanFeatures = (plan: Plan) => {
+    const features = [...plan.features]; // Start with existing features
+    
+    // Add message limit feature
+    if (plan.message_limit !== undefined && plan.message_limit !== null) {
+      if (plan.message_limit > 0) {
+        features.unshift(`${plan.message_limit} chat messages per ${plan.billing_interval}`);
+      } else {
+        features.unshift('Unlimited chat messages');
+      }
+    } else {
+      // Default to unlimited if not specified
+      features.unshift('Unlimited chat messages');
+    }
+    
+    // Add minute limit feature
+    if (plan.minute_limit !== undefined && plan.minute_limit !== null) {
+      if (plan.minute_limit > 0) {
+        features.unshift(`${plan.minute_limit} voice call minutes per ${plan.billing_interval}`);
+      } else {
+        features.unshift('Unlimited voice calls');
+      }
+    } else {
+      // Default to unlimited if not specified
+      features.unshift('Unlimited voice calls');
+    }
+    
+    return features;
+  };
 
   const handleCancelSubscription = async (subscriptionId: string) => {
     if (!confirm('Are you sure you want to cancel this subscription? It will remain active until the end of your current billing period.')) return
@@ -364,7 +403,15 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
       if (data.success) {
         showSuccess('Default payment method updated successfully')
         // Refresh payment methods to show updated default
-        window.location.reload()
+        const paymentMethodsResponse = await fetch(`${API_URL}/payments/payment-methods`, {
+          headers: {
+            'Authorization': `Bearer ${userToken}`
+          }
+        })
+        const paymentMethodsData = await paymentMethodsResponse.json()
+        if (paymentMethodsData.success) {
+          setPaymentMethods(paymentMethodsData.payment_methods || [])
+        }
       } else {
         showError('Failed to update default payment method: ' + (data.error || 'Unknown error'))
       }
@@ -382,7 +429,23 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
     setShowAddPaymentModal(false)
     showSuccess('Payment method added successfully')
     // Refresh billing data to show new payment method
-    window.location.reload()
+    // Fetch updated payment methods instead of reloading the page
+    const fetchPaymentMethods = async () => {
+      try {
+        const paymentMethodsResponse = await fetch(`${API_URL}/payments/payment-methods`, {
+          headers: {
+            'Authorization': `Bearer ${userToken}`
+          }
+        })
+        const paymentMethodsData = await paymentMethodsResponse.json()
+        if (paymentMethodsData.success) {
+          setPaymentMethods(paymentMethodsData.payment_methods || [])
+        }
+      } catch (err) {
+        console.error('Error fetching payment methods:', err)
+      }
+    }
+    fetchPaymentMethods()
   }
 
   // Handle plan upgrade
@@ -501,6 +564,7 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
                   const isCurrentPlan = subscriptions.some(sub => sub.plan_id === plan.id && sub.status === 'active');
                   // Always show the badge on the second plan (index 1)
                   const showRecommendedBadge = index === 1 && plan.recommended;
+                  const dynamicFeatures = generatePlanFeatures(plan);
                   
                   return (
                     <div key={plan.id} className="relative flex justify-center">
@@ -550,7 +614,7 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
                         </CardHeader>
                         <CardContent className="pt-4 pb-6 flex-grow flex flex-col">
                           <ul className="space-y-3 text-sm flex-grow">
-                            {plan.features.map((feature, index) => (
+                            {dynamicFeatures.map((feature, index) => (
                               <li key={index} className="flex items-start gap-2">
                                 <CheckCircle2 className="h-4 w-4 text-green-500 flex-shrink-0 mt-0.5" />
                                 <span>{feature}</span>
@@ -722,17 +786,33 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
                           <p className="text-sm text-gray-600">
                             {method.card.brand.toUpperCase()} • Expires {method.card.exp_month}/{method.card.exp_year}
                           </p>
+                          {method.is_default && (
+                            <Badge className="mt-1 bg-blue-100 text-blue-800 text-xs">
+                              Default
+                            </Badge>
+                          )}
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleSetDefaultPaymentMethod(method.id)}
-                          className="text-blue-600 hover:text-blue-700"
-                        >
-                          Set Default
-                        </Button>
+                        {!method.is_default ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleSetDefaultPaymentMethod(method.id)}
+                            className="text-blue-600 hover:text-blue-700"
+                          >
+                            Set Default
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled
+                            className="text-gray-400"
+                          >
+                            Default
+                          </Button>
+                        )}
                         <Button
                           variant="ghost"
                           size="sm"
