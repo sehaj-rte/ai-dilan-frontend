@@ -14,7 +14,9 @@ import {
   Shield,
   Star,
   Zap,
-  ArrowRight
+  ArrowRight,
+  MessageCircle,
+  Phone
 } from 'lucide-react'
 import { API_URL } from '@/lib/config'
 
@@ -26,6 +28,8 @@ interface Plan {
   billing_interval: string
   features: string[]
   recommended?: boolean
+  message_limit?: number | null
+  minute_limit?: number | null
 }
 
 interface CleanPaymentModalProps {
@@ -139,6 +143,7 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
     }
   }
 
+
   if (success) {
     return (
       <Dialog open={isOpen} onOpenChange={onClose}>
@@ -176,52 +181,55 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
         <div className="space-y-8 py-6">
           {/* Plan Selection - Increased height with min-h-[400px] */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 min-h-[400px]">
-            {plans.map((plan) => (
-              <Card
-                key={plan.id}
-                className={`cursor-pointer transition-all duration-200 hover:shadow-xl h-full ${
-                  selectedPlan?.id === plan.id
-                    ? 'ring-4 ring-blue-500 ring-offset-2 border-blue-200'
-                    : 'hover:border-gray-300'
-                }`}
-                onClick={() => setSelectedPlan(plan)}
-              >
-                <CardHeader className="pb-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex flex-col">
-                      <CardTitle className="text-xl flex items-center gap-2">
-                        {plan.name}
-                        {plan.recommended && (
-                          <Badge className="bg-blue-500 text-white text-sm px-2 py-1">
-                            <Star className="w-4 h-4 mr-1" />
-                            Recommended
-                          </Badge>
-                        )}
-                      </CardTitle>
-                      <div className="text-3xl font-bold text-blue-600 mt-2">
-                        ${plan.price}
-                        <span className="text-base text-gray-500 font-normal">
-                          /{plan.billing_interval}
-                        </span>
+            {plans.map((plan) => {
+              const dynamicFeatures = plan.features;
+              return (
+                <Card
+                  key={plan.id}
+                  className={`cursor-pointer transition-all duration-200 hover:shadow-xl h-full ${
+                    selectedPlan?.id === plan.id
+                      ? 'ring-4 ring-blue-500 ring-offset-2 border-blue-200'
+                      : 'hover:border-gray-300'
+                  }`}
+                  onClick={() => setSelectedPlan(plan)}
+                >
+                  <CardHeader className="pb-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex flex-col">
+                        <CardTitle className="text-xl flex items-center gap-2">
+                          {plan.name}
+                          {plan.recommended && (
+                            <Badge className="bg-blue-500 text-white text-sm px-2 py-1">
+                              <Star className="w-4 h-4 mr-1" />
+                              Recommended
+                            </Badge>
+                          )}
+                        </CardTitle>
+                        <div className="text-3xl font-bold text-blue-600 mt-2">
+                          ${plan.price}
+                          <span className="text-base text-gray-500 font-normal">
+                            /{plan.billing_interval}
+                          </span>
+                        </div>
                       </div>
+                      {selectedPlan?.id === plan.id && (
+                        <CheckCircle2 className="w-8 h-8 text-blue-600" />
+                      )}
                     </div>
-                    {selectedPlan?.id === plan.id && (
-                      <CheckCircle2 className="w-8 h-8 text-blue-600" />
-                    )}
-                  </div>
-                </CardHeader>
-                <CardContent className="pt-2 flex-grow">
-                  <ul className="space-y-3 text-base">
-                    {plan.features.map((feature, index) => (
-                      <li key={index} className="flex items-start gap-3">
-                        <CheckCircle2 className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
-                        <span>{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </CardContent>
-              </Card>
-            ))}
+                  </CardHeader>
+                  <CardContent className="pt-2 flex-grow">
+                    <ul className="space-y-3 text-base">
+                      {dynamicFeatures.map((feature, index) => (
+                        <li key={index} className="flex items-start gap-3">
+                          <CheckCircle2 className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
+                          <span>{feature}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </CardContent>
+                </Card>
+              )
+            })}
           </div>
 
           {/* Payment Method Info - Decreased height with smaller text */}

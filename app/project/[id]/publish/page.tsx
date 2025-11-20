@@ -134,7 +134,9 @@ const PublishManagerPage = () => {
   const [isCreatingPlan, setIsCreatingPlan] = useState(false)
   const [createPlanForm, setCreatePlanForm] = useState({
     name: '',
-    price: ''
+    price: '',
+    messageLimit: '', // New field for message limit
+    minuteLimit: ''   // New field for minute limit
   })
 
   useEffect(() => {
@@ -454,7 +456,7 @@ const PublishManagerPage = () => {
 
   const handleCreatePlan = async () => {
     if (!createPlanForm.name || !createPlanForm.price) {
-      warning('Please fill in all fields')
+      warning('Please fill in all required fields')
       return
     }
 
@@ -464,8 +466,44 @@ const PublishManagerPage = () => {
       return
     }
 
+    // Validate message limit if provided
+    let messageLimit = null
+    if (createPlanForm.messageLimit) {
+      messageLimit = parseInt(createPlanForm.messageLimit)
+      if (isNaN(messageLimit) || messageLimit <= 0) {
+        warning('Please enter a valid message limit or leave empty for unlimited')
+        return
+      }
+    }
+
+    // Validate minute limit if provided
+    let minuteLimit = null
+    if (createPlanForm.minuteLimit) {
+      minuteLimit = parseInt(createPlanForm.minuteLimit)
+      if (isNaN(minuteLimit) || minuteLimit <= 0) {
+        warning('Please enter a valid minute limit or leave empty for unlimited')
+        return
+      }
+    }
+
     try {
       setIsCreatingPlan(true)
+
+      const planData: any = {
+        name: createPlanForm.name,
+        price: price,
+        currency: 'USD',
+        billing_interval: 'month'
+      }
+
+      // Add optional fields if provided
+      if (messageLimit !== null) {
+        planData.message_limit = messageLimit
+      }
+      
+      if (minuteLimit !== null) {
+        planData.minute_limit = minuteLimit
+      }
 
       const response = await fetchWithAuth(`${API_URL}/plans/experts/${projectId}`, {
         method: 'POST',
@@ -473,19 +511,14 @@ const PublishManagerPage = () => {
           ...getAuthHeaders(),
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          name: createPlanForm.name,
-          price: price,
-          currency: 'USD',
-          billing_interval: 'month'
-        })
+        body: JSON.stringify(planData)
       })
 
       const data = await response.json()
 
       if (data.success) {
         success(`Plan "${createPlanForm.name}" created successfully!`)
-        setCreatePlanForm({ name: '', price: '' })
+        setCreatePlanForm({ name: '', price: '', messageLimit: '', minuteLimit: '' })
         setShowCreatePlan(false)
         fetchPlans() // Refresh plans list
       } else {
@@ -812,6 +845,17 @@ const PublishManagerPage = () => {
                                   ${plan.price}
                                   <span className="text-sm font-normal text-gray-600">/{plan.billing_interval}</span>
                                 </p>
+                                {/* Display message and minute limits if they exist */}
+                                {(plan.message_limit || plan.minute_limit) && (
+                                  <div className="mt-2 text-sm text-gray-600">
+                                    {plan.message_limit && (
+                                      <div>Messages: {plan.message_limit} per billing period</div>
+                                    )}
+                                    {plan.minute_limit && (
+                                      <div>Voice Minutes: {plan.minute_limit} per billing period</div>
+                                    )}
+                                  </div>
+                                )}
                                 <p className="text-xs text-gray-500 mt-1">
                                   Currency: {plan.currency} • Created: {new Date(plan.created_at).toLocaleDateString()}
                                 </p>
@@ -838,7 +882,7 @@ const PublishManagerPage = () => {
                             type="button"
                             onClick={() => {
                               setShowCreatePlan(false)
-                              setCreatePlanForm({ name: '', price: '' })
+                              setCreatePlanForm({ name: '', price: '', messageLimit: '', minuteLimit: '' })
                             }}
                             variant="outline"
                             size="sm"
@@ -878,6 +922,42 @@ const PublishManagerPage = () => {
                             </div>
                           </div>
 
+                          {/* Message Limit Field */}
+                          <div>
+                            <Label className="block text-sm font-medium text-gray-700 mb-2">
+                              Message Limit (optional)
+                            </Label>
+                            <Input
+                              type="number"
+                              min="1"
+                              value={createPlanForm.messageLimit}
+                              onChange={(e) => setCreatePlanForm({ ...createPlanForm, messageLimit: e.target.value })}
+                              placeholder="e.g., 100 (leave empty for unlimited)"
+                              className="w-full"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">
+                              Number of messages user can interact with AI per billing period
+                            </p>
+                          </div>
+
+                          {/* Minute Limit Field */}
+                          <div>
+                            <Label className="block text-sm font-medium text-gray-700 mb-2">
+                              Voice Call Minutes (optional)
+                            </Label>
+                            <Input
+                              type="number"
+                              min="1"
+                              value={createPlanForm.minuteLimit}
+                              onChange={(e) => setCreatePlanForm({ ...createPlanForm, minuteLimit: e.target.value })}
+                              placeholder="e.g., 60 (leave empty for unlimited)"
+                              className="w-full"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">
+                              Number of voice call minutes user can use per billing period
+                            </p>
+                          </div>
+
                           <div className="bg-blue-50 p-3 rounded-lg">
                             <p className="text-sm text-blue-800">
                               💡 This will create a Stripe product with the same name for subscription billing.
@@ -889,7 +969,7 @@ const PublishManagerPage = () => {
                               type="button"
                               onClick={() => {
                                 setShowCreatePlan(false)
-                                setCreatePlanForm({ name: '', price: '' })
+                                setCreatePlanForm({ name: '', price: '', messageLimit: '', minuteLimit: '' })
                               }}
                               variant="outline"
                               className="flex-1"

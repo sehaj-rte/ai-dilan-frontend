@@ -23,6 +23,7 @@ interface AuthModalProps {
   onSignup: (email: string, password: string) => Promise<{ success: boolean; error?: string }>
   sessionType?: 'chat' | 'call'
   expertName?: string
+  showSignupInitially?: boolean
 }
 
 const AuthModal: React.FC<AuthModalProps> = ({
@@ -31,9 +32,10 @@ const AuthModal: React.FC<AuthModalProps> = ({
   onLogin,
   onSignup,
   sessionType,
-  expertName
+  expertName,
+  showSignupInitially = false
 }) => {
-  const [isLoginMode, setIsLoginMode] = useState(true)
+  const [isLoginMode, setIsLoginMode] = useState(!showSignupInitially)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -80,6 +82,14 @@ const AuthModal: React.FC<AuthModalProps> = ({
     setIsLoginMode(!isLoginMode)
     resetForm()
   }
+
+  // Reset form and mode when modal opens
+  React.useEffect(() => {
+    if (isOpen) {
+      setIsLoginMode(!showSignupInitially)
+      resetForm()
+    }
+  }, [isOpen, showSignupInitially])
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>

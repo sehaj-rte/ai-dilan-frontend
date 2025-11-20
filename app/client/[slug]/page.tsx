@@ -110,23 +110,25 @@ const ClientExpertPage = () => {
   } = useClientAuthFlow();
 
   // Derived auth state
-  const isAuthenticated = !!currentUser;
-  const user = currentUser;
 
-  const [expert, setExpert] = useState<Expert | null>(null);
-  const [publication, setPublication] = useState<Publication | null>(null);
-  const [contentSections, setContentSections] = useState<ContentSection[]>([]);
-  const [template, setTemplate] = useState<Template | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [showFullDescription, setShowFullDescription] = useState(false);
-  const [questionText, setQuestionText] = useState("");
-  const [selectedSessionType, setSelectedSessionType] = useState<
-    "chat" | "call"
-  >("chat");
-  const [showPrivatePaymentModal, setShowPrivatePaymentModal] = useState(false);
-  const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
-  const [checkingSubscription, setCheckingSubscription] = useState(false);
+  const isAuthenticated = !!currentUser
+  const user = currentUser
+
+  // State to track if we should show signup form initially
+  const [showSignupInitially, setShowSignupInitially] = useState(false)
+
+  const [expert, setExpert] = useState<Expert | null>(null)
+  const [publication, setPublication] = useState<Publication | null>(null)
+  const [contentSections, setContentSections] = useState<ContentSection[]>([])
+  const [template, setTemplate] = useState<Template | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [showFullDescription, setShowFullDescription] = useState(false)
+  const [questionText, setQuestionText] = useState('')
+  const [selectedSessionType, setSelectedSessionType] = useState<'chat' | 'call'>('chat')
+  const [showPrivatePaymentModal, setShowPrivatePaymentModal] = useState(false)
+  const [hasActiveSubscription, setHasActiveSubscription] = useState(false)
+  const [checkingSubscription, setCheckingSubscription] = useState(false)
 
   const convertS3UrlToProxy = (s3Url: string): string => {
     if (!s3Url) return s3Url;
@@ -546,7 +548,10 @@ const ClientExpertPage = () => {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setShowAuthModal(true)}
+                  onClick={() => {
+                    setShowSignupInitially(false)
+                    setShowAuthModal(true)
+                  }}
                   className="flex items-center gap-2"
                 >
                   <LogIn className="h-4 w-4" />
@@ -554,7 +559,10 @@ const ClientExpertPage = () => {
                 </Button>
                 <Button
                   size="sm"
-                  onClick={() => setShowAuthModal(true)}
+                  onClick={() => {
+                    setShowSignupInitially(true)
+                    setShowAuthModal(true)
+                  }}
                   className="flex items-center gap-2"
                   style={{ backgroundColor: primaryColor }}
                 >
@@ -676,11 +684,15 @@ const ClientExpertPage = () => {
       {/* Auth Modal */}
       <AuthModal
         isOpen={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
+        onClose={() => {
+          setShowAuthModal(false)
+          setShowSignupInitially(false)
+        }}
         onLogin={handleLogin}
         onSignup={handleSignup}
         sessionType={selectedSessionType}
         expertName={publication?.display_name || expert?.name}
+        showSignupInitially={showSignupInitially}
       />
 
       {/* Payment Modal */}
