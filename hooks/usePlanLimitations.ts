@@ -214,13 +214,6 @@ export const usePlanLimitations = ({
         return false;
       }
 
-      if (
-        limitStatus.dailyMinutesRemaining !== null &&
-        limitStatus.dailyMinutesRemaining < estimatedMinutes
-      ) {
-        return false;
-      }
-
       return true;
     },
     [limitStatus],
