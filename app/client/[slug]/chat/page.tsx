@@ -45,6 +45,9 @@ import {
 import FilePreviewModal from "@/components/chat/FilePreviewModal";
 import { RootState } from "@/store/store";
 import { logout, loadUserFromStorage } from "@/store/slices/authSlice";
+import { usePlanLimitations } from "@/hooks/usePlanLimitations";
+import { UsageStatusBar } from "@/components/usage/UsageStatusBar";
+import { LimitReachedModal } from "@/components/usage/LimitReachedModal";
 
 interface FileAttachment {
   name: string;
@@ -186,6 +189,27 @@ const ClientChatPage = () => {
   const shouldIgnoreRecognitionRef = useRef<boolean>(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const [authLoaded, setAuthLoaded] = useState(false);
+
+  // Plan limitations state
+  const [showLimitReachedModal, setShowLimitReachedModal] = useState(false);
+
+  // Plan limitations hook
+  const {
+    usage,
+    limitStatus,
+    currentPlan,
+    subscription,
+    loading: planLoading,
+    error: planError,
+    refreshUsage,
+    trackUsage,
+    checkCanSendMessage,
+    checkCanMakeCall,
+    getRemainingUsage,
+  } = usePlanLimitations({
+    expertId: expert?.id || "",
+    enabled: isAuthenticated && !!expert?.id,
+  });
 
   // Load user from storage on mount
   useEffect(() => {
@@ -963,6 +987,11 @@ const ClientChatPage = () => {
   };
 
   const sendMsg = async () => {
+    // Check if user can send messages before proceeding
+    if (isAuthenticated && !checkCanSendMessage()) {
+      setShowLimitReachedModal(true);
+      return;
+    }
     if (
       (!inputText.trim() && uploadedFiles.length === 0) ||
       !sessionId ||
@@ -991,6 +1020,16 @@ const ClientChatPage = () => {
     const filesToSend = [...uploadedFiles];
     setInputText("");
     setUploadedFiles([]);
+
+    // Track message usage if authenticated
+    if (isAuthenticated && expert?.id) {
+      trackUsage({
+        expert_id: expert.id,
+        event_type: "message_sent",
+        quantity: 1,
+        session_id: sessionId || undefined,
+      }).catch((err) => console.error("Failed to track message usage:", err));
+    }
 
     // Stop voice recognition if active and prevent it from refilling input
     if (isListening && recognitionRef.current) {
@@ -1897,6 +1936,19 @@ const ClientChatPage = () => {
           </div>
         </div>
 
+        {/* Usage Status Bar - only show for authenticated users with plan limitations */}
+        {isAuthenticated && currentPlan && !limitStatus.isUnlimited && (
+          <div className="border-b bg-gray-50 px-3 sm:px-6 py-2">
+            <UsageStatusBar
+              limitStatus={limitStatus}
+              currentPlan={currentPlan}
+              loading={planLoading}
+              compact={true}
+              expertSlug={slug}
+            />
+          </div>
+        )}
+
         {/* Messages */}
         <div className="flex-1 overflow-y-auto p-3 sm:p-6">
           <div className="max-w-3xl mx-auto space-y-4 sm:space-y-6">
@@ -2285,8 +2337,8 @@ const ClientChatPage = () => {
                   title="Attach files"
                   disabled={
                     isWaitingForResponse ||
-                    streamingMessageId !== null ||
-                    isUploadingFiles
+                    isUploadingFiles ||
+                    (isAuthenticated && !checkCanSendMessage())
                   }
                 >
                   {isUploadingFiles ? (
@@ -2388,9 +2440,10 @@ const ClientChatPage = () => {
                   <Button
                     onClick={sendMsg}
                     disabled={
-                      (!inputText.trim() && uploadedFiles.length === 0) ||
                       isWaitingForResponse ||
-                      streamingMessageId !== null
+                      (!inputText.trim() && uploadedFiles.length === 0) ||
+                      streamingMessageId !== null ||
+                      (isAuthenticated && !checkCanSendMessage())
                     }
                     size="icon"
                     className="rounded-xl h-8 w-8 sm:h-10 sm:w-10 flex-shrink-0 transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
@@ -2462,6 +2515,16 @@ const ClientChatPage = () => {
           setPreviewFile(null);
           setPreviewFiles([]);
         }}
+      />
+
+      {/* Limit Reached Modal */}
+      <LimitReachedModal
+        isOpen={showLimitReachedModal}
+        onClose={() => setShowLimitReachedModal(false)}
+        limitStatus={limitStatus}
+        currentPlan={currentPlan}
+        featureType="chat"
+        expertSlug={slug}
       />
     </div>
   );
