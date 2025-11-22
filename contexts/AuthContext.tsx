@@ -78,12 +78,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     // Check if user owns the expert
     if (await checkExpertOwnership(user.id, publication.expert_id)) {
-      return { redirect: `/client/${publication.slug}/${sessionType}` }
+      return { redirect: `/expert/${publication.slug}/${sessionType}` }
     }
     
     // Check if user has paid
     if (await checkPaymentAccess(user.id, publication.id)) {
-      return { redirect: `/client/${publication.slug}/${sessionType}` }
+      return { redirect: `/expert/${publication.slug}/${sessionType}` }
     }
     
     return { needsPayment: true }

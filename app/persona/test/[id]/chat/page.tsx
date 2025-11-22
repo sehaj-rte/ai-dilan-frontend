@@ -85,7 +85,7 @@ const ExpertTestChatPage = () => {
   }
 
   const handleBack = () => {
-    router.push(`/expert/test/${expertId}`)
+    router.push(`/persona/test/${expertId}`)
   }
 
   if (loading) {
@@ -144,7 +144,7 @@ const ExpertTestChatPage = () => {
                   size="sm"
                   onClick={() => {
                     dispatch(logout())
-                    router.push('/expert/login')
+                    router.push('/persona/login')
                   }}
                   className="flex items-center gap-2"
                 >

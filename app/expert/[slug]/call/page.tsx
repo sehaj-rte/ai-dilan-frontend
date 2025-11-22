@@ -1,196 +1,365 @@
-'use client'
+"use client";
 
-import React, { useState, useEffect } from 'react'
-import { useParams, useRouter } from 'next/navigation'
-import { useSelector, useDispatch } from 'react-redux'
-import { Button } from '@/components/ui/button'
-import { API_URL } from '@/lib/config'
-import { ArrowLeft, Phone, PhoneOff, User, LogIn, LogOut, MessageSquare } from 'lucide-react'
-import { useVoiceConversation } from '@/hooks/useVoiceConversation'
-import { RootState } from '@/store/store'
-import { logout, loadUserFromStorage } from '@/store/slices/authSlice'
+import React, { useState, useEffect } from "react";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useSelector, useDispatch } from "react-redux";
+import { Button } from "@/components/ui/button";
+import { API_URL } from "@/lib/config";
+import {
+  ArrowLeft,
+  Phone,
+  PhoneOff,
+  User,
+  LogIn,
+  LogOut,
+  MessageSquare,
+} from "lucide-react";
+import { useVoiceConversation } from "@/hooks/useVoiceConversation";
+import { RootState } from "@/store/store";
+import { logout, loadUserFromStorage } from "@/store/slices/authSlice";
+import { usePlanLimitations } from "@/hooks/usePlanLimitations";
+import { UsageStatusBar } from "@/components/usage/UsageStatusBar";
+import { LimitReachedModal } from "@/components/usage/LimitReachedModal";
 
 interface Expert {
-  id: string
-  name: string
-  headline: string
-  description: string
-  avatar_url: string
-  elevenlabs_agent_id: string
+  id: string;
+  name: string;
+  headline: string;
+  description: string;
+  avatar_url: string;
+  elevenlabs_agent_id: string;
 }
 
 interface Publication {
-  id: string
-  slug: string
-  display_name: string
-  is_published: boolean
-  primary_color: string
-  secondary_color: string
-  theme: string
+  id: string;
+  slug: string;
+  display_name: string;
+  is_published: boolean;
+  primary_color: string;
+  secondary_color: string;
+  theme: string;
 }
 
-const ExpertCallPage = () => {
-  const params = useParams()
-  const router = useRouter()
-  const dispatch = useDispatch()
-  const slug = params.slug as string
+const ClientCallPage = () => {
+  const params = useParams();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const dispatch = useDispatch();
+  const slug = params.slug as string;
 
   // Auth state from Redux
-  const { user, isAuthenticated } = useSelector((state: RootState) => state.auth)
+  const { user, isAuthenticated } = useSelector(
+    (state: RootState) => state.auth,
+  );
 
-  const [expert, setExpert] = useState<Expert | null>(null)
-  const [publication, setPublication] = useState<Publication | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [callDuration, setCallDuration] = useState(0)
-  const [timerInterval, setTimerInterval] = useState<NodeJS.Timeout | null>(null)
+  const [expert, setExpert] = useState<Expert | null>(null);
+  const [publication, setPublication] = useState<Publication | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [callDuration, setCallDuration] = useState(0);
+  const [timerInterval, setTimerInterval] = useState<NodeJS.Timeout | null>(
+    null,
+  );
+  const [paymentSessionId, setPaymentSessionId] = useState<string | null>(null);
+  const [paymentSessionValid, setPaymentSessionValid] = useState<
+    boolean | null
+  >(null);
+
+  // Plan limitations state
+  const [showLimitReachedModal, setShowLimitReachedModal] = useState(false);
+
+  // Plan limitations hook
+  const {
+    usage,
+    limitStatus,
+    currentPlan,
+    subscription,
+    loading: planLoading,
+    error: planError,
+    refreshUsage,
+    trackUsage,
+    checkCanSendMessage,
+    checkCanMakeCall,
+    getRemainingUsage,
+  } = usePlanLimitations({
+    expertId: expert?.id || "",
+    enabled: isAuthenticated && !!expert?.id,
+  });
 
   const convertS3UrlToProxy = (s3Url: string): string => {
-    if (!s3Url) return s3Url as any
-    const match = s3Url.match(/https:\/\/ai-dilan\.s3\.[^/]+\.amazonaws\.com\/(.+)/)
+    if (!s3Url) return s3Url as any;
+    const match = s3Url.match(
+      /https:\/\/ai-dilan\.s3\.[^/]+\.amazonaws\.com\/(.+)/,
+    );
     if (match) {
-      return `${API_URL}/images/avatar/full/${match[1]}`
+      return `${API_URL}/images/avatar/full/${match[1]}`;
     }
-    return s3Url
-  }
+    return s3Url;
+  };
 
-  const {
-    state,
-    startConversation,
-    endConversation,
-  } = useVoiceConversation({
-    expertId: expert?.id || '',
+  const { state, startConversation, endConversation } = useVoiceConversation({
+    expertId: expert?.id || "",
     onError: (error) => {
-      setError(error)
+      setError(error);
     },
     onStatusChange: (status) => {
-      console.log('Voice status changed:', status)
-    }
-  })
+      console.log("Voice status changed:", status);
+    },
+  });
 
   // Load user from storage on mount
   useEffect(() => {
-    dispatch(loadUserFromStorage())
-  }, [])
+    dispatch(loadUserFromStorage());
+  }, []);
 
   useEffect(() => {
-    fetchExpertData()
-  }, [slug])
+    fetchExpertData();
+  }, [slug]);
+
+  // Check for payment session ID and validate it
+  useEffect(() => {
+    const sessionIdParam = searchParams.get("session_id");
+    if (sessionIdParam) {
+      setPaymentSessionId(sessionIdParam);
+      validatePaymentSession(sessionIdParam);
+    } else {
+      // If no session ID, check if user needs to pay
+      checkPaymentRequirement();
+    }
+  }, [searchParams, isAuthenticated]);
+
+  const validatePaymentSession = async (sessionId: string) => {
+    if (!isAuthenticated) {
+      setPaymentSessionValid(false);
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem("dilan_ai_token"); // Fix token key
+      let databaseSessionId = sessionId;
+
+      // Check if this is a Stripe checkout session ID (starts with 'cs_')
+      if (sessionId.startsWith("cs_")) {
+        console.log(
+          "🔄 Converting Stripe session ID to database session ID...",
+        );
+
+        // Convert Stripe session ID to database session ID
+        const conversionResponse = await fetch(
+          `${API_URL}/payments/stripe-session/${sessionId}/database-session`,
+        );
+        const conversionData = await conversionResponse.json();
+
+        if (conversionData.success) {
+          databaseSessionId = conversionData.database_session_id;
+          console.log(
+            "✅ Converted to database session ID:",
+            databaseSessionId,
+          );
+
+          // Update URL to use database session ID
+          const newUrl = `${window.location.pathname}?session_id=${databaseSessionId}`;
+          window.history.replaceState({}, "", newUrl);
+        } else {
+          console.error(
+            "❌ Failed to convert Stripe session ID:",
+            conversionData,
+          );
+          setPaymentSessionValid(false);
+          router.push(`/expert/${slug}`);
+          return;
+        }
+      }
+
+      // Validate the database session
+      const response = await fetch(
+        `${API_URL}/payments/session/${databaseSessionId}/status`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+
+      const data = await response.json();
+      if (data.success && data.session.payment_status === "succeeded") {
+        setPaymentSessionValid(true);
+        setPaymentSessionId(databaseSessionId); // Update state with database session ID
+      } else {
+        setPaymentSessionValid(false);
+        // Redirect back to expert page for payment
+        router.push(`/expert/${slug}`);
+      }
+    } catch (error) {
+      console.error("Error validating payment session:", error);
+      setPaymentSessionValid(false);
+      router.push(`/expert/${slug}`);
+    }
+  };
+
+  const checkPaymentRequirement = () => {
+    // If no payment session and user is authenticated, they need to pay
+    if (isAuthenticated && !paymentSessionId) {
+      // For now, allow free access - in production you might want to redirect to payment
+      setPaymentSessionValid(true);
+    } else if (!isAuthenticated) {
+      // Redirect to login
+      router.push(`/expert/${slug}`);
+    }
+  };
 
   const fetchExpertData = async () => {
     try {
-      // Fetch expert data directly by ID (no publication required)
-      const response = await fetch(`${API_URL}/experts/${slug}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('dilan_ai_token')}`,
-          'Content-Type': 'application/json'
-        }
-      })
-      const data = await response.json()
-      
-      if (data.success && data.expert) {
+      setLoading(true);
+
+      const response = await fetch(
+        `${API_URL}/publishing/public/expert/${slug}`,
+      );
+      const data = await response.json();
+
+      if (data.success) {
         setExpert({
           ...data.expert,
-          avatar_url: data.expert?.avatar_url ? convertS3UrlToProxy(data.expert.avatar_url) : null
-        })
-        // Set default publication data for styling
-        setPublication({
-          id: data.expert.id,
-          slug: data.expert.id,
-          display_name: data.expert.name,
-          is_published: true,
-          primary_color: '#3B82F6',
-          secondary_color: '#1E40AF',
-          theme: 'default'
-        })
+          avatar_url: data.expert?.avatar_url
+            ? convertS3UrlToProxy(data.expert.avatar_url)
+            : null,
+        });
+        setPublication(data.publication);
       } else {
-        setError('Expert not found or access denied')
+        setError("Expert not found or not published");
       }
     } catch (error) {
-      console.error('Error fetching expert data:', error)
-      setError('Failed to load expert page')
+      console.error("Error fetching expert data:", error);
+      setError("Failed to load expert page");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleStartCall = async () => {
-    if (!expert) return
-    
+    if (!expert) return;
+
+    // Check if user can make calls before proceeding
+    if (isAuthenticated && !checkCanMakeCall(5)) {
+      setShowLimitReachedModal(true);
+      return;
+    }
+
     try {
       // Check for microphone permission first
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        setError('Your browser does not support microphone access. Please use a modern browser.')
-        return
+        setError(
+          "Your browser does not support microphone access. Please use a modern browser.",
+        );
+        return;
       }
-      
-      await startConversation()
-      
-      // Start timer
-      setCallDuration(0)
+
+      await startConversation();
+
+      // Start timer and track usage
+      setCallDuration(0);
       const interval = setInterval(() => {
-        setCallDuration(prev => prev + 1)
-      }, 1000)
-      setTimerInterval(interval)
+        setCallDuration((prev) => {
+          const newDuration = prev + 1;
+
+          // Track usage every minute (60 seconds)
+          if (
+            isAuthenticated &&
+            expert?.id &&
+            newDuration > 0 &&
+            newDuration % 60 === 0
+          ) {
+            trackUsage({
+              expert_id: expert.id,
+              event_type: "minutes_used",
+              quantity: 1,
+            }).catch((err) =>
+              console.error("Failed to track minute usage:", err),
+            );
+          }
+
+          return newDuration;
+        });
+      }, 1000);
+      setTimerInterval(interval);
     } catch (error) {
-      console.error('Failed to start voice conversation:', error)
+      console.error("Failed to start voice conversation:", error);
       if (error instanceof Error) {
-        if (error.message.includes('Permission denied')) {
-          setError('Microphone access denied. Please allow microphone access and try again.')
-        } else if (error.message.includes('NotFoundError')) {
-          setError('No microphone found. Please connect a microphone and try again.')
+        if (error.message.includes("Permission denied")) {
+          setError(
+            "Microphone access denied. Please allow microphone access and try again.",
+          );
+        } else if (error.message.includes("NotFoundError")) {
+          setError(
+            "No microphone found. Please connect a microphone and try again.",
+          );
         } else {
-          setError(error.message)
+          setError(error.message);
         }
       }
     }
-  }
+  };
 
   const handleEndCall = async () => {
     try {
-      await endConversation()
-      
+      await endConversation();
+
+      // Track final usage for partial minute
+      if (isAuthenticated && expert?.id && callDuration > 0) {
+        const remainingSeconds = callDuration % 60;
+        if (remainingSeconds > 0) {
+          // Round up partial minute to full minute for billing
+          trackUsage({
+            expert_id: expert.id,
+            event_type: "minutes_used",
+            quantity: 1,
+          }).catch((err) =>
+            console.error("Failed to track final minute usage:", err),
+          );
+        }
+      }
+
       // Stop timer
       if (timerInterval) {
-        clearInterval(timerInterval)
-        setTimerInterval(null)
+        clearInterval(timerInterval);
+        setTimerInterval(null);
       }
     } catch (error) {
-      console.error('Failed to end voice conversation:', error)
+      console.error("Failed to end voice conversation:", error);
     }
-  }
+  };
 
   const handleBack = () => {
-    router.push(`/project/${slug}/chat`)
-  }
+    router.push(`/expert/${slug}`);
+  };
 
   const handleGoToChat = () => {
-    router.push(`/project/${slug}/chat`)
-  }
+    router.push(`/expert/${slug}/chat`);
+  };
 
   const handleLogout = () => {
-    dispatch(logout())
-  }
+    dispatch(logout());
+  };
 
   const formatCallDuration = (seconds: number): string => {
-    const hrs = Math.floor(seconds / 3600)
-    const mins = Math.floor((seconds % 3600) / 60)
-    const secs = seconds % 60
-    
+    const hrs = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+
     if (hrs > 0) {
-      return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+      return `${hrs.toString().padStart(2, "0")}:${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
     }
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
-  }
+    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+  };
 
   // Cleanup timer on unmount
   useEffect(() => {
     return () => {
       if (timerInterval) {
-        clearInterval(timerInterval)
+        clearInterval(timerInterval);
       }
-    }
-  }, [timerInterval])
+    };
+  }, [timerInterval]);
 
   if (loading) {
     return (
@@ -200,29 +369,66 @@ const ExpertCallPage = () => {
           <h2 className="text-xl font-semibold text-gray-900 mb-2">
             Loading expert...
           </h2>
-          <p className="text-gray-500">Please wait while we establish the connection</p>
+          <p className="text-gray-500">
+            Please wait while we establish the connection
+          </p>
         </div>
       </div>
-    )
+    );
   }
 
   if (error && !expert) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 mb-4">Expert Not Found</h1>
-          <p className="text-gray-600 mb-6">{error || 'The expert you are looking for is not available.'}</p>
-          <Button onClick={() => router.push('/experts')}>
+          <h1 className="text-2xl font-bold text-gray-900 mb-4">
+            Expert Not Found
+          </h1>
+          <p className="text-gray-600 mb-6">
+            {error || "The expert you are looking for is not available."}
+          </p>
+          <Button onClick={() => router.push("/experts")}>
             Browse All Experts
           </Button>
         </div>
       </div>
-    )
+    );
+  }
+
+  // Show loading screen while validating payment
+  if (paymentSessionValid === null) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-white">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
+          <p className="text-gray-600">Validating access...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show payment required screen if payment session is invalid
+  if (paymentSessionValid === false) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-white">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">
+            Payment Required
+          </h2>
+          <p className="text-gray-600 mb-4">
+            Please complete payment to access this call
+          </p>
+          <Button onClick={() => router.push(`/expert/${slug}`)}>
+            Go to Payment
+          </Button>
+        </div>
+      </div>
+    );
   }
 
   // Apply theme colors
-  const primaryColor = publication?.primary_color || '#3B82F6'
-  const secondaryColor = publication?.secondary_color || '#1E40AF'
+  const primaryColor = publication?.primary_color || "#3B82F6";
+  const secondaryColor = publication?.secondary_color || "#1E40AF";
 
   return (
     <div className="min-h-screen bg-white">
@@ -243,13 +449,18 @@ const ExpertCallPage = () => {
                     src={expert.avatar_url}
                     alt={expert.name}
                     className="w-8 h-8 rounded-full object-cover"
-                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+                    onError={(e) => {
+                      (e.currentTarget as HTMLImageElement).style.display =
+                        "none";
+                    }}
                   />
                 ) : null}
-                <span className="font-semibold text-gray-900">{expert?.name}</span>
+                <span className="font-semibold text-gray-900">
+                  {expert?.name}
+                </span>
               </div>
             </div>
-            
+
             {/* User Profile / Login */}
             <div className="flex items-center space-x-3">
               {/* Chat Button */}
@@ -260,7 +471,7 @@ const ExpertCallPage = () => {
               >
                 <MessageSquare className="h-4 w-4" />
               </Button>
-              
+
               {/* Mobile Chat Button */}
               <Button
                 onClick={handleGoToChat}
@@ -272,21 +483,31 @@ const ExpertCallPage = () => {
               {isAuthenticated && user ? (
                 <div className="flex items-center space-x-3">
                   <div className="text-right">
-                    <p className="text-sm font-medium text-gray-900">{user.full_name || user.username}</p>
+                    <p className="text-sm font-medium text-gray-900">
+                      {user.full_name || user.username}
+                    </p>
                     <p className="text-xs text-gray-500">{user.email}</p>
                   </div>
                   {user.avatar_url ? (
-                    <img 
-                      src={user.avatar_url.startsWith('http') ? user.avatar_url : `${API_URL}${user.avatar_url}`} 
-                      className="w-10 h-10 rounded-full object-cover border-2 border-gray-200" 
+                    <img
+                      src={
+                        user.avatar_url.startsWith("http")
+                          ? user.avatar_url
+                          : `${API_URL}${user.avatar_url}`
+                      }
+                      className="w-10 h-10 rounded-full object-cover border-2 border-gray-200"
                       alt={user.username}
                       onError={(e) => {
-                        e.currentTarget.style.display = 'none'
-                        e.currentTarget.nextElementSibling?.classList.remove('hidden')
+                        e.currentTarget.style.display = "none";
+                        e.currentTarget.nextElementSibling?.classList.remove(
+                          "hidden",
+                        );
                       }}
                     />
                   ) : null}
-                  <div className={`w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center ${user.avatar_url ? 'hidden' : ''}`}>
+                  <div
+                    className={`w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center ${user.avatar_url ? "hidden" : ""}`}
+                  >
                     <User className="h-5 w-5 text-gray-500" />
                   </div>
                   <Button
@@ -300,7 +521,7 @@ const ExpertCallPage = () => {
                 </div>
               ) : (
                 <Button
-                  onClick={() => router.push('/auth/login')}
+                  onClick={() => router.push("/auth/login")}
                   size="sm"
                   className="bg-purple-600 hover:bg-purple-700"
                 >
@@ -320,8 +541,18 @@ const ExpertCallPage = () => {
           {state.isConnected && (
             <div className="mb-12">
               <div className="inline-flex items-center space-x-2">
-                <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                <svg
+                  className="w-5 h-5 text-gray-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
+                  />
                 </svg>
                 <span className="text-lg font-mono font-medium text-gray-700">
                   {formatCallDuration(callDuration)}
@@ -345,7 +576,8 @@ const ExpertCallPage = () => {
                 animation: rotate 2s linear infinite;
               }
               @keyframes pulse-glow {
-                0%, 100% {
+                0%,
+                100% {
                   opacity: 0.3;
                   transform: scale(1);
                 }
@@ -383,7 +615,7 @@ const ExpertCallPage = () => {
                 animation: vibrate-ripple 1.5s ease-out infinite;
               }
             `}</style>
-            
+
             {/* Thin rotating ring when thinking/listening */}
             {state.isConnected && !state.isSpeaking && (
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
@@ -402,7 +634,7 @@ const ExpertCallPage = () => {
                 </svg>
               </div>
             )}
-            
+
             {/* Vibrating ripple rings when AI is talking */}
             {state.isConnected && state.isSpeaking && (
               <>
@@ -410,35 +642,46 @@ const ExpertCallPage = () => {
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none vibrate-ripple">
                   <div className="w-48 h-48 rounded-full border-2 border-orange-400"></div>
                 </div>
-                
+
                 {/* Ripple 2 */}
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none vibrate-ripple" style={{ animationDelay: '0.3s' }}>
+                <div
+                  className="absolute inset-0 flex items-center justify-center pointer-events-none vibrate-ripple"
+                  style={{ animationDelay: "0.3s" }}
+                >
                   <div className="w-48 h-48 rounded-full border-2 border-orange-400"></div>
                 </div>
-                
+
                 {/* Ripple 3 */}
-                <div className="absolute inset-0 flex items-center justify-center pointer-events-none vibrate-ripple" style={{ animationDelay: '0.6s' }}>
+                <div
+                  className="absolute inset-0 flex items-center justify-center pointer-events-none vibrate-ripple"
+                  style={{ animationDelay: "0.6s" }}
+                >
                   <div className="w-48 h-48 rounded-full border-2 border-orange-400"></div>
                 </div>
-                
+
                 {/* Outer pulsing glow */}
                 <div className="absolute inset-0 flex items-center justify-center pulse-glow pointer-events-none">
                   <div className="w-72 h-72 rounded-full bg-orange-400 blur-2xl opacity-20"></div>
                 </div>
-                
+
                 {/* Middle pulsing glow */}
-                <div className="absolute inset-0 flex items-center justify-center pulse-glow pointer-events-none" style={{ animationDelay: '0.3s' }}>
+                <div
+                  className="absolute inset-0 flex items-center justify-center pulse-glow pointer-events-none"
+                  style={{ animationDelay: "0.3s" }}
+                >
                   <div className="w-64 h-64 rounded-full bg-orange-400 blur-xl opacity-25"></div>
                 </div>
               </>
             )}
-            
+
             {expert?.avatar_url ? (
               <img
                 src={expert.avatar_url}
                 alt={expert.name}
                 className="w-48 h-48 rounded-full object-cover shadow-2xl relative z-10"
-                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+                onError={(e) => {
+                  (e.currentTarget as HTMLImageElement).style.display = "none";
+                }}
               />
             ) : (
               <div className="w-48 h-48 rounded-full flex items-center justify-center bg-gray-200 text-gray-600 text-6xl font-bold shadow-2xl relative z-10">
@@ -455,10 +698,17 @@ const ExpertCallPage = () => {
           {/* Status Text */}
           {state.isConnected && (
             <div className="mb-8">
-              <span className="text-sm font-medium" style={{ color: '#FF6B35' }}>
-                {state.isSpeaking ? 'Talking' : state.isListening ? 'Thinking' : 'Connected'}
-                {state.isSpeaking && ' 🔊'}
-                {!state.isSpeaking && state.isListening && ' 💭'}
+              <span
+                className="text-sm font-medium"
+                style={{ color: "#FF6B35" }}
+              >
+                {state.isSpeaking
+                  ? "Talking"
+                  : state.isListening
+                    ? "Thinking"
+                    : "Connected"}
+                {state.isSpeaking && " 🔊"}
+                {!state.isSpeaking && state.isListening && " 💭"}
               </span>
             </div>
           )}
@@ -499,7 +749,7 @@ const ExpertCallPage = () => {
                   <PhoneOff className="mr-2 h-5 w-5" />
                   End Call
                 </Button>
-                
+
                 {/* Microphone Button with Ripple Effect */}
                 <div className="mt-8 flex justify-center">
                   <div className="relative inline-flex items-center justify-center">
@@ -522,27 +772,33 @@ const ExpertCallPage = () => {
                         animation: ripple 1.5s ease-out infinite;
                       }
                     `}</style>
-                    
+
                     {/* Ripple rings when user is listening/talking */}
                     {state.isListening && (
                       <>
                         <div className="absolute inset-0 rounded-full bg-gray-400 ripple-effect"></div>
-                        <div className="absolute inset-0 rounded-full bg-gray-400 ripple-effect" style={{ animationDelay: '0.5s' }}></div>
-                        <div className="absolute inset-0 rounded-full bg-gray-400 ripple-effect" style={{ animationDelay: '1s' }}></div>
+                        <div
+                          className="absolute inset-0 rounded-full bg-gray-400 ripple-effect"
+                          style={{ animationDelay: "0.5s" }}
+                        ></div>
+                        <div
+                          className="absolute inset-0 rounded-full bg-gray-400 ripple-effect"
+                          style={{ animationDelay: "1s" }}
+                        ></div>
                       </>
                     )}
-                    
+
                     {/* Microphone button */}
                     <button
                       className={`relative z-10 w-16 h-16 rounded-full flex items-center justify-center shadow-lg transition-all ${
-                        state.isListening 
-                          ? 'bg-gray-700 scale-110' 
-                          : 'bg-gray-200 hover:bg-gray-300'
+                        state.isListening
+                          ? "bg-gray-700 scale-110"
+                          : "bg-gray-200 hover:bg-gray-300"
                       }`}
                     >
-                      <svg 
-                        className={`w-6 h-6 ${state.isListening ? 'text-white' : 'text-gray-700'}`}
-                        fill="currentColor" 
+                      <svg
+                        className={`w-6 h-6 ${state.isListening ? "text-white" : "text-gray-700"}`}
+                        fill="currentColor"
                         viewBox="0 0 20 20"
                       >
                         <path d="M7 4a3 3 0 016 0v6a3 3 0 11-6 0V4z" />
@@ -554,11 +810,20 @@ const ExpertCallPage = () => {
               </>
             )}
           </div>
-
         </div>
       </div>
-    </div>
-  )
-}
 
-export default ExpertCallPage
+      {/* Limit Reached Modal */}
+      <LimitReachedModal
+        isOpen={showLimitReachedModal}
+        onClose={() => setShowLimitReachedModal(false)}
+        limitStatus={limitStatus}
+        currentPlan={currentPlan}
+        featureType="call"
+        expertSlug={slug}
+      />
+    </div>
+  );
+};
+
+export default ClientCallPage;

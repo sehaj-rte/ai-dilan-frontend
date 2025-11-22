@@ -87,12 +87,12 @@ const ExpertTestPage = () => {
 
   const handleStartChat = () => {
     // Redirect to expert test chat with ID
-    router.push(`/expert/test/${expertId}/chat`)
+    router.push(`/persona/test/${expertId}/chat`)
   }
 
   const handleStartCall = () => {
     // Redirect to expert test call with ID
-    router.push(`/expert/test/${expertId}/call`)
+    router.push(`/persona/test/${expertId}/call`)
   }
 
   const handleBack = () => {
@@ -154,7 +154,7 @@ const ExpertTestPage = () => {
                   size="sm"
                   onClick={() => {
                     dispatch(logout())
-                    router.push('/expert/login')
+                    router.push('/persona/login')
                   }}
                   className="flex items-center gap-2"
                 >

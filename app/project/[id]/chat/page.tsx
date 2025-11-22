@@ -113,13 +113,13 @@ const ChatPage = () => {
   const handleStartChat = () => {
     console.log('🖱️ Redirecting to expert chat using ID:', expertId)
     // Redirect to expert chat using expert ID (no publication required)
-    router.push(`/expert/${expertId}/chat`)
+    router.push(`/persona/${expertId}/chat`)
   }
 
   const handleStartCall = () => {
     console.log('📋 Redirecting to expert call using ID:', expertId)
     // Redirect to expert call using expert ID (no publication required)
-    router.push(`/expert/${expertId}/call`)
+    router.push(`/persona/${expertId}/call`)
   }
 
 

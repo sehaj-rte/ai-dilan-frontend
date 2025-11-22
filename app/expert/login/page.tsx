@@ -9,14 +9,14 @@ export default function ClientLoginRedirect() {
   
   useEffect(() => {
     // Get the redirect parameter or default to client dashboard
-    const redirect = searchParams.get('redirect') || '/client/dashboard'
+    const redirect = searchParams.get('redirect') || '/expert/dashboard'
     
     // Extract slug from redirect if it's a client route
-    const slugMatch = redirect.match(/\/client\/([^\/]+)/)
+    const slugMatch = redirect.match(/\/expert\/([^\/]+)/)
     if (slugMatch) {
       const slug = slugMatch[1]
       // Redirect to the expert page where they can use the auth modal
-      router.replace(`/client/${slug}`)
+      router.replace(`/expert/${slug}`)
     } else {
       // Redirect to main auth login
       router.replace('/auth/login')

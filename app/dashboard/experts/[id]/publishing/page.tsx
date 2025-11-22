@@ -312,7 +312,7 @@ const ExpertPublishingPage = () => {
                 <div>
                   <Label htmlFor="slug">Public URL Slug</Label>
                   <div className="flex items-center gap-2">
-                    <span className="text-gray-500 text-sm">yourdomain.com/expert/</span>
+                    <span className="text-gray-500 text-sm">yourdomain.com/persona/</span>
                     <Input
                       id="slug"
                       value={publication?.slug || ''}

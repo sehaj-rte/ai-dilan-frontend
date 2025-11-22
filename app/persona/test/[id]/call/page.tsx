@@ -128,11 +128,11 @@ const ExpertTestCallPage = () => {
   }
 
   const handleBack = () => {
-    router.push(`/expert/test/${expertId}`)
+    router.push(`/persona/test/${expertId}`)
   }
 
   const handleGoToChat = () => {
-    router.push(`/expert/test/${expertId}/chat`)
+    router.push(`/persona/test/${expertId}/chat`)
   }
 
   const formatCallDuration = (seconds: number): string => {
@@ -202,7 +202,7 @@ const ExpertTestCallPage = () => {
                   size="sm"
                   onClick={() => {
                     dispatch(logout())
-                    router.push('/expert/login')
+                    router.push('/persona/login')
                   }}
                   className="flex items-center gap-2"
                 >

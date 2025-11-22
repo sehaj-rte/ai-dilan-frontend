@@ -105,14 +105,14 @@ export function ClientAuthFlowProvider({ children }: { children: React.ReactNode
     // Step 2: Check if user is the expert owner (no payment needed)
     if (await isExpertOwner(user.id, publication.expert_id)) {
       // Direct access - redirect to chat/call
-      router.push(`/client/${publication.slug}/${sessionType}`)
+      router.push(`/expert/${publication.slug}/${sessionType}`)
       return
     }
 
     // Step 3: Check if user has already paid for this expert
     if (await hasUserPaid(user.id, publication.id)) {
       // Direct access - redirect to chat/call
-      router.push(`/client/${publication.slug}/${sessionType}`)
+      router.push(`/expert/${publication.slug}/${sessionType}`)
       return
     }
 
@@ -216,13 +216,13 @@ export function ClientAuthFlowProvider({ children }: { children: React.ReactNode
 
     // Check if user is the expert owner (no payment needed)
     if (await isExpertOwner(currentUser.id, currentPublication.expert_id)) {
-      router.push(`/client/${currentPublication.slug}/${currentSessionType}`)
+      router.push(`/expert/${currentPublication.slug}/${currentSessionType}`)
       return
     }
 
     // Check if user has already paid for this expert
     if (await hasUserPaid(currentUser.id, currentPublication.id)) {
-      router.push(`/client/${currentPublication.slug}/${currentSessionType}`)
+      router.push(`/expert/${currentPublication.slug}/${currentSessionType}`)
       return
     }
 
@@ -236,7 +236,7 @@ export function ClientAuthFlowProvider({ children }: { children: React.ReactNode
   const handlePaymentSuccess = (sessionId: string) => {
     setShowPaymentModal(false)
     if (currentPublication && currentSessionType) {
-      router.push(`/client/${currentPublication.slug}/${currentSessionType}?session_id=${sessionId}`)
+      router.push(`/expert/${currentPublication.slug}/${currentSessionType}?session_id=${sessionId}`)
     }
   }
 

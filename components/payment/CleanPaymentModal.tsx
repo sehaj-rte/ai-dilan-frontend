@@ -130,7 +130,7 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
           onPaymentSuccess(data.subscription_id)
           // Redirect to expert page if expertSlug is provided
           if (expertSlug) {
-            window.location.href = `/client/${expertSlug}?payment_success=true`
+            window.location.href = `/expert/${expertSlug}?payment_success=true`
           }
         }, 2000)
       }
