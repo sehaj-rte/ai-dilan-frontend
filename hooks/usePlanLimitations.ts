@@ -59,10 +59,24 @@ export const usePlanLimitations = ({
       usage: UserUsage | null,
       plan: PlanWithLimitations | null,
     ): UsageLimitStatus => {
-      if (!usage || !plan || !isAuthenticated) {
+      // If not authenticated, allow usage (will be handled by auth checks elsewhere)
+      if (!isAuthenticated) {
         return {
-          canSendMessage: !isAuthenticated,
-          canMakeCall: !isAuthenticated,
+          canSendMessage: true,
+          canMakeCall: true,
+          messagesRemaining: null,
+          minutesRemaining: null,
+          isUnlimited: false,
+          limitReachedType: "none",
+        };
+      }
+
+      // If data is not yet loaded, allow usage to avoid false positives
+      // The actual limit check will happen once data is loaded
+      if (!usage || !plan) {
+        return {
+          canSendMessage: true,
+          canMakeCall: true,
           messagesRemaining: null,
           minutesRemaining: null,
           isUnlimited: false,

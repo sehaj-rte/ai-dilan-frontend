@@ -64,6 +64,7 @@ const ClientCallPage = () => {
   const [paymentSessionValid, setPaymentSessionValid] = useState<
     boolean | null
   >(null);
+  const [authLoaded, setAuthLoaded] = useState(false);
 
   // Plan limitations state
   const [showLimitReachedModal, setShowLimitReachedModal] = useState(false);
@@ -109,8 +110,14 @@ const ClientCallPage = () => {
 
   // Load user from storage on mount
   useEffect(() => {
+    console.log("🔄 Loading user from storage...");
     dispatch(loadUserFromStorage());
-  }, []);
+    // Give a small delay to ensure Redux state is updated
+    setTimeout(() => {
+      setAuthLoaded(true);
+      console.log("✅ Auth state loaded");
+    }, 100);
+  }, [dispatch]);
 
   useEffect(() => {
     fetchExpertData();
@@ -118,6 +125,8 @@ const ClientCallPage = () => {
 
   // Check for payment session ID and validate it
   useEffect(() => {
+    if (!authLoaded) return; // Wait for auth to load first
+
     const sessionIdParam = searchParams.get("session_id");
     if (sessionIdParam) {
       setPaymentSessionId(sessionIdParam);
@@ -126,7 +135,7 @@ const ClientCallPage = () => {
       // If no session ID, check if user needs to pay
       checkPaymentRequirement();
     }
-  }, [searchParams, isAuthenticated]);
+  }, [searchParams, isAuthenticated, authLoaded]);
 
   const validatePaymentSession = async (sessionId: string) => {
     if (!isAuthenticated) {
@@ -240,7 +249,9 @@ const ClientCallPage = () => {
     if (!expert) return;
 
     // Check if user can make calls before proceeding
-    if (isAuthenticated && !checkCanMakeCall(5)) {
+    // Only check limits if data has been loaded (not loading)
+    // This prevents false positives when data is still being fetched
+    if (isAuthenticated && !planLoading && !checkCanMakeCall(5)) {
       setShowLimitReachedModal(true);
       return;
     }
