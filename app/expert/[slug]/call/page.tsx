@@ -38,6 +38,7 @@ interface Publication {
   primary_color: string;
   secondary_color: string;
   theme: string;
+  banner_url?: string | null;
 }
 
 const ClientCallPage = () => {
@@ -437,14 +438,30 @@ const ClientCallPage = () => {
     );
   }
 
+
+
   // Apply theme colors
   const primaryColor = publication?.primary_color || "#3B82F6";
   const secondaryColor = publication?.secondary_color || "#1E40AF";
 
   return (
-    <div className="min-h-screen bg-white">
+    <div
+      className="min-h-screen bg-white"
+      style={{
+        backgroundImage: publication?.banner_url ? `url(${convertS3UrlToProxy(publication.banner_url)})` : undefined,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+        backgroundAttachment: 'fixed'
+      }}
+    >
+      {/* Overlay for better text readability */}
+      {publication?.banner_url && (
+        <div className="absolute inset-0 bg-black bg-opacity-30 pointer-events-none"></div>
+      )}
+      <div className="relative">
       {/* Header */}
-      <div className="border-b border-gray-200">
+      <div className={`${publication?.banner_url ? 'bg-white/60 backdrop-blur-xl border-b border-white/30 shadow-lg' : 'border-b border-gray-200'}`}>
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
@@ -523,9 +540,13 @@ const ClientCallPage = () => {
                   </div>
                   <Button
                     onClick={handleLogout}
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
                     className="text-gray-600 hover:text-gray-900"
+                    style={{
+                      borderColor: primaryColor,
+                      color: primaryColor
+                    }}
                   >
                     <LogOut className="h-4 w-4" />
                   </Button>
@@ -533,10 +554,15 @@ const ClientCallPage = () => {
               ) : (
                 <Button
                   onClick={() => router.push("/auth/login")}
+                  variant="outline"
                   size="sm"
-                  className="bg-purple-600 hover:bg-purple-700"
+                  className="flex items-center gap-2"
+                  style={{
+                    borderColor: primaryColor,
+                    color: primaryColor
+                  }}
                 >
-                  <LogIn className="mr-2 h-4 w-4" />
+                  <LogIn className="h-4 w-4" />
                   Login
                 </Button>
               )}
@@ -547,7 +573,7 @@ const ClientCallPage = () => {
 
       {/* Main Content */}
       <div className="container mx-auto px-4 py-8">
-        <div className="max-w-2xl mx-auto text-center">
+        <div className={`max-w-2xl mx-auto text-center ${publication?.banner_url ? 'bg-white/60 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/30 p-8' : ''}`}>
           {/* Call Timer at Top */}
           {state.isConnected && (
             <div className="mb-12">
@@ -726,8 +752,8 @@ const ClientCallPage = () => {
 
           {/* Error Display */}
           {error && (
-            <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
-              <p className="text-sm text-red-700">{error}</p>
+            <div className={`mb-6 rounded-lg p-4 ${publication?.banner_url ? 'bg-red-100/80 border border-red-300/60 backdrop-blur-sm' : 'bg-red-50 border border-red-200'}`}>
+              <p className={`text-sm ${publication?.banner_url ? 'text-red-800' : 'text-red-700'}`}>{error}</p>
             </div>
           )}
 
@@ -833,6 +859,7 @@ const ClientCallPage = () => {
         featureType="call"
         expertSlug={slug}
       />
+      </div>
     </div>
   );
 };

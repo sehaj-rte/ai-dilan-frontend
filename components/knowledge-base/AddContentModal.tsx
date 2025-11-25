@@ -1,16 +1,16 @@
-'use client'
+"use client";
 
-import React, { useState, useRef } from 'react'
-import { Dialog, DialogContent } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Card } from '@/components/ui/card'
-import { 
-  Upload, 
-  Youtube, 
-  Mic, 
-  Globe, 
-  Twitter, 
+import React, { useState, useRef } from "react";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card } from "@/components/ui/card";
+import {
+  Upload,
+  Youtube,
+  Mic,
+  Globe,
+  Twitter,
   FileText,
   FileAudio,
   Podcast,
@@ -22,29 +22,44 @@ import {
   X,
   AlertCircle,
   CheckCircle,
-  Trash2
-} from 'lucide-react'
-import AudioRecorder from './AudioRecorder'
-import YouTubeTranscriber from './YouTubeTranscriber'
-import AudioFileUploader from './AudioFileUploader'
-import WebScraper from './WebScraper'
-import FolderSelector from './FolderSelector'
+  Trash2,
+  Loader2,
+} from "lucide-react";
+import AudioRecorder from "./AudioRecorder";
+import YouTubeTranscriber from "./YouTubeTranscriber";
+import AudioFileUploader from "./AudioFileUploader";
+import WebScraper from "./WebScraper";
+import FolderSelector from "./FolderSelector";
+import { fetchWithAuth, getAuthHeadersForFormData } from "@/lib/api-client";
+import { API_URL } from "@/lib/config";
 
 interface AddContentModalProps {
-  isOpen: boolean
-  onClose: () => void
-  onFileUpload: (files: File[], folderId: string) => void
-  onTranscriptionComplete: () => void
-  selectedFolderId: string
-  setSelectedFolderId: (folderId: string) => void
-  agentId?: string
+  isOpen: boolean;
+  onClose: () => void;
+  onFileUpload: (files: File[], folderId: string) => void;
+  onTranscriptionComplete: () => void;
+  selectedFolderId: string;
+  setSelectedFolderId: (folderId: string) => void;
+  agentId?: string;
 }
 
-type Category = 'popular' | 'websites' | 'youtube' | 'socials' | 'files' | 'podcasts' | 'snippets' | 'notes' | 'messaging' | 'speech' | 'audio' | 'webscraping'
+type Category =
+  | "popular"
+  | "websites"
+  | "youtube"
+  | "socials"
+  | "files"
+  | "podcasts"
+  | "snippets"
+  | "notes"
+  | "messaging"
+  | "speech"
+  | "audio"
+  | "webscraping";
 
 interface FileWithValidation extends File {
-  isValid: boolean
-  errorMessage?: string
+  isValid: boolean;
+  errorMessage?: string;
 }
 
 const AddContentModal: React.FC<AddContentModalProps> = ({
@@ -54,103 +69,250 @@ const AddContentModal: React.FC<AddContentModalProps> = ({
   onTranscriptionComplete,
   selectedFolderId,
   setSelectedFolderId,
-  agentId
+  agentId,
 }) => {
-  const [selectedCategory, setSelectedCategory] = useState<Category>('popular')
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([])
-  const [dragActive, setDragActive] = useState(false)
-  const [fileValidationErrors, setFileValidationErrors] = useState<{[key: string]: string}>({})
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  
-  const MAX_FILE_SIZE = 15 * 1024 * 1024 // 15MB in bytes
+  const [selectedCategory, setSelectedCategory] = useState<Category>("popular");
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [dragActive, setDragActive] = useState(false);
+  const [fileValidationErrors, setFileValidationErrors] = useState<{
+    [key: string]: string;
+  }>({});
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [transcriptionProgress, setTranscriptionProgress] = useState<{
+    [key: string]: boolean;
+  }>({});
+  const [successCount, setSuccessCount] = useState(0);
+  const [errorCount, setErrorCount] = useState(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15MB in bytes
 
   const categories = [
-    { id: 'popular' as Category, label: 'Popular', icon: Upload, active: true },
+    { id: "popular" as Category, label: "Popular", icon: Upload, active: true },
     // { id: 'webscraping' as Category, label: 'Web Scraping', icon: Globe, active: true },
     // { id: 'youtube' as Category, label: 'YouTube', icon: Youtube, active: true },
-    { id: 'speech' as Category, label: 'Voice Notes', icon: Mic, active: true },
-    { id: 'audio' as Category, label: 'Audio Files', icon: FileAudio, active: true },
+    { id: "speech" as Category, label: "Voice Notes", icon: Mic, active: true },
+    {
+      id: "audio" as Category,
+      label: "Audio Files",
+      icon: FileAudio,
+      active: true,
+    },
     // { id: 'socials' as Category, label: 'Socials', icon: Twitter, active: false },
-    { id: 'files' as Category, label: 'Files', icon: FileText, active: true },
+    { id: "files" as Category, label: "Files", icon: FileText, active: true },
     // { id: 'podcasts' as Category, label: 'Podcasts', icon: Podcast, active: false },
     // { id: 'snippets' as Category, label: 'Snippets', icon: Code, active: false },
     // { id: 'notes' as Category, label: 'Notes Apps', icon: MessageSquare, active: false },
     // { id: 'messaging' as Category, label: 'Messaging Apps', icon: Mail, active: false },
-  ]
+  ];
 
   const handleFileSelection = (files: FileList) => {
-    if (!files || files.length === 0) return
-    const filesArray = Array.from(files)
-    
+    if (!files || files.length === 0) return;
+    const filesArray = Array.from(files);
+
     // Validate each file
-    const validationErrors: {[key: string]: string} = {}
-    filesArray.forEach(file => {
+    const validationErrors: { [key: string]: string } = {};
+    filesArray.forEach((file) => {
       if (file.size > MAX_FILE_SIZE) {
-        validationErrors[file.name] = `File size (${formatFileSize(file.size)}) exceeds 15MB limit`
+        validationErrors[file.name] =
+          `File size (${formatFileSize(file.size)}) exceeds 15MB limit`;
       } else if (file.size === 0) {
-        validationErrors[file.name] = 'File is empty'
+        validationErrors[file.name] = "File is empty";
       }
-    })
-    
-    setFileValidationErrors(validationErrors)
-    setSelectedFiles(filesArray)
-  }
-  
+    });
+
+    setFileValidationErrors(validationErrors);
+    setSelectedFiles(filesArray);
+  };
+
   const formatFileSize = (bytes: number) => {
-    if (bytes === 0) return '0 Bytes'
-    const k = 1024
-    const sizes = ['Bytes', 'KB', 'MB', 'GB']
-    const i = Math.floor(Math.log(bytes) / Math.log(k))
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
-  }
-  
+    if (bytes === 0) return "0 Bytes";
+    const k = 1024;
+    const sizes = ["Bytes", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+  };
+
   const removeFile = (fileName: string) => {
-    setSelectedFiles(prev => prev.filter(f => f.name !== fileName))
-    const newErrors = {...fileValidationErrors}
-    delete newErrors[fileName]
-    setFileValidationErrors(newErrors)
-  }
-  
+    setSelectedFiles((prev) => prev.filter((f) => f.name !== fileName));
+    const newErrors = { ...fileValidationErrors };
+    delete newErrors[fileName];
+    setFileValidationErrors(newErrors);
+  };
+
   const getValidFiles = () => {
-    return selectedFiles.filter(file => !fileValidationErrors[file.name])
-  }
-  
+    return selectedFiles.filter((file) => !fileValidationErrors[file.name]);
+  };
+
   const getInvalidFiles = () => {
-    return selectedFiles.filter(file => fileValidationErrors[file.name])
-  }
+    return selectedFiles.filter((file) => fileValidationErrors[file.name]);
+  };
 
   const handleDrag = (e: React.DragEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    if (e.type === 'dragenter' || e.type === 'dragover') {
-      setDragActive(true)
-    } else if (e.type === 'dragleave') {
-      setDragActive(false)
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
     }
-  }
+  };
 
   const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault()
-    e.stopPropagation()
-    setDragActive(false)
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      handleFileSelection(e.dataTransfer.files)
+      handleFileSelection(e.dataTransfer.files);
     }
-  }
+  };
 
-  const handleUpload = () => {
-    const validFiles = getValidFiles()
-    if (validFiles.length > 0) {
-      onFileUpload(validFiles, selectedFolderId)
-      setSelectedFiles([])
-      setFileValidationErrors({})
-      onClose()
+  const handleUpload = async () => {
+    const validFiles = getValidFiles();
+    if (validFiles.length === 0) return;
+
+    // Reset counters
+    setSuccessCount(0);
+    setErrorCount(0);
+
+    try {
+      // Separate files by type
+      const imageFiles = validFiles.filter((file) =>
+        file.type.startsWith("image/"),
+      );
+      const audioFiles = validFiles.filter((file) =>
+        file.type.startsWith("audio/"),
+      );
+      const otherFiles = validFiles.filter(
+        (file) =>
+          !file.type.startsWith("image/") && !file.type.startsWith("audio/"),
+      );
+
+      // Set transcribing state if there are audio files
+      if (audioFiles.length > 0) {
+        setIsTranscribing(true);
+      }
+
+      // Process image files using AWS Textract (through regular upload)
+      if (imageFiles.length > 0) {
+        onFileUpload(imageFiles, selectedFolderId);
+      }
+
+      // Process audio files using ElevenLabs transcription
+      if (audioFiles.length > 0) {
+        await handleAudioUpload(audioFiles);
+      }
+
+      // Process other files normally
+      if (otherFiles.length > 0) {
+        onFileUpload(otherFiles, selectedFolderId);
+      }
+
+      // Show completion message before closing
+      if (audioFiles.length > 0) {
+        // Call the transcription complete callback
+        onTranscriptionComplete();
+
+        // Add a small delay to show final status before closing
+        setTimeout(() => {
+          setSelectedFiles([]);
+          setFileValidationErrors({});
+          setIsTranscribing(false);
+          setTranscriptionProgress({});
+          setSuccessCount(0);
+          setErrorCount(0);
+          onClose();
+        }, 1000);
+      } else {
+        setSelectedFiles([]);
+        setFileValidationErrors({});
+        setIsTranscribing(false);
+        setTranscriptionProgress({});
+        setSuccessCount(0);
+        setErrorCount(0);
+        onClose();
+      }
+    } catch (error) {
+      console.error("Upload error:", error);
+      setIsTranscribing(false);
+      setTranscriptionProgress({});
+      setSuccessCount(0);
+      setErrorCount(0);
     }
-  }
+  };
+
+  const handleAudioUpload = async (audioFiles: File[]) => {
+    for (let i = 0; i < audioFiles.length; i++) {
+      const file = audioFiles[i];
+      try {
+        // Set individual file transcription progress
+        setTranscriptionProgress((prev) => ({
+          ...prev,
+          [file.name]: true,
+        }));
+
+        const formData = new FormData();
+        formData.append("file", file);
+        if (selectedFolderId) {
+          formData.append("folder_id", selectedFolderId);
+        }
+        if (agentId) {
+          formData.append("agent_id", agentId);
+        }
+
+        // Use original filename without extension for transcription
+        const originalName = file.name.split(".")[0];
+        formData.append("custom_name", originalName);
+
+        const response = await fetchWithAuth(
+          `${API_URL}/knowledge-base/transcribe-audio`,
+          {
+            method: "POST",
+            headers: getAuthHeadersForFormData(),
+            body: formData,
+          },
+        );
+
+        const result = await response.json();
+
+        if (result.success) {
+          setSuccessCount((prev) => prev + 1);
+          console.log(`✅ Audio transcription completed for ${file.name}`);
+        } else {
+          setErrorCount((prev) => prev + 1);
+          console.error(
+            `Audio transcription failed for ${file.name}:`,
+            result.error,
+          );
+        }
+
+        // Remove individual file progress
+        setTranscriptionProgress((prev) => {
+          const newProgress = { ...prev };
+          delete newProgress[file.name];
+          return newProgress;
+        });
+
+        // Add small delay between files for better UX
+        if (i < audioFiles.length - 1) {
+          await new Promise((resolve) => setTimeout(resolve, 500));
+        }
+      } catch (error) {
+        setErrorCount((prev) => prev + 1);
+        console.error(`Audio upload error for ${file.name}:`, error);
+        // Remove individual file progress on error
+        setTranscriptionProgress((prev) => {
+          const newProgress = { ...prev };
+          delete newProgress[file.name];
+          return newProgress;
+        });
+      }
+    }
+  };
 
   const renderContent = () => {
     switch (selectedCategory) {
-      case 'popular':
+      case "popular":
         return (
           <div className="space-y-6">
             {/* File List - Show when files are selected */}
@@ -166,36 +328,56 @@ const AddContentModal: React.FC<AddContentModalProps> = ({
                     </span>
                   )}
                 </div>
-                
+
                 {/* File List */}
                 <div className="border rounded-lg divide-y max-h-48 overflow-y-auto">
                   {selectedFiles.map((file, index) => {
-                    const isValid = !fileValidationErrors[file.name]
-                    const error = fileValidationErrors[file.name]
-                    
+                    const isValid = !fileValidationErrors[file.name];
+                    const error = fileValidationErrors[file.name];
+                    const isAudioFile = file.type.startsWith("audio/");
+                    const isTranscribingFile = transcriptionProgress[file.name];
+
                     return (
-                      <div key={index} className={`p-3 flex items-center justify-between ${
-                        isValid ? 'bg-white' : 'bg-red-50'
-                      }`}>
+                      <div
+                        key={index}
+                        className={`p-3 flex items-center justify-between ${
+                          isValid ? "bg-white" : "bg-red-50"
+                        }`}
+                      >
                         <div className="flex items-center space-x-3 flex-1 min-w-0">
-                          {isValid ? (
+                          {isTranscribingFile ? (
+                            <Loader2 className="h-5 w-5 text-blue-500 flex-shrink-0 animate-spin" />
+                          ) : isValid ? (
                             <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0" />
                           ) : (
                             <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0" />
                           )}
                           <div className="flex-1 min-w-0">
-                            <p 
+                            <p
                               title={file.name}
                               className={`text-sm font-medium truncate ${
-                                isValid ? 'text-gray-900' : 'text-red-900'
+                                isValid ? "text-gray-900" : "text-red-900"
                               }`}
                             >
-                              {file.name.length > 45 ? `${file.name.substring(0, 42)}...` : file.name}
+                              {file.name.length > 45
+                                ? `${file.name.substring(0, 42)}...`
+                                : file.name}
                             </p>
-                            <p className={`text-xs ${
-                              isValid ? 'text-gray-500' : 'text-red-600'
-                            }`}>
-                              {error || formatFileSize(file.size)}
+                            <p
+                              className={`text-xs ${
+                                isTranscribingFile
+                                  ? "text-blue-600"
+                                  : isValid
+                                    ? "text-gray-500"
+                                    : "text-red-600"
+                              }`}
+                            >
+                              {isTranscribingFile
+                                ? "Transcribing..."
+                                : error ||
+                                  (isAudioFile
+                                    ? `${formatFileSize(file.size)} - Audio file`
+                                    : formatFileSize(file.size))}
                             </p>
                           </div>
                         </div>
@@ -204,29 +386,71 @@ const AddContentModal: React.FC<AddContentModalProps> = ({
                           size="sm"
                           onClick={() => removeFile(file.name)}
                           className="ml-2 flex-shrink-0"
+                          disabled={isTranscribingFile}
                         >
                           <Trash2 className="h-4 w-4 text-gray-400 hover:text-red-500" />
                         </Button>
                       </div>
-                    )
+                    );
                   })}
                 </div>
-                
+
                 {/* Upload Button */}
                 <div className="flex justify-between items-center">
                   <div>
                     {getInvalidFiles().length > 0 && (
                       <p className="text-xs text-red-600 flex items-center">
                         <AlertCircle className="h-3 w-3 mr-1" />
-                        {getInvalidFiles().length} file(s) will be skipped due to validation errors
+                        {getInvalidFiles().length} file(s) will be skipped due
+                        to validation errors
+                      </p>
+                    )}
+                    {isTranscribing && (successCount > 0 || errorCount > 0) && (
+                      <p className="text-xs text-gray-600 flex items-center">
+                        {successCount > 0 && (
+                          <span className="text-green-600 mr-2">
+                            ✅ {successCount} completed
+                          </span>
+                        )}
+                        {errorCount > 0 && (
+                          <span className="text-red-600">
+                            ❌ {errorCount} failed
+                          </span>
+                        )}
                       </p>
                     )}
                   </div>
-                  <Button 
-                    onClick={handleUpload} 
-                    disabled={getValidFiles().length === 0}
+                  <Button
+                    onClick={handleUpload}
+                    disabled={getValidFiles().length === 0 || isTranscribing}
                   >
-                    Upload {getValidFiles().length > 0 && `(${getValidFiles().length})`}
+                    {isTranscribing ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        {getValidFiles().some((f) =>
+                          f.type.startsWith("audio/"),
+                        )
+                          ? "Transcribing..."
+                          : "Uploading..."}
+                      </>
+                    ) : (
+                      <>
+                        {getValidFiles().some((f) =>
+                          f.type.startsWith("audio/"),
+                        ) &&
+                        getValidFiles().every((f) =>
+                          f.type.startsWith("audio/"),
+                        )
+                          ? "Transcribe"
+                          : getValidFiles().some((f) =>
+                                f.type.startsWith("audio/"),
+                              )
+                            ? "Upload & Transcribe"
+                            : "Upload"}{" "}
+                        {getValidFiles().length > 0 &&
+                          `(${getValidFiles().length})`}
+                      </>
+                    )}
                   </Button>
                 </div>
               </div>
@@ -235,9 +459,9 @@ const AddContentModal: React.FC<AddContentModalProps> = ({
             {/* Drag and Drop Area */}
             <div
               className={`border-2 border-dashed rounded-lg p-12 text-center transition-colors ${
-                dragActive 
-                  ? 'border-blue-500 bg-blue-50' 
-                  : 'border-gray-300 hover:border-gray-400 bg-gray-50'
+                dragActive
+                  ? "border-blue-500 bg-blue-50"
+                  : "border-gray-300 hover:border-gray-400 bg-gray-50"
               }`}
               onDragEnter={handleDrag}
               onDragLeave={handleDrag}
@@ -249,7 +473,7 @@ const AddContentModal: React.FC<AddContentModalProps> = ({
                   <Plus className="h-8 w-8 text-gray-400" />
                 </div>
                 <p className="text-gray-700 mb-1">
-                  Drag and drop your files here or{' '}
+                  Drag and drop your files here or{" "}
                   <button
                     onClick={() => fileInputRef.current?.click()}
                     className="text-blue-600 hover:underline font-medium"
@@ -263,7 +487,9 @@ const AddContentModal: React.FC<AddContentModalProps> = ({
                 type="file"
                 multiple
                 className="hidden"
-                onChange={(e) => e.target.files && handleFileSelection(e.target.files)}
+                onChange={(e) =>
+                  e.target.files && handleFileSelection(e.target.files)
+                }
                 accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.gif,.mp3,.wav,.mp4,.avi"
               />
             </div>
@@ -271,9 +497,9 @@ const AddContentModal: React.FC<AddContentModalProps> = ({
             {/* Quick Action Cards - Only Enabled Options */}
             <div className="grid grid-cols-2 gap-4">
               {/* Upload Files */}
-              <Card 
+              <Card
                 className="p-4 hover:shadow-md transition-shadow cursor-pointer border"
-                onClick={() => setSelectedCategory('files')}
+                onClick={() => setSelectedCategory("files")}
               >
                 <div className="flex items-start justify-between">
                   <div className="flex items-center space-x-3">
@@ -281,7 +507,9 @@ const AddContentModal: React.FC<AddContentModalProps> = ({
                       <FileText className="h-5 w-5 text-blue-600" />
                     </div>
                     <div>
-                      <h3 className="font-medium text-gray-900">Upload Files</h3>
+                      <h3 className="font-medium text-gray-900">
+                        Upload Files
+                      </h3>
                       <p className="text-sm text-gray-500 mt-1">
                         Upload PDF, DOCX, TXT and other documents
                       </p>
@@ -291,8 +519,8 @@ const AddContentModal: React.FC<AddContentModalProps> = ({
                 </div>
               </Card>
 
-              {/* YouTube - HIDDEN 
-              <Card 
+              {/* YouTube - HIDDEN
+              <Card
                 className="p-4 hover:shadow-md transition-shadow cursor-pointer border"
                 onClick={() => setSelectedCategory('youtube')}
               >
@@ -314,9 +542,9 @@ const AddContentModal: React.FC<AddContentModalProps> = ({
               */}
 
               {/* Voice Notes */}
-              <Card 
+              <Card
                 className="p-4 hover:shadow-md transition-shadow cursor-pointer border"
-                onClick={() => setSelectedCategory('speech')}
+                onClick={() => setSelectedCategory("speech")}
               >
                 <div className="flex items-start justify-between">
                   <div className="flex items-center space-x-3">
@@ -335,9 +563,9 @@ const AddContentModal: React.FC<AddContentModalProps> = ({
               </Card>
 
               {/* Audio Files */}
-              <Card 
+              <Card
                 className="p-4 hover:shadow-md transition-shadow cursor-pointer border"
-                onClick={() => setSelectedCategory('audio')}
+                onClick={() => setSelectedCategory("audio")}
               >
                 <div className="flex items-start justify-between">
                   <div className="flex items-center space-x-3">
@@ -355,8 +583,8 @@ const AddContentModal: React.FC<AddContentModalProps> = ({
                 </div>
               </Card>
 
-              {/* Web Scraping - HIDDEN 
-              <Card 
+              {/* Web Scraping - HIDDEN
+              <Card
                 className="p-4 hover:shadow-md transition-shadow cursor-pointer border"
                 onClick={() => setSelectedCategory('webscraping')}
               >
@@ -378,9 +606,9 @@ const AddContentModal: React.FC<AddContentModalProps> = ({
               */}
             </div>
           </div>
-        )
+        );
 
-      case 'files':
+      case "files":
         return (
           <div className="space-y-4">
             {selectedFiles.length > 0 && (
@@ -395,33 +623,56 @@ const AddContentModal: React.FC<AddContentModalProps> = ({
                     </span>
                   )}
                 </div>
-                
+
                 {/* File List */}
                 <div className="border rounded-lg divide-y max-h-48 overflow-y-auto">
                   {selectedFiles.map((file, index) => {
-                    const isValid = !fileValidationErrors[file.name]
-                    const error = fileValidationErrors[file.name]
-                    
+                    const isValid = !fileValidationErrors[file.name];
+                    const error = fileValidationErrors[file.name];
+                    const isAudioFile = file.type.startsWith("audio/");
+                    const isTranscribingFile = transcriptionProgress[file.name];
+
                     return (
-                      <div key={index} className={`p-3 flex items-center justify-between ${
-                        isValid ? 'bg-white' : 'bg-red-50'
-                      }`}>
+                      <div
+                        key={index}
+                        className={`p-3 flex items-center justify-between ${
+                          isValid ? "bg-white" : "bg-red-50"
+                        }`}
+                      >
                         <div className="flex items-center space-x-3 flex-1 min-w-0">
-                          {isValid ? (
+                          {isTranscribingFile ? (
+                            <Loader2 className="h-5 w-5 text-blue-500 flex-shrink-0 animate-spin" />
+                          ) : isValid ? (
                             <CheckCircle className="h-5 w-5 text-green-500 flex-shrink-0" />
                           ) : (
                             <AlertCircle className="h-5 w-5 text-red-500 flex-shrink-0" />
                           )}
                           <div className="flex-1 min-w-0">
-                            <p className={`text-sm font-medium truncate ${
-                              isValid ? 'text-gray-900' : 'text-red-900'
-                            }`} title={file.name}>
-                              {file.name.length > 45 ? `${file.name.substring(0, 42)}...` : file.name}
+                            <p
+                              className={`text-sm font-medium truncate ${
+                                isValid ? "text-gray-900" : "text-red-900"
+                              }`}
+                              title={file.name}
+                            >
+                              {file.name.length > 45
+                                ? `${file.name.substring(0, 42)}...`
+                                : file.name}
                             </p>
-                            <p className={`text-xs ${
-                              isValid ? 'text-gray-500' : 'text-red-600'
-                            }`}>
-                              {error || formatFileSize(file.size)}
+                            <p
+                              className={`text-xs ${
+                                isTranscribingFile
+                                  ? "text-blue-600"
+                                  : isValid
+                                    ? "text-gray-500"
+                                    : "text-red-600"
+                              }`}
+                            >
+                              {isTranscribingFile
+                                ? "Transcribing..."
+                                : error ||
+                                  (isAudioFile
+                                    ? `${formatFileSize(file.size)} - Audio file`
+                                    : formatFileSize(file.size))}
                             </p>
                           </div>
                         </div>
@@ -430,29 +681,71 @@ const AddContentModal: React.FC<AddContentModalProps> = ({
                           size="sm"
                           onClick={() => removeFile(file.name)}
                           className="ml-2 flex-shrink-0"
+                          disabled={isTranscribingFile}
                         >
                           <Trash2 className="h-4 w-4 text-gray-400 hover:text-red-500" />
                         </Button>
                       </div>
-                    )
+                    );
                   })}
                 </div>
-                
+
                 {/* Upload Button */}
                 <div className="flex justify-between items-center">
                   <div>
                     {getInvalidFiles().length > 0 && (
                       <p className="text-xs text-red-600 flex items-center">
                         <AlertCircle className="h-3 w-3 mr-1" />
-                        {getInvalidFiles().length} file(s) will be skipped due to validation errors
+                        {getInvalidFiles().length} file(s) will be skipped due
+                        to validation errors
+                      </p>
+                    )}
+                    {isTranscribing && (successCount > 0 || errorCount > 0) && (
+                      <p className="text-xs text-gray-600 flex items-center">
+                        {successCount > 0 && (
+                          <span className="text-green-600 mr-2">
+                            ✅ {successCount} completed
+                          </span>
+                        )}
+                        {errorCount > 0 && (
+                          <span className="text-red-600">
+                            ❌ {errorCount} failed
+                          </span>
+                        )}
                       </p>
                     )}
                   </div>
-                  <Button 
-                    onClick={handleUpload} 
-                    disabled={getValidFiles().length === 0}
+                  <Button
+                    onClick={handleUpload}
+                    disabled={getValidFiles().length === 0 || isTranscribing}
                   >
-                    Upload {getValidFiles().length > 0 && `(${getValidFiles().length})`}
+                    {isTranscribing ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        {getValidFiles().some((f) =>
+                          f.type.startsWith("audio/"),
+                        )
+                          ? "Transcribing..."
+                          : "Uploading..."}
+                      </>
+                    ) : (
+                      <>
+                        {getValidFiles().some((f) =>
+                          f.type.startsWith("audio/"),
+                        ) &&
+                        getValidFiles().every((f) =>
+                          f.type.startsWith("audio/"),
+                        )
+                          ? "Transcribe"
+                          : getValidFiles().some((f) =>
+                                f.type.startsWith("audio/"),
+                              )
+                            ? "Upload & Transcribe"
+                            : "Upload"}{" "}
+                        {getValidFiles().length > 0 &&
+                          `(${getValidFiles().length})`}
+                      </>
+                    )}
                   </Button>
                 </div>
               </div>
@@ -460,9 +753,9 @@ const AddContentModal: React.FC<AddContentModalProps> = ({
 
             <div
               className={`border-2 border-dashed rounded-lg p-12 text-center transition-colors ${
-                dragActive 
-                  ? 'border-blue-500 bg-blue-50' 
-                  : 'border-gray-300 hover:border-gray-400'
+                dragActive
+                  ? "border-blue-500 bg-blue-50"
+                  : "border-gray-300 hover:border-gray-400"
               }`}
               onDragEnter={handleDrag}
               onDragLeave={handleDrag}
@@ -470,7 +763,9 @@ const AddContentModal: React.FC<AddContentModalProps> = ({
               onDrop={handleDrop}
             >
               <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-              <p className="text-lg font-medium text-gray-700 mb-2">Upload Documents</p>
+              <p className="text-lg font-medium text-gray-700 mb-2">
+                Upload Documents
+              </p>
               <p className="text-gray-600 mb-4">
                 Drag and drop files here, or click to select files
               </p>
@@ -483,86 +778,93 @@ const AddContentModal: React.FC<AddContentModalProps> = ({
                 type="file"
                 multiple
                 className="hidden"
-                onChange={(e) => e.target.files && handleFileSelection(e.target.files)}
+                onChange={(e) =>
+                  e.target.files && handleFileSelection(e.target.files)
+                }
                 accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.gif,.mp3,.wav,.mp4,.avi"
               />
             </div>
           </div>
-        )
+        );
 
-      case 'youtube':
-        console.log('AddContentModal - Passing selectedFolderId to YouTubeTranscriber:', selectedFolderId)
+      case "youtube":
+        console.log(
+          "AddContentModal - Passing selectedFolderId to YouTubeTranscriber:",
+          selectedFolderId,
+        );
         return (
           <div>
-            <YouTubeTranscriber 
+            <YouTubeTranscriber
               defaultFolderId={selectedFolderId}
               hideFolderSelector={true}
               agentId={agentId}
               onTranscriptionComplete={() => {
-                onTranscriptionComplete()
-                onClose()
-              }} 
+                onTranscriptionComplete();
+                onClose();
+              }}
             />
           </div>
-        )
+        );
 
-      case 'speech':
+      case "speech":
         return (
           <div>
-            <AudioRecorder 
+            <AudioRecorder
               defaultFolderId={selectedFolderId}
               hideFolderSelector={true}
               agentId={agentId}
               onTranscriptionComplete={(result) => {
-                console.log('🔄 AddContentModal: Transcription completed, calling parent callback')
-                onTranscriptionComplete()
+                console.log(
+                  "🔄 AddContentModal: Transcription completed, calling parent callback",
+                );
+                onTranscriptionComplete();
                 // Add a small delay before closing to ensure the file list refreshes
                 setTimeout(() => {
-                  onClose()
-                }, 500)
-              }} 
+                  onClose();
+                }, 500);
+              }}
             />
           </div>
-        )
+        );
 
-      case 'audio':
+      case "audio":
         return (
           <div>
-            <AudioFileUploader 
+            <AudioFileUploader
               defaultFolderId={selectedFolderId}
               hideFolderSelector={true}
               agentId={agentId}
               onTranscriptionComplete={() => {
-                onTranscriptionComplete()
-                onClose()
-              }} 
+                onTranscriptionComplete();
+                onClose();
+              }}
             />
           </div>
-        )
+        );
 
-      case 'webscraping':
+      case "webscraping":
         return (
           <div>
-            <WebScraper 
+            <WebScraper
               defaultFolderId={selectedFolderId}
               hideFolderSelector={true}
               agentId={agentId}
               onScrapingComplete={() => {
-                onTranscriptionComplete()
-                onClose()
-              }} 
+                onTranscriptionComplete();
+                onClose();
+              }}
             />
           </div>
-        )
+        );
 
       default:
         return (
           <div className="text-center py-12">
             <p className="text-gray-500">Coming soon...</p>
           </div>
-        )
+        );
     }
-  }
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -572,24 +874,26 @@ const AddContentModal: React.FC<AddContentModalProps> = ({
           <div className="w-48 bg-gray-50 border-r p-4 overflow-y-auto">
             <div className="space-y-1">
               {categories.map((category) => {
-                const Icon = category.icon
+                const Icon = category.icon;
                 return (
                   <button
                     key={category.id}
-                    onClick={() => category.active && setSelectedCategory(category.id)}
+                    onClick={() =>
+                      category.active && setSelectedCategory(category.id)
+                    }
                     disabled={!category.active}
                     className={`w-full flex items-center space-x-2 px-3 py-2 rounded-lg text-sm transition-colors ${
                       selectedCategory === category.id
-                        ? 'bg-white text-gray-900 font-medium shadow-sm'
+                        ? "bg-white text-gray-900 font-medium shadow-sm"
                         : category.active
-                        ? 'text-gray-700 hover:bg-white hover:text-gray-900'
-                        : 'text-gray-400 cursor-not-allowed'
+                          ? "text-gray-700 hover:bg-white hover:text-gray-900"
+                          : "text-gray-400 cursor-not-allowed"
                     }`}
                   >
                     <Icon className="h-4 w-4" />
                     <span>{category.label}</span>
                   </button>
-                )
+                );
               })}
             </div>
           </div>
@@ -599,19 +903,17 @@ const AddContentModal: React.FC<AddContentModalProps> = ({
             {/* Header */}
             <div className="flex items-center justify-between p-6 border-b">
               <h2 className="text-xl font-semibold">
-                {categories.find(c => c.id === selectedCategory)?.label}
+                {categories.find((c) => c.id === selectedCategory)?.label}
               </h2>
             </div>
 
             {/* Content */}
-            <div className="flex-1 overflow-y-auto p-6">
-              {renderContent()}
-            </div>
+            <div className="flex-1 overflow-y-auto p-6">{renderContent()}</div>
           </div>
         </div>
       </DialogContent>
     </Dialog>
-  )
-}
+  );
+};
 
-export default AddContentModal
+export default AddContentModal;

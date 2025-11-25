@@ -88,6 +88,7 @@ interface Publication {
   secondary_color: string;
   theme: string;
   is_private: boolean;
+  banner_url?: string | null;
 }
 
 const ClientChatPage = () => {
@@ -1400,6 +1401,8 @@ const ClientChatPage = () => {
 
   const grouped = groupConversations();
 
+
+
   // Apply theme colors
   const primaryColor = publication?.primary_color || "#3B82F6";
   const secondaryColor = publication?.secondary_color || "#1E40AF";
@@ -1482,7 +1485,20 @@ const ClientChatPage = () => {
   }
 
   return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden">
+    <div
+      className="flex h-screen bg-gray-50 overflow-hidden"
+      style={{
+        backgroundImage: publication?.banner_url ? `url(${convertS3UrlToProxy(publication.banner_url)})` : undefined,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+        backgroundAttachment: 'fixed'
+      }}
+    >
+      {/* Overlay for better text readability */}
+      {publication?.banner_url && (
+        <div className="absolute inset-0 bg-black bg-opacity-30 pointer-events-none z-0"></div>
+      )}
       {/* Mobile Overlay */}
       {isSidebarOpen && (
         <div
@@ -1495,7 +1511,7 @@ const ClientChatPage = () => {
       <div
         className={`
         fixed lg:relative inset-y-0 left-0 z-50
-        w-64 bg-gray-900 text-white flex flex-col
+        w-64 ${publication?.banner_url ? 'bg-gray-900/95 backdrop-blur-md border-r border-gray-700/50' : 'bg-gray-900'} text-white flex flex-col
         transform transition-transform duration-300 ease-in-out
         ${isSidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
       `}
@@ -1692,9 +1708,13 @@ const ClientChatPage = () => {
       </div>
 
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col bg-white min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 relative z-10">
         {/* Header */}
-        <div className="border-b bg-white px-3 sm:px-6 py-3 sm:py-4 flex items-center justify-between relative overflow-visible">
+        <div className={`border-b px-3 sm:px-6 py-3 sm:py-4 flex items-center justify-between relative overflow-visible ${
+          publication?.banner_url
+            ? 'bg-white/60 backdrop-blur-xl border-white/30 shadow-lg'
+            : 'bg-white border-gray-200'
+        }`}>
           {/* Mobile Menu Button */}
           <button
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -1834,9 +1854,13 @@ const ClientChatPage = () => {
                   )}
                   <Button
                     onClick={handleLogout}
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
                     className="text-gray-600 hover:text-gray-900"
+                    style={{
+                      borderColor: primaryColor,
+                      color: primaryColor
+                    }}
                   >
                     <LogOut className="h-4 w-4" />
                   </Button>
@@ -1950,7 +1974,7 @@ const ClientChatPage = () => {
         )}
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-3 sm:p-6">
+        <div className={`flex-1 overflow-y-auto p-3 sm:p-6 ${publication?.banner_url ? 'bg-white/60 backdrop-blur-xl' : ''}`}>
           <div className="max-w-3xl mx-auto space-y-4 sm:space-y-6">
             {/* Initial greeting when no messages */}
             {messages.length === 0 && !isWaitingForResponse && (

@@ -488,6 +488,8 @@ const ClientExpertPage = () => {
     );
   }
 
+
+
   // Apply template colors
   const primaryColor = publication.primary_color || "#3B82F6";
   const secondaryColor = publication.secondary_color || "#1E40AF";
@@ -496,13 +498,27 @@ const ClientExpertPage = () => {
   // Authentication only happens when user clicks Chat or Call buttons
 
   return (
-    <div className="min-h-screen bg-white">
-      {/* Simple Header */}
-      <div className="border-b border-gray-200">
+    <div
+      className="min-h-screen bg-white"
+      style={{
+        backgroundImage: publication?.banner_url ? `url(${convertS3UrlToProxy(publication.banner_url)})` : undefined,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat',
+        backgroundAttachment: 'fixed'
+      }}
+    >
+      {/* Overlay for better text readability */}
+      {publication?.banner_url && (
+        <div className="absolute inset-0 pointer-events-none"></div>
+      )}
+      <div className="relative">
+      {/* Enhanced Header with backdrop blur */}
+      <div className={`${publication?.banner_url ? 'bg-white/60 backdrop-blur-xl border-b border-white/30 shadow-lg' : 'border-b border-gray-200'}`}>
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              <h1 className="text-xl font-bold text-gray-900">
+              <h1 className={`text-xl font-bold ${publication?.banner_url ? 'text-gray-900' : 'text-gray-900'}`}>
                 {publication?.display_name || expert?.name || "Expert"}
               </h1>
             </div>
@@ -520,12 +536,13 @@ const ClientExpertPage = () => {
                 <BillingButton
                   userToken={
                     typeof window !== "undefined"
-                      ? localStorage.getItem("dilan_ai_token") || ""
+                      ? localStorage.getItem("dilan_ai_token") || undefined
                       : ""
                   }
                   variant="outline"
                   size="sm"
                   expertSlug={slug} // Pass the expert slug
+                  primaryColor={primaryColor}
                 />
 
                 <Button
@@ -538,6 +555,10 @@ const ClientExpertPage = () => {
                     router.push(`/expert/${slug}`);
                   }}
                   className="flex items-center gap-2"
+                  style={{
+                    borderColor: primaryColor,
+                    color: primaryColor
+                  }}
                 >
                   <LogOut className="h-4 w-4" />
                   Logout
@@ -553,18 +574,26 @@ const ClientExpertPage = () => {
                     setShowAuthModal(true)
                   }}
                   className="flex items-center gap-2"
+                  style={{
+                    borderColor: primaryColor,
+                    color: primaryColor
+                  }}
                 >
                   <LogIn className="h-4 w-4" />
                   Login
                 </Button>
                 <Button
+                  variant="outline"
                   size="sm"
                   onClick={() => {
                     setShowSignupInitially(true)
                     setShowAuthModal(true)
                   }}
                   className="flex items-center gap-2"
-                  style={{ backgroundColor: primaryColor }}
+                  style={{
+                    borderColor: primaryColor,
+                    color: primaryColor
+                  }}
                 >
                   Sign Up
                 </Button>
@@ -573,10 +602,11 @@ const ClientExpertPage = () => {
           </div>
         </div>
       </div>
+      </div>
 
       {/* Main Content - Centered */}
       <div className="container mx-auto px-4 py-16">
-        <div className="max-w-2xl mx-auto text-center">
+        <div className={`max-w-2xl mx-auto text-center ${publication?.banner_url ? 'bg-white/60 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/30 p-8' : ''}`}>
           {/* Expert Avatar */}
           <div className="mb-6">
             {expert.avatar_url ? (
@@ -606,21 +636,22 @@ const ClientExpertPage = () => {
           </div>
 
           {/* Expert Name */}
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
+          <h1 className={`text-3xl font-bold mb-2 ${publication?.banner_url ? 'text-gray-900' : 'text-gray-900'}`}>
             {expert.name}
           </h1>
 
           {/* Headline/Slug */}
           {expert.headline && (
-            <p className="text-gray-500 text-sm mb-8">/{expert.headline}/</p>
+            <p className={`text-sm mb-8 ${publication?.banner_url ? 'text-gray-600' : 'text-gray-500'}`}>/{expert.headline}/</p>
           )}
 
           {/* CTA Buttons */}
           <div className="flex justify-center gap-3 mb-12">
             <Button
               size="lg"
-              className="text-white px-8 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
-              style={{ backgroundColor: primaryColor }}
+              variant="outline"
+              className="px-8 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 border-2"
+              style={{ borderColor: primaryColor, color: primaryColor }}
               onClick={handleStartChat}
               disabled={checkingSubscription}
             >
@@ -640,14 +671,14 @@ const ClientExpertPage = () => {
           </div>
 
           {/* Description Section */}
-          <div className="border-t border-gray-200 pt-8">
+          <div className={`pt-8 ${publication?.banner_url ? 'border-t border-gray-300/50' : 'border-t border-gray-200'}`}>
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900 flex items-center">
+              <h2 className={`text-lg font-semibold flex items-center ${publication?.banner_url ? 'text-gray-900' : 'text-gray-900'}`}>
                 <span className="mr-2">≡</span>
                 Description
               </h2>
             </div>
-            <div className="text-left text-gray-700 leading-relaxed space-y-4">
+            <div className={`text-left leading-relaxed space-y-4 ${publication?.banner_url ? 'text-gray-800' : 'text-gray-700'}`}>
               {(() => {
                 const description =
                   publication?.description ||
@@ -668,7 +699,11 @@ const ClientExpertPage = () => {
                         onClick={() =>
                           setShowFullDescription(!showFullDescription)
                         }
-                        className="text-gray-500 text-sm hover:text-gray-700 font-medium"
+                        className={`text-sm font-medium transition-colors ${
+                          publication?.banner_url
+                            ? 'text-gray-600 hover:text-gray-900 bg-gray-100/50 hover:bg-gray-200/50 px-3 py-1 rounded-full'
+                            : 'text-gray-500 hover:text-gray-700'
+                        }`}
                       >
                         {showFullDescription ? "View less ~" : "View more ~"}
                       </button>

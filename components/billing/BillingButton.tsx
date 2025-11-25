@@ -13,6 +13,7 @@ interface BillingButtonProps {
   showIcon?: boolean
   children?: React.ReactNode
   expertSlug?: string // Add expertSlug prop
+  primaryColor?: string // Add primaryColor prop
 }
 
 const BillingButton: React.FC<BillingButtonProps> = ({
@@ -22,7 +23,8 @@ const BillingButton: React.FC<BillingButtonProps> = ({
   className = '',
   showIcon = true,
   children,
-  expertSlug // Add expertSlug prop
+  expertSlug, // Add expertSlug prop
+  primaryColor // Add primaryColor prop
 }) => {
   const router = useRouter()
 
@@ -32,7 +34,7 @@ const BillingButton: React.FC<BillingButtonProps> = ({
       alert('Please log in to access billing settings')
       return
     }
-    
+
     // Redirect to the new billing page, passing expertSlug as a query parameter if available
     if (expertSlug) {
       router.push(`/billing?expert=${expertSlug}`)
@@ -47,6 +49,12 @@ const BillingButton: React.FC<BillingButtonProps> = ({
       size={size}
       onClick={handleOpenBilling}
       className={`flex items-center gap-2 ${className}`}
+      style={primaryColor && variant === 'outline' ? {
+        borderColor: primaryColor,
+        color: primaryColor
+      } : primaryColor && variant === 'default' ? {
+        backgroundColor: primaryColor
+      } : undefined}
     >
       {showIcon && <CreditCard className="w-4 h-4" />}
       {children || 'Billing'}
