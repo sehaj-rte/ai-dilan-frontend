@@ -67,6 +67,7 @@ interface Publication {
   theme: string;
   view_count: number;
   template_category: string;
+  banner_url?: string | null;
   expert_id: string;
 }
 
