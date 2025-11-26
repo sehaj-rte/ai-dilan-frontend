@@ -29,7 +29,12 @@ import {
   TestTube,
 } from "lucide-react";
 
-const sidebarItems = [
+import type { LucideIcon } from "lucide-react";
+
+type SidebarItem = { title: string; href: string; icon: LucideIcon };
+type SidebarSection = { title: string; items: SidebarItem[] };
+
+const sidebarItems: SidebarItem[] = [
   // {
   //   title: 'All Agents',
   //   href: '/projects',
@@ -260,7 +265,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, projectId }) => {
       <nav className="flex-1 px-4 py-4 space-y-1">
         {projectId
           ? // Render hierarchical structure for project pages
-            dynamicSidebarItems.map((section, sectionIndex) => (
+            (dynamicSidebarItems as SidebarSection[]).map((section, sectionIndex) => (
               <div
                 key={section.title}
                 className={sectionIndex > 0 ? "mt-6" : ""}
@@ -294,7 +299,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, projectId }) => {
               </div>
             ))
           : // Render flat structure for non-project pages
-            dynamicSidebarItems.map((item) => {
+            (dynamicSidebarItems as SidebarItem[]).map((item) => {
               const Icon = item.icon;
               const isActive = pathname?.startsWith(item.href);
 
