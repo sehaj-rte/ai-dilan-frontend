@@ -243,6 +243,37 @@ const ClientChatPage = () => {
       return;
     }
 
+    // Check if user is super_admin - bypass all payment checks
+    if (user?.role === "super_admin") {
+      console.log("👑 Super admin detected, bypassing payment validation");
+      setPaymentSessionValid(true);
+      return;
+    }
+
+    // Check if user is the expert owner - bypass payment checks
+    if (expert?.id) {
+      try {
+        const token = localStorage.getItem("dilan_ai_token");
+        const response = await fetch(
+          `${API_URL}/experts/check-ownership/${expert.id}`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          },
+        );
+        const data = await response.json();
+
+        if (data.success && data.is_owner) {
+          console.log("👤 Expert owner detected, bypassing payment validation");
+          setPaymentSessionValid(true);
+          return;
+        }
+      } catch (error) {
+        console.error("❌ Error checking expert ownership:", error);
+      }
+    }
+
     try {
       const token = localStorage.getItem("dilan_ai_token");
       let databaseSessionId = sessionId;
@@ -307,8 +338,44 @@ const ClientChatPage = () => {
   };
 
   const checkPaymentRequirement = () => {
-    // If no payment session and user is authenticated, they need to pay
-    if (isAuthenticated && !paymentSessionId) {
+    // Check if user is super_admin - bypass all payment checks
+    if (user?.role === "super_admin") {
+      console.log("👑 Super admin detected, bypassing payment requirement");
+      setPaymentSessionValid(true);
+      return;
+    }
+
+    // Check if user is the expert owner - bypass payment checks
+    if (isAuthenticated && expert?.id) {
+      const token = localStorage.getItem("dilan_ai_token");
+      fetch(`${API_URL}/experts/check-ownership/${expert.id}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          if (data.success && data.is_owner) {
+            console.log(
+              "👤 Expert owner detected, bypassing payment requirement",
+            );
+            setPaymentSessionValid(true);
+          } else {
+            // Regular payment requirement check
+            if (isAuthenticated && !paymentSessionId) {
+              // For now, allow free access - in production you might want to redirect to payment
+              setPaymentSessionValid(true);
+            }
+          }
+        })
+        .catch((error) => {
+          console.error("❌ Error checking expert ownership:", error);
+          // Fallback to regular payment requirement check
+          if (isAuthenticated && !paymentSessionId) {
+            setPaymentSessionValid(true);
+          }
+        });
+    } else if (isAuthenticated && !paymentSessionId) {
       // For now, allow free access - in production you might want to redirect to payment
       setPaymentSessionValid(true);
     } else if (!isAuthenticated) {
@@ -800,6 +867,8 @@ const ClientChatPage = () => {
     role: "user" | "assistant",
     content: string,
     files?: any[],
+    citations?: any[],
+    toolCalls?: any[],
   ) => {
     if (!isAuthenticated || !user) {
       console.log("❌ Cannot save message: Not authenticated");
@@ -813,6 +882,10 @@ const ClientChatPage = () => {
         role,
         contentLength: content.length,
         filesCount: files?.length || 0,
+        citationsCount: citations?.length || 0,
+        toolCallsCount: toolCalls?.length || 0,
+        citationsData: citations,
+        toolCallsData: toolCalls,
       });
 
       const response = await fetch(
@@ -828,6 +901,8 @@ const ClientChatPage = () => {
             role: role,
             content: content,
             files: files || null, // Include files if provided
+            citations: citations || null, // Include citations if provided
+            tool_calls: toolCalls || null, // Include tool_calls if provided
           }),
         },
       );
@@ -1129,6 +1204,11 @@ const ClientChatPage = () => {
       let buffer = ""; // Buffer for incomplete lines
       let firstContentReceived = false; // Track if we've received first content
 
+      console.log("🔍 Starting streaming - initial state:", {
+        toolCalls: toolCalls.length,
+        sources: sources.length,
+      });
+
       try {
         while (true) {
           const { done, value } = await reader.read();
@@ -1178,12 +1258,43 @@ const ClientChatPage = () => {
                 } else if (data.type === "sources") {
                   console.log("📚 Received sources:", data.data.length);
                   sources = data.data;
+                  console.log("📚 Sources updated:", sources);
                 } else if (data.type === "tool_calls") {
-                  console.log("🔧 Tool calls:", data.data);
+                  console.log("🔧 Received tool calls:", data.data);
+                  toolCalls = data.data.tool_calls_made || data.data || [];
+                  console.log("🔧 Tool calls updated:", toolCalls);
                 } else if (data.type === "done") {
-                  console.log("✅ Received done event");
-                  toolCalls = data.data.tool_calls_made || [];
-                  sources = data.data.sources || sources;
+                  console.log("✅ Received done event", data.data);
+                  console.log("📊 Done event breakdown:", {
+                    tool_calls_made: data.data.tool_calls_made,
+                    sources: data.data.sources,
+                    full_response: data.data.full_response
+                      ? data.data.full_response.substring(0, 100) + "..."
+                      : "none",
+                  });
+
+                  // Capture tool_calls_made and sources from the done event
+                  const doneToolCalls = data.data.tool_calls_made || [];
+                  const doneSources = data.data.sources || [];
+
+                  console.log("🔍 Extracted from done event:", {
+                    doneToolCalls: doneToolCalls,
+                    doneSources: doneSources,
+                  });
+
+                  // Update the variables that will be used for saving
+                  toolCalls =
+                    doneToolCalls.length > 0 ? doneToolCalls : toolCalls;
+                  sources = doneSources.length > 0 ? doneSources : sources;
+
+                  console.log("🔍 Final streaming state:", {
+                    fullResponse: fullResponse.length,
+                    toolCalls: toolCalls.length,
+                    sources: sources.length,
+                    toolCallsData: toolCalls,
+                    sourcesData: sources,
+                  });
+
                   // Final update with complete data
                   setMessages((prev) =>
                     prev.map((msg) =>
@@ -1191,8 +1302,8 @@ const ClientChatPage = () => {
                         ? {
                             ...msg,
                             text: fullResponse,
-                            toolCalls,
-                            sources,
+                            toolCalls: toolCalls,
+                            sources: sources,
                             isStreaming: false,
                           }
                         : msg,
@@ -1250,6 +1361,8 @@ const ClientChatPage = () => {
             "user",
             messageText,
             s3FileData.length > 0 ? s3FileData : undefined,
+            undefined, // no citations for user messages
+            undefined, // no tool_calls for user messages
           );
           console.log("✅ User message saved successfully");
         } catch (err) {
@@ -1271,8 +1384,22 @@ const ClientChatPage = () => {
           "💾 Saving agent response to conversation:",
           conversationId,
         );
+        console.log("🔍 Data being saved:", {
+          fullResponse: fullResponse.length,
+          sources: sources?.length || 0,
+          toolCalls: toolCalls?.length || 0,
+          sourcesData: sources,
+          toolCallsData: toolCalls,
+        });
         try {
-          await saveMessage(conversationId, "assistant", fullResponse);
+          await saveMessage(
+            conversationId,
+            "assistant",
+            fullResponse,
+            undefined, // no files for assistant response
+            sources, // include citations/sources
+            toolCalls, // include tool_calls
+          );
           console.log("✅ Agent message saved successfully");
         } catch (err) {
           console.error("❌ Failed to save agent message:", err);
@@ -1357,6 +1484,8 @@ const ClientChatPage = () => {
                 url: convertS3UrlToProxy(file.url), // Convert S3 URLs to proxy URLs
               }))
             : undefined,
+          sources: msg.citations || [], // Load citations as sources
+          toolCalls: msg.tool_calls || [], // Load tool_calls
         }));
 
         // Sort messages by timestamp to ensure correct chronological order
@@ -1400,8 +1529,6 @@ const ClientChatPage = () => {
   };
 
   const grouped = groupConversations();
-
-
 
   // Apply theme colors
   const primaryColor = publication?.primary_color || "#3B82F6";
@@ -1488,11 +1615,13 @@ const ClientChatPage = () => {
     <div
       className="flex h-screen bg-gray-50 overflow-hidden"
       style={{
-        backgroundImage: publication?.banner_url ? `url(${convertS3UrlToProxy(publication.banner_url)})` : undefined,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        backgroundRepeat: 'no-repeat',
-        backgroundAttachment: 'fixed'
+        backgroundImage: publication?.banner_url
+          ? `url(${convertS3UrlToProxy(publication.banner_url)})`
+          : undefined,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundRepeat: "no-repeat",
+        backgroundAttachment: "fixed",
       }}
     >
       {/* Overlay for better text readability */}
@@ -1511,7 +1640,7 @@ const ClientChatPage = () => {
       <div
         className={`
         fixed lg:relative inset-y-0 left-0 z-50
-        w-64 ${publication?.banner_url ? 'bg-gray-900/95 backdrop-blur-md border-r border-gray-700/50' : 'bg-gray-900'} text-white flex flex-col
+        w-64 ${publication?.banner_url ? "bg-gray-900/95 backdrop-blur-md border-r border-gray-700/50" : "bg-gray-900"} text-white flex flex-col
         transform transition-transform duration-300 ease-in-out
         ${isSidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
       `}
@@ -1691,6 +1820,146 @@ const ClientChatPage = () => {
                   ))}
                 </div>
               )}
+
+              {grouped.last7days.length > 0 && (
+                <div>
+                  <div className="text-xs font-semibold text-gray-400 mb-2 px-2">
+                    Last 7 Days
+                  </div>
+                  {grouped.last7days.map((c) => (
+                    <div
+                      key={c.id}
+                      className={`p-2 rounded hover:bg-gray-800 flex items-center gap-2 group min-w-0 ${currentConvId === c.id ? "" : ""}`}
+                      style={
+                        currentConvId === c.id
+                          ? { backgroundColor: primaryColor + "40" }
+                          : {}
+                      }
+                    >
+                      <MessageSquare className="h-4 w-4 flex-shrink-0" />
+                      {editingTitleId === c.id ? (
+                        <input
+                          type="text"
+                          value={editingTitleText}
+                          onChange={(e) => setEditingTitleText(e.target.value)}
+                          onBlur={() => {
+                            if (editingTitleText.trim()) {
+                              updateConversationTitle(
+                                c.id,
+                                editingTitleText.trim(),
+                              );
+                            }
+                            setEditingTitleId(null);
+                          }}
+                          onKeyPress={(e) => {
+                            if (e.key === "Enter") {
+                              if (editingTitleText.trim()) {
+                                updateConversationTitle(
+                                  c.id,
+                                  editingTitleText.trim(),
+                                );
+                              }
+                              setEditingTitleId(null);
+                            }
+                          }}
+                          className="flex-1 min-w-0 bg-gray-700 text-white text-sm px-2 py-1 rounded outline-none focus:ring-1 focus:ring-gray-500"
+                          autoFocus
+                        />
+                      ) : (
+                        <>
+                          <span
+                            onClick={() => loadConversation(c)}
+                            className="text-sm truncate flex-1 cursor-pointer"
+                          >
+                            {c.title}
+                          </span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingTitleId(c.id);
+                              setEditingTitleText(c.title);
+                            }}
+                            className="opacity-0 group-hover:opacity-100 ml-2 p-1 hover:bg-gray-700 rounded"
+                            aria-label="Edit conversation title"
+                          >
+                            <Edit2 className="h-3 w-3" />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {grouped.older.length > 0 && (
+                <div>
+                  <div className="text-xs font-semibold text-gray-400 mb-2 px-2">
+                    Older
+                  </div>
+                  {grouped.older.map((c) => (
+                    <div
+                      key={c.id}
+                      className={`p-2 rounded hover:bg-gray-800 flex items-center gap-2 group min-w-0 ${currentConvId === c.id ? "" : ""}`}
+                      style={
+                        currentConvId === c.id
+                          ? { backgroundColor: primaryColor + "40" }
+                          : {}
+                      }
+                    >
+                      <MessageSquare className="h-4 w-4 flex-shrink-0" />
+                      {editingTitleId === c.id ? (
+                        <input
+                          type="text"
+                          value={editingTitleText}
+                          onChange={(e) => setEditingTitleText(e.target.value)}
+                          onBlur={() => {
+                            if (editingTitleText.trim()) {
+                              updateConversationTitle(
+                                c.id,
+                                editingTitleText.trim(),
+                              );
+                            }
+                            setEditingTitleId(null);
+                          }}
+                          onKeyPress={(e) => {
+                            if (e.key === "Enter") {
+                              if (editingTitleText.trim()) {
+                                updateConversationTitle(
+                                  c.id,
+                                  editingTitleText.trim(),
+                                );
+                              }
+                              setEditingTitleId(null);
+                            }
+                          }}
+                          className="flex-1 min-w-0 bg-gray-700 text-white text-sm px-2 py-1 rounded outline-none focus:ring-1 focus:ring-gray-500"
+                          autoFocus
+                        />
+                      ) : (
+                        <>
+                          <span
+                            onClick={() => loadConversation(c)}
+                            className="text-sm truncate flex-1 cursor-pointer"
+                          >
+                            {c.title}
+                          </span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingTitleId(c.id);
+                              setEditingTitleText(c.title);
+                            }}
+                            className="opacity-0 group-hover:opacity-100 ml-2 p-1 hover:bg-gray-700 rounded"
+                            aria-label="Edit conversation title"
+                          >
+                            <Edit2 className="h-3 w-3" />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </>
           )}
         </div>
@@ -1710,11 +1979,13 @@ const ClientChatPage = () => {
       {/* Main Chat Area */}
       <div className="flex-1 flex flex-col min-w-0 relative z-10">
         {/* Header */}
-        <div className={`border-b px-3 sm:px-6 py-3 sm:py-4 flex items-center justify-between relative overflow-visible ${
-          publication?.banner_url
-            ? 'bg-white/60 backdrop-blur-xl border-white/30 shadow-lg'
-            : 'bg-white border-gray-200'
-        }`}>
+        <div
+          className={`border-b px-3 sm:px-6 py-3 sm:py-4 flex items-center justify-between relative overflow-visible ${
+            publication?.banner_url
+              ? "bg-white/60 backdrop-blur-xl border-white/30 shadow-lg"
+              : "bg-white border-gray-200"
+          }`}
+        >
           {/* Mobile Menu Button */}
           <button
             onClick={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -1859,7 +2130,7 @@ const ClientChatPage = () => {
                     className="text-gray-600 hover:text-gray-900"
                     style={{
                       borderColor: primaryColor,
-                      color: primaryColor
+                      color: primaryColor,
                     }}
                   >
                     <LogOut className="h-4 w-4" />
@@ -1974,7 +2245,9 @@ const ClientChatPage = () => {
         )}
 
         {/* Messages */}
-        <div className={`flex-1 overflow-y-auto p-3 sm:p-6 ${publication?.banner_url ? 'bg-white/60 backdrop-blur-xl' : ''}`}>
+        <div
+          className={`flex-1 overflow-y-auto p-3 sm:p-6 ${publication?.banner_url ? "bg-white/60 backdrop-blur-xl" : ""}`}
+        >
           <div className="max-w-3xl mx-auto space-y-4 sm:space-y-6">
             {/* Initial greeting when no messages */}
             {messages.length === 0 && !isWaitingForResponse && (
