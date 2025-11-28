@@ -119,6 +119,7 @@ const ClientExpertPage = () => {
 
   const isAuthenticated = !!currentUser;
   const user = currentUser;
+  const isSuperAdmin = user?.role === "super_admin";
 
   // State to track if we should show signup form initially
   const [showSignupInitially, setShowSignupInitially] = useState(false);
@@ -717,21 +718,6 @@ const ClientExpertPage = () => {
                     <LogIn className="h-4 w-4" />
                     Login
                   </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setShowSignupInitially(true);
-                      setShowAuthModal(true);
-                    }}
-                    className="flex items-center gap-2"
-                    style={{
-                      borderColor: primaryColor,
-                      color: primaryColor,
-                    }}
-                  >
-                    Sign Up
-                  </Button>
                 </div>
               )}
             </div>
@@ -877,6 +863,8 @@ const ClientExpertPage = () => {
         sessionType={selectedSessionType}
         expertName={publication?.display_name || expert?.name}
         showSignupInitially={showSignupInitially}
+        onRequestSubscription={() => setShowPrivatePaymentModal(true)}
+        canSubscribe={Boolean(publication?.is_private)}
       />
 
       {/* Payment Modal - Hide for super_admins and expert owners */}
@@ -896,17 +884,13 @@ const ClientExpertPage = () => {
       )}
 
       {/* Private Expert Payment Modal - Hide for super_admins and expert owners */}
-      {publication?.is_private &&
-        user &&
-        user.role !== "super_admin" &&
-        !isExpertOwner && (
+      {publication?.is_private && !isSuperAdmin && !isExpertOwner && (
           <PrivateExpertPaymentModal
             isOpen={showPrivatePaymentModal}
             onClose={() => setShowPrivatePaymentModal(false)}
             publication={publication}
             sessionType={selectedSessionType}
             onPaymentSuccess={handlePrivatePaymentSuccess}
-            user={user}
           />
         )}
     </div>

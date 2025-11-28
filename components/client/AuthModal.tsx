@@ -24,6 +24,8 @@ interface AuthModalProps {
   sessionType?: 'chat' | 'call'
   expertName?: string
   showSignupInitially?: boolean
+  onRequestSubscription?: () => void
+  canSubscribe?: boolean
 }
 
 const AuthModal: React.FC<AuthModalProps> = ({
@@ -33,8 +35,19 @@ const AuthModal: React.FC<AuthModalProps> = ({
   onSignup,
   sessionType,
   expertName,
-  showSignupInitially = false
+  showSignupInitially = false,
+  onRequestSubscription,
+  canSubscribe = false
 }) => {
+  const handleSubscribeClick = () => {
+    if (!onRequestSubscription) return
+    onClose()
+    // Slight delay to allow this modal to close before opening another
+    setTimeout(() => {
+      onRequestSubscription()
+    }, 150)
+  }
+
   const [isLoginMode, setIsLoginMode] = useState(!showSignupInitially)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -113,7 +126,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
           )}
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="space-y-6">
           {error && (
             <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
               <AlertCircle className="h-4 w-4 flex-shrink-0" />
@@ -202,28 +215,34 @@ const AuthModal: React.FC<AuthModalProps> = ({
             </div>
           </div>
 
-          <div className="text-center">
-            <p className="text-sm text-gray-600">
-              {isLoginMode ? "Don't have an account?" : "Already have an account?"}
-            </p>
-            <Button
-              variant="link"
-              onClick={switchMode}
-              disabled={loading}
-              className="p-0 h-auto text-blue-600 hover:text-blue-800"
-            >
-              {isLoginMode ? 'Create new account' : 'Sign in instead'}
-            </Button>
+          <div className="text-center space-y-3">
+            {isLoginMode ? (
+              <>
+                <p className="text-sm text-gray-600">Don't have an account? Please subscribe here.</p>
+                {onRequestSubscription && canSubscribe && (
+                  <Button
+                    type="button"
+                    onClick={handleSubscribeClick}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                  >
+                    Please subscribe here
+                  </Button>
+                )}
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-gray-600">Already have an account?</p>
+                <Button
+                  variant="link"
+                  onClick={switchMode}
+                  disabled={loading}
+                  className="p-0 h-auto text-blue-600 hover:text-blue-800"
+                >
+                  Sign in instead
+                </Button>
+              </>
+            )}
           </div>
-
-          {!isLoginMode && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-              <p className="text-xs text-blue-700">
-                <strong>New to our platform?</strong> Creating an account is quick and easy. 
-                You'll be able to access all expert conversations and manage your sessions.
-              </p>
-            </div>
-          )}
         </div>
       </DialogContent>
     </Dialog>

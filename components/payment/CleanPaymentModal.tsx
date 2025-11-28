@@ -19,6 +19,10 @@ import {
   Phone
 } from 'lucide-react'
 import { API_URL } from '@/lib/config'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { useAppDispatch } from '@/store/hooks'
+import { registerUser, type AuthResponse } from '@/store/slices/authSlice'
 
 interface Plan {
   id: string
@@ -51,12 +55,18 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
   onPaymentSuccess,
   userToken
 }) => {
+  const dispatch = useAppDispatch()
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
   const [hasExistingCard, setHasExistingCard] = useState<boolean | null>(null)
   const [checkingPaymentMethods, setCheckingPaymentMethods] = useState(true)
+  const [activeToken, setActiveToken] = useState(userToken)
+  const [accountForm, setAccountForm] = useState({ email: '', password: '' })
+  const [accountError, setAccountError] = useState<string | null>(null)
+  const [currentStep, setCurrentStep] = useState<'plan' | 'account'>('plan')
+  const [isCreatingAccount, setIsCreatingAccount] = useState(false)
 
   // Auto-select recommended plan or first plan
   useEffect(() => {
@@ -66,16 +76,41 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
     }
   }, [plans, selectedPlan])
 
+  useEffect(() => {
+    setActiveToken(userToken)
+  }, [userToken, isOpen])
+
+  useEffect(() => {
+    if (!isOpen) {
+      setCurrentStep('plan')
+      setAccountForm({ email: '', password: '' })
+      setAccountError(null)
+      setIsCreatingAccount(false)
+    }
+  }, [isOpen])
+
+  useEffect(() => {
+    if (activeToken) {
+      setCurrentStep('plan')
+      setAccountForm({ email: '', password: '' })
+      setAccountError(null)
+    }
+  }, [activeToken])
+
   // Check if user has existing payment methods
   useEffect(() => {
     const checkPaymentMethods = async () => {
-      if (!isOpen || !userToken) return
+      if (!isOpen || !activeToken) {
+        setHasExistingCard(false)
+        setCheckingPaymentMethods(false)
+        return
+      }
       
       try {
         setCheckingPaymentMethods(true)
         const response = await fetch(`${API_URL}/payments/check-customer-status`, {
           headers: {
-            'Authorization': `Bearer ${userToken}`
+            'Authorization': `Bearer ${activeToken}`
           }
         })
         const data = await response.json()
@@ -92,11 +127,18 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
     }
 
     checkPaymentMethods()
-  }, [isOpen, userToken])
+  }, [isOpen, activeToken])
 
-  const handleSubscribe = async () => {
-    if (!selectedPlan) return
+  const generateUsername = (email: string) => {
+    const base = email.split('@')[0]?.replace(/[^a-zA-Z0-9]/g, '') || 'member'
+    return `${base}`.slice(0, 20) + Math.floor(Math.random() * 10000)
+  }
 
+  const processSubscription = async (token: string) => {
+    if (!selectedPlan) {
+      setError('Please choose a plan to continue.')
+      return
+    }
     setLoading(true)
     setError(null)
 
@@ -105,7 +147,7 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${userToken}`
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
           plan_id: selectedPlan.id,
@@ -121,14 +163,11 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
       }
 
       if (data.checkout_url) {
-        // First-time user - redirect to Stripe Checkout
         window.location.href = data.checkout_url
       } else if (data.subscription_id) {
-        // Existing user - subscription created directly
         setSuccess(true)
         setTimeout(() => {
           onPaymentSuccess(data.subscription_id)
-          // Redirect to expert page if expertSlug is provided
           if (expertSlug) {
             window.location.href = `/expert/${expertSlug}?payment_success=true`
           }
@@ -142,6 +181,60 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
       setLoading(false)
     }
   }
+
+  const handleSubscribe = async () => {
+    if (!selectedPlan) return
+
+    if (!activeToken) {
+      setAccountError(null)
+      setCurrentStep('account')
+      return
+    }
+
+    await processSubscription(activeToken)
+  }
+
+  const handleAccountSubmit = async (event: React.FormEvent) => {
+    event.preventDefault()
+
+    if (!accountForm.email || !accountForm.password) {
+      setAccountError('Please enter both email and password.')
+      return
+    }
+
+    setIsCreatingAccount(true)
+    setAccountError(null)
+
+    try {
+      const resultAction = await dispatch(
+        registerUser({
+          email: accountForm.email.trim().toLowerCase(),
+          password: accountForm.password,
+          username: generateUsername(accountForm.email),
+        })
+      )
+
+      if (registerUser.fulfilled.match(resultAction)) {
+        const payload = resultAction.payload as AuthResponse
+        setActiveToken(payload.access_token)
+        setCurrentStep('plan')
+        setAccountForm({ email: '', password: '' })
+        await processSubscription(payload.access_token)
+      } else {
+        const message =
+          (resultAction.payload as string) ||
+          'We could not create your account. Please try again.'
+        setAccountError(message)
+      }
+    } catch (err) {
+      console.error('Account creation error:', err)
+      setAccountError('Something went wrong. Please try again.')
+    } finally {
+      setIsCreatingAccount(false)
+    }
+  }
+
+  const isAuthenticated = Boolean(activeToken)
 
 
   if (success) {
@@ -178,142 +271,230 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
           </p>
         </DialogHeader>
 
-        <div className="space-y-8 py-6">
-          {/* Plan Selection - Increased height with min-h-[400px] */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 min-h-[400px]">
-            {plans.map((plan) => {
-              const dynamicFeatures = plan.features;
-              return (
-                <Card
-                  key={plan.id}
-                  className={`cursor-pointer transition-all duration-200 hover:shadow-xl h-full ${
-                    selectedPlan?.id === plan.id
-                      ? 'ring-4 ring-blue-500 ring-offset-2 border-blue-200'
-                      : 'hover:border-gray-300'
-                  }`}
-                  onClick={() => setSelectedPlan(plan)}
-                >
-                  <CardHeader className="pb-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex flex-col">
-                        <CardTitle className="text-xl flex items-center gap-2">
-                          {plan.name}
-                          {plan.recommended && (
-                            <Badge className="bg-blue-500 text-white text-sm px-2 py-1">
-                              <Star className="w-4 h-4 mr-1" />
-                              Recommended
-                            </Badge>
-                          )}
-                        </CardTitle>
-                        <div className="text-3xl font-bold text-blue-600 mt-2">
-                          ${plan.price}
-                          <span className="text-base text-gray-500 font-normal">
-                            /{plan.billing_interval}
-                          </span>
+        {currentStep === 'plan' ? (
+          <div className="space-y-8 py-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 min-h-[400px]">
+              {plans.map((plan) => {
+                const dynamicFeatures = plan.features
+                return (
+                  <Card
+                    key={plan.id}
+                    className={`cursor-pointer transition-all duration-200 hover:shadow-xl h-full ${
+                      selectedPlan?.id === plan.id
+                        ? 'ring-4 ring-blue-500 ring-offset-2 border-blue-200'
+                        : 'hover:border-gray-300'
+                    }`}
+                    onClick={() => setSelectedPlan(plan)}
+                  >
+                    <CardHeader className="pb-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex flex-col">
+                          <CardTitle className="text-xl flex items-center gap-2">
+                            {plan.name}
+                            {plan.recommended && (
+                              <Badge className="bg-blue-500 text-white text-sm px-2 py-1">
+                                <Star className="w-4 h-4 mr-1" />
+                                Recommended
+                              </Badge>
+                            )}
+                          </CardTitle>
+                          <div className="text-3xl font-bold text-blue-600 mt-2">
+                            ${plan.price}
+                            <span className="text-base text-gray-500 font-normal">
+                              /{plan.billing_interval}
+                            </span>
+                          </div>
                         </div>
+                        {selectedPlan?.id === plan.id && (
+                          <CheckCircle2 className="w-8 h-8 text-blue-600" />
+                        )}
                       </div>
-                      {selectedPlan?.id === plan.id && (
-                        <CheckCircle2 className="w-8 h-8 text-blue-600" />
-                      )}
-                    </div>
-                  </CardHeader>
-                  <CardContent className="pt-2 flex-grow">
-                    <ul className="space-y-3 text-base">
-                      {dynamicFeatures.map((feature, index) => (
-                        <li key={index} className="flex items-start gap-3">
-                          <CheckCircle2 className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
-                          <span>{feature}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </CardContent>
-                </Card>
-              )
-            })}
-          </div>
+                    </CardHeader>
+                    <CardContent className="pt-2 flex-grow">
+                      <ul className="space-y-3 text-base">
+                        {dynamicFeatures.map((feature, index) => (
+                          <li key={index} className="flex items-start gap-3">
+                            <CheckCircle2 className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
+                            <span>{feature}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </CardContent>
+                  </Card>
+                )
+              })}
+            </div>
 
-          {/* Payment Method Info - Decreased height with smaller text */}
-          {!checkingPaymentMethods && (
-            <div className="bg-gray-50 rounded-xl p-4">
-              <div className="flex items-center gap-3">
-                {hasExistingCard ? (
+            {isAuthenticated && !checkingPaymentMethods && (
+              <div className="bg-gray-50 rounded-xl p-4">
+                <div className="flex items-center gap-3">
+                  {hasExistingCard ? (
+                    <>
+                      <CreditCard className="w-6 h-6 text-blue-600" />
+                      <div>
+                        <p className="font-medium text-gray-900">Saved Payment Method</p>
+                        <p className="text-sm text-gray-600">
+                          We'll use your saved card for instant activation
+                        </p>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <Shield className="w-6 h-6 text-blue-600" />
+                      <div>
+                        <p className="font-medium text-gray-900">Secure Checkout</p>
+                        <p className="text-sm text-gray-600">
+                          You'll be redirected to Stripe to add your payment details
+                        </p>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {error && (
+              <div className="flex items-center gap-3 p-6 bg-red-50 border border-red-200 rounded-xl text-red-700 text-lg">
+                <AlertCircle className="h-6 w-6 flex-shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
+
+            <div className="flex flex-col sm:flex-row gap-4">
+              <Button
+                variant="outline"
+                onClick={onClose}
+                disabled={loading}
+                className="flex-1 py-6 text-lg"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSubscribe}
+                disabled={
+                  !selectedPlan ||
+                  loading ||
+                  (isAuthenticated && checkingPaymentMethods)
+                }
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-6 text-lg"
+              >
+                {loading ? (
                   <>
-                    <CreditCard className="w-6 h-6 text-blue-600" />
-                    <div>
-                      <p className="font-medium text-gray-900">Saved Payment Method</p>
-                      <p className="text-sm text-gray-600">
-                        We'll use your saved card for instant activation
-                      </p>
-                    </div>
+                    <Loader2 className="h-5 w-5 mr-3 animate-spin" />
+                    Processing...
+                  </>
+                ) : isAuthenticated && checkingPaymentMethods ? (
+                  <>
+                    <Loader2 className="h-5 w-5 mr-3 animate-spin" />
+                    Loading...
+                  </>
+                ) : isAuthenticated && hasExistingCard ? (
+                  <>
+                    <Zap className="h-5 w-5 mr-3" />
+                    Subscribe Instantly
                   </>
                 ) : (
                   <>
-                    <Shield className="w-6 h-6 text-blue-600" />
-                    <div>
-                      <p className="font-medium text-gray-900">Secure Checkout</p>
-                      <p className="text-sm text-gray-600">
-                        You'll be redirected to Stripe to add your payment details
-                      </p>
-                    </div>
+                    <ArrowRight className="h-5 w-5 mr-3" />
+                    Continue
                   </>
                 )}
-              </div>
+              </Button>
             </div>
-          )}
 
-          {/* Error Display */}
-          {error && (
-            <div className="flex items-center gap-3 p-6 bg-red-50 border border-red-200 rounded-xl text-red-700 text-lg">
-              <AlertCircle className="h-6 w-6 flex-shrink-0" />
-              <span>{error}</span>
+            <div className="flex items-center justify-center gap-3 text-gray-500">
+              <Lock className="w-5 h-5" />
+              <span className="text-lg">Secure payment powered by Stripe</span>
             </div>
-          )}
+          </div>
+        ) : (
+          <div className="py-6 max-w-md mx-auto space-y-6">
+            <div className="rounded-xl border border-blue-200 bg-blue-50/40 p-5 space-y-2">
+              <p className="text-sm text-gray-600">
+                You're subscribing to <strong>{selectedPlan?.name}</strong>.
+              </p>
+              <button
+                type="button"
+                className="text-blue-600 hover:underline font-medium"
+                onClick={() => {
+                  setCurrentStep('plan')
+                  setAccountForm({ email: '', password: '' })
+                  setAccountError(null)
+                }}
+              >
+                Change plan
+              </button>
+            </div>
 
-          {/* Action Buttons */}
-          <div className="flex flex-col sm:flex-row gap-4">
-            <Button
-              variant="outline"
-              onClick={onClose}
-              disabled={loading}
-              className="flex-1 py-6 text-lg"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSubscribe}
-              disabled={!selectedPlan || loading || checkingPaymentMethods}
-              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-6 text-lg"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="h-5 w-5 mr-3 animate-spin" />
-                  Processing...
-                </>
-              ) : checkingPaymentMethods ? (
-                <>
-                  <Loader2 className="h-5 w-5 mr-3 animate-spin" />
-                  Loading...
-                </>
-              ) : hasExistingCard ? (
-                <>
-                  <Zap className="h-5 w-5 mr-3" />
-                  Subscribe Instantly
-                </>
-              ) : (
-                <>
-                  <ArrowRight className="h-5 w-5 mr-3" />
-                  Continue to Payment
-                </>
+            <form className="space-y-4" onSubmit={handleAccountSubmit}>
+              {accountError && (
+                <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                  <AlertCircle className="h-4 w-4" />
+                  <span>{accountError}</span>
+                </div>
               )}
-            </Button>
-          </div>
 
-          {/* Security Notice */}
-          <div className="flex items-center justify-center gap-3 text-gray-500">
-            <Lock className="w-5 h-5" />
-            <span className="text-lg">Secure payment powered by Stripe</span>
+              <div className="space-y-2">
+                <Label htmlFor="account-email">Email</Label>
+                <Input
+                  id="account-email"
+                  type="email"
+                  placeholder="you@email.com"
+                  value={accountForm.email}
+                  onChange={(e) => setAccountForm(prev => ({ ...prev, email: e.target.value }))}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="account-password">Password</Label>
+                <Input
+                  id="account-password"
+                  type="password"
+                  placeholder="Create a password"
+                  value={accountForm.password}
+                  onChange={(e) => setAccountForm(prev => ({ ...prev, password: e.target.value }))}
+                  required
+                />
+                <p className="text-xs text-gray-500">Minimum 6 characters.</p>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setCurrentStep('plan')
+                    setAccountError(null)
+                  }}
+                  disabled={isCreatingAccount}
+                  className="flex-1"
+                >
+                  Back to plans
+                </Button>
+                <Button
+                  type="submit"
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+                  disabled={isCreatingAccount}
+                >
+                  {isCreatingAccount ? (
+                    <>
+                      <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                      Creating account...
+                    </>
+                  ) : (
+                    'Continue to payment'
+                  )}
+                </Button>
+              </div>
+            </form>
+
+            <div className="flex items-center justify-center gap-3 text-gray-500">
+              <Lock className="w-5 h-5" />
+              <span className="text-sm">Secure payment powered by Stripe</span>
+            </div>
           </div>
-        </div>
+        )}
       </DialogContent>
     </Dialog>
   )

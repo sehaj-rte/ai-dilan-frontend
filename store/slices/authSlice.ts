@@ -33,7 +33,7 @@ interface RegisterCredentials {
   full_name?: string
 }
 
-interface AuthResponse {
+export interface AuthResponse {
   success: boolean
   message: string
   user: User

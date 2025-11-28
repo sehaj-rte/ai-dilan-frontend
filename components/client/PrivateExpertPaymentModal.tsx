@@ -24,20 +24,12 @@ interface Plan {
   minute_limit?: number | null
 }
 
-interface User {
-  id: string
-  email: string
-  username: string
-  full_name?: string
-}
-
 interface PrivateExpertPaymentModalProps {
   isOpen: boolean
   onClose: () => void
   publication: Publication
   sessionType: 'chat' | 'call'
   onPaymentSuccess: (subscriptionId: string) => void
-  user: User
 }
 
 const PrivateExpertPaymentModal: React.FC<PrivateExpertPaymentModalProps> = ({
@@ -45,8 +37,7 @@ const PrivateExpertPaymentModal: React.FC<PrivateExpertPaymentModalProps> = ({
   onClose,
   publication,
   sessionType,
-  onPaymentSuccess,
-  user
+  onPaymentSuccess
 }) => {
   const [plans, setPlans] = useState<Plan[]>([])
   const [loading, setLoading] = useState(true)
@@ -88,9 +79,9 @@ const PrivateExpertPaymentModal: React.FC<PrivateExpertPaymentModalProps> = ({
 
   // Fetch plans for the expert
   useEffect(() => {
+    if (!isOpen) return
+
     const fetchPlans = async () => {
-      if (!isOpen) return
-      
       try {
         setLoading(true)
         setError(null)
@@ -99,7 +90,6 @@ const PrivateExpertPaymentModal: React.FC<PrivateExpertPaymentModalProps> = ({
         const data = await response.json()
         
         if (data.success && data.plans) {
-          // Transform plans to match our interface with limit fields
           const transformedPlans = data.plans.map((plan: any, index: number) => ({
             id: plan.id,
             name: plan.name,
@@ -108,11 +98,10 @@ const PrivateExpertPaymentModal: React.FC<PrivateExpertPaymentModalProps> = ({
             billing_interval: plan.billing_interval,
             message_limit: plan.message_limit,
             minute_limit: plan.minute_limit,
-            features: [], // Will be generated dynamically
-            recommended: index === 0 // Mark first plan as recommended
+            features: [],
+            recommended: index === 0
           }))
           
-          // Generate dynamic features for each plan
           const plansWithFeatures = transformedPlans.map((plan: Plan) => ({
             ...plan,
             features: generatePlanFeatures(plan, sessionType)
@@ -134,11 +123,11 @@ const PrivateExpertPaymentModal: React.FC<PrivateExpertPaymentModalProps> = ({
   }, [isOpen, publication.slug, sessionType])
 
   if (loading) {
-    return null // Or a loading spinner
+    return null
   }
 
   if (error || plans.length === 0) {
-    return null // Handle error state in parent component
+    return null
   }
 
   return (
@@ -149,7 +138,11 @@ const PrivateExpertPaymentModal: React.FC<PrivateExpertPaymentModalProps> = ({
       expertName={publication.display_name}
       expertSlug={publication.slug}
       onPaymentSuccess={onPaymentSuccess}
-      userToken={typeof window !== 'undefined' ? localStorage.getItem('dilan_ai_token') || '' : ''}
+      userToken={
+        typeof window !== 'undefined'
+          ? localStorage.getItem('dilan_ai_token') || ''
+          : ''
+      }
     />
   )
 }
