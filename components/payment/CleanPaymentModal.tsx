@@ -169,7 +169,7 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
         setTimeout(() => {
           onPaymentSuccess(data.subscription_id)
           if (expertSlug) {
-            window.location.href = `/expert/${expertSlug}?payment_success=true`
+            window.location.href = `/expert/${expertSlug}?payment_success=true&session_id=${data.subscription_id}`
           }
         }, 2000)
       }
@@ -244,14 +244,22 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
           <div className="text-center py-8">
             <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
             <h2 className="text-2xl font-bold text-green-600 mb-2">
-              Welcome to {expertName}!
+              Payment Successful!
             </h2>
             <p className="text-gray-600 mb-4">
-              Your subscription is now active
+              Thank you for your subscription to {expertName}
             </p>
-            <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
+            <div className="bg-blue-50 rounded-lg p-4 mb-4">
+              <p className="text-sm text-blue-800">
+                <strong>Invoice Sent:</strong> A detailed invoice has been sent to your email address.
+              </p>
+            </div>
+            <p className="text-gray-500 text-sm">
+              You can start using the service immediately
+            </p>
+            <div className="flex items-center justify-center gap-2 text-sm text-gray-500 mt-2">
               <Shield className="w-4 h-4" />
-              <span>You can start chatting immediately</span>
+              <span>Secure and encrypted</span>
             </div>
           </div>
         </DialogContent>
@@ -267,7 +275,7 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
             Subscribe to {expertName}
           </DialogTitle>
           <p className="text-center text-gray-600 mt-2 text-lg">
-            Choose your plan and get instant access
+            Your plan will give you instant access
           </p>
         </DialogHeader>
 

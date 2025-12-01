@@ -110,7 +110,7 @@ const ClientExpertPage = () => {
     handleChatOrCall,
     handleLogin,
     handleSignup,
-    handlePaymentSuccess,
+    handlePaymentSuccess: contextHandlePaymentSuccess,
     currentUser,
     setCurrentUser,
   } = useClientAuthFlow();
@@ -139,6 +139,7 @@ const ClientExpertPage = () => {
   const [hasActiveSubscription, setHasActiveSubscription] = useState(false);
   const [checkingSubscription, setCheckingSubscription] = useState(false);
   const [isExpertOwner, setIsExpertOwner] = useState(false);
+  const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
 
   const convertS3UrlToProxy = (s3Url: string): string => {
     if (!s3Url) return s3Url;
@@ -271,6 +272,14 @@ const ClientExpertPage = () => {
           console.warn("Failed to send payment success notification:", error);
         }
 
+        // Show payment success message
+        setShowPaymentSuccess(true);
+              
+        // Hide the success message after 5 seconds
+        setTimeout(() => {
+          setShowPaymentSuccess(false);
+        }, 5000);
+        
         // Payment successful, check/update subscription status
         if (expert?.id) {
           checkUserSubscription();
@@ -362,14 +371,16 @@ const ClientExpertPage = () => {
           if (showPrivatePaymentModal) {
             setShowPrivatePaymentModal(false);
           }
-          // Redirect to chat or call based on selected session type
-          if (selectedSessionType === "chat") {
-            console.log("➡️ Redirecting to chat after payment success");
-            router.push(`/expert/${slug}/chat`);
-          } else {
-            console.log("➡️ Redirecting to call after payment success");
-            router.push(`/expert/${slug}/call`);
-          }
+          // Redirect to chat or call based on selected session type after showing success message
+          setTimeout(() => {
+            if (selectedSessionType === "chat") {
+              console.log("➡️ Redirecting to chat after payment success");
+              router.push(`/expert/${slug}/chat`);
+            } else {
+              console.log("➡️ Redirecting to call after payment success");
+              router.push(`/expert/${slug}/call`);
+            }
+          }, 3000);
         }
       }
     } catch (error) {
@@ -536,16 +547,34 @@ const ClientExpertPage = () => {
     }
   };
 
+  const handlePaymentSuccess = (subscriptionId: string) => {
+    setShowPaymentModal(false);
+    setHasActiveSubscription(true);
+    setShowPaymentSuccess(true);
+
+    // Redirect to the selected session type after showing success message
+    setTimeout(() => {
+      if (selectedSessionType === "chat") {
+        router.push(`/expert/${slug}/chat`);
+      } else {
+        router.push(`/expert/${slug}/call`);
+      }
+    }, 3000);
+  };
+
   const handlePrivatePaymentSuccess = (subscriptionId: string) => {
     setShowPrivatePaymentModal(false);
     setHasActiveSubscription(true);
+    setShowPaymentSuccess(true);
 
-    // Redirect to the selected session type
-    if (selectedSessionType === "chat") {
-      router.push(`/expert/${slug}/chat`);
-    } else {
-      router.push(`/expert/${slug}/call`);
-    }
+    // Redirect to the selected session type after showing success message
+    setTimeout(() => {
+      if (selectedSessionType === "chat") {
+        router.push(`/expert/${slug}/chat`);
+      } else {
+        router.push(`/expert/${slug}/call`);
+      }
+    }, 3000);
   };
 
   // Remove duplicate functions - using the ones defined above
@@ -725,6 +754,21 @@ const ClientExpertPage = () => {
         </div>
       </div>
 
+      {/* Payment Success Message */}
+      {showPaymentSuccess && (
+        <div className="container mx-auto px-4 py-6">
+          <div className="max-w-2xl mx-auto">
+            <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6 flex items-center">
+              <CheckCircle2 className="h-6 w-6 text-green-600 mr-3 flex-shrink-0" />
+              <div>
+                <p className="font-medium text-green-800">Payment Successful!</p>
+                <p className="text-sm text-green-700">A detailed invoice has been sent to your email address.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+      
       {/* Main Content - Centered */}
       <div className="container mx-auto px-4 py-16">
         <div
