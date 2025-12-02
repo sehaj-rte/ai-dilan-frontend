@@ -1,14 +1,19 @@
-'use client'
+"use client";
 
-import React, { useState, useEffect } from 'react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { 
-  CreditCard, 
-  CheckCircle2, 
-  Loader2, 
+import React, { useState, useEffect } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import {
+  CreditCard,
+  CheckCircle2,
+  Loader2,
   AlertCircle,
   Lock,
   Shield,
@@ -16,34 +21,34 @@ import {
   Zap,
   ArrowRight,
   MessageCircle,
-  Phone
-} from 'lucide-react'
-import { API_URL } from '@/lib/config'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { useAppDispatch } from '@/store/hooks'
-import { registerUser, type AuthResponse } from '@/store/slices/authSlice'
+  Phone,
+} from "lucide-react";
+import { API_URL } from "@/lib/config";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useAppDispatch } from "@/store/hooks";
+import { registerUser, type AuthResponse } from "@/store/slices/authSlice";
 
 interface Plan {
-  id: string
-  name: string
-  price: number
-  currency: string
-  billing_interval: string
-  features: string[]
-  recommended?: boolean
-  message_limit?: number | null
-  minute_limit?: number | null
+  id: string;
+  name: string;
+  price: number;
+  currency: string;
+  billing_interval: string;
+  features: string[];
+  recommended?: boolean;
+  message_limit?: number | null;
+  minute_limit?: number | null;
 }
 
 interface CleanPaymentModalProps {
-  isOpen: boolean
-  onClose: () => void
-  plans: Plan[]
-  expertName: string
-  expertSlug?: string
-  onPaymentSuccess: (subscriptionId: string) => void
-  userToken: string
+  isOpen: boolean;
+  onClose: () => void;
+  plans: Plan[];
+  expertName: string;
+  expertSlug?: string;
+  onPaymentSuccess: (subscriptionId: string) => void;
+  userToken: string;
 }
 
 const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
@@ -53,101 +58,104 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
   expertName,
   expertSlug,
   onPaymentSuccess,
-  userToken
+  userToken,
 }) => {
-  const dispatch = useAppDispatch()
-  const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [success, setSuccess] = useState(false)
-  const [hasExistingCard, setHasExistingCard] = useState<boolean | null>(null)
-  const [checkingPaymentMethods, setCheckingPaymentMethods] = useState(true)
-  const [activeToken, setActiveToken] = useState(userToken)
-  const [accountForm, setAccountForm] = useState({ email: '', password: '' })
-  const [accountError, setAccountError] = useState<string | null>(null)
-  const [currentStep, setCurrentStep] = useState<'plan' | 'account'>('plan')
-  const [isCreatingAccount, setIsCreatingAccount] = useState(false)
+  const dispatch = useAppDispatch();
+  const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+  const [hasExistingCard, setHasExistingCard] = useState<boolean | null>(null);
+  const [checkingPaymentMethods, setCheckingPaymentMethods] = useState(true);
+  const [activeToken, setActiveToken] = useState(userToken);
+  const [accountForm, setAccountForm] = useState({ email: "", password: "" });
+  const [accountError, setAccountError] = useState<string | null>(null);
+  const [currentStep, setCurrentStep] = useState<"plan" | "account">("plan");
+  const [isCreatingAccount, setIsCreatingAccount] = useState(false);
 
   // Auto-select recommended plan or first plan
   useEffect(() => {
     if (plans.length > 0 && !selectedPlan) {
-      const recommended = plans.find(p => p.recommended)
-      setSelectedPlan(recommended || plans[0])
+      const recommended = plans.find((p) => p.recommended);
+      setSelectedPlan(recommended || plans[0]);
     }
-  }, [plans, selectedPlan])
+  }, [plans, selectedPlan]);
 
   useEffect(() => {
-    setActiveToken(userToken)
-  }, [userToken, isOpen])
+    setActiveToken(userToken);
+  }, [userToken, isOpen]);
 
   useEffect(() => {
     if (!isOpen) {
-      setCurrentStep('plan')
-      setAccountForm({ email: '', password: '' })
-      setAccountError(null)
-      setIsCreatingAccount(false)
+      setCurrentStep("plan");
+      setAccountForm({ email: "", password: "" });
+      setAccountError(null);
+      setIsCreatingAccount(false);
     }
-  }, [isOpen])
+  }, [isOpen]);
 
   useEffect(() => {
     if (activeToken) {
-      setCurrentStep('plan')
-      setAccountForm({ email: '', password: '' })
-      setAccountError(null)
+      setCurrentStep("plan");
+      setAccountForm({ email: "", password: "" });
+      setAccountError(null);
     }
-  }, [activeToken])
+  }, [activeToken]);
 
   // Check if user has existing payment methods
   useEffect(() => {
     const checkPaymentMethods = async () => {
       if (!isOpen || !activeToken) {
-        setHasExistingCard(false)
-        setCheckingPaymentMethods(false)
-        return
+        setHasExistingCard(false);
+        setCheckingPaymentMethods(false);
+        return;
       }
-      
+
       try {
-        setCheckingPaymentMethods(true)
-        const response = await fetch(`${API_URL}/payments/check-customer-status`, {
-          headers: {
-            'Authorization': `Bearer ${activeToken}`
-          }
-        })
-        const data = await response.json()
-        
+        setCheckingPaymentMethods(true);
+        const response = await fetch(
+          `${API_URL}/payments/check-customer-status`,
+          {
+            headers: {
+              Authorization: `Bearer ${activeToken}`,
+            },
+          },
+        );
+        const data = await response.json();
+
         if (data.success) {
-          setHasExistingCard(data.has_payment_methods)
+          setHasExistingCard(data.has_payment_methods);
         }
       } catch (err) {
-        console.error('Error checking payment methods:', err)
-        setHasExistingCard(false)
+        console.error("Error checking payment methods:", err);
+        setHasExistingCard(false);
       } finally {
-        setCheckingPaymentMethods(false)
+        setCheckingPaymentMethods(false);
       }
-    }
+    };
 
-    checkPaymentMethods()
-  }, [isOpen, activeToken])
+    checkPaymentMethods();
+  }, [isOpen, activeToken]);
 
   const generateUsername = (email: string) => {
-    const base = email.split('@')[0]?.replace(/[^a-zA-Z0-9]/g, '') || 'member'
-    return `${base}`.slice(0, 20) + Math.floor(Math.random() * 10000)
-  }
+    const base = email.split("@")[0]?.replace(/[^a-zA-Z0-9]/g, "") || "member";
+    return `${base}`.slice(0, 20) + Math.floor(Math.random() * 10000);
+  };
 
   const processSubscription = async (token: string) => {
     if (!selectedPlan) {
-      setError('Please choose a plan to continue.')
-      return
+      setError("Please choose a plan to continue.");
+      return;
     }
-    setLoading(true)
-    setError(null)
+    setLoading(true);
+    setError(null);
 
     try {
       const response = await fetch(`${API_URL}/payments/create-subscription`, {
-        method: 'POST',
+        method: "POST",
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           plan_id: selectedPlan.id,
@@ -155,55 +163,54 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
         })
       })
 
-      const data = await response.json()
+      const data = await response.json();
 
       if (!data.success) {
-        setError(data.error || 'Failed to create subscription')
-        return
+        setError(data.error || "Failed to create subscription");
+        return;
       }
 
       if (data.checkout_url) {
-        window.location.href = data.checkout_url
+        window.location.href = data.checkout_url;
       } else if (data.subscription_id) {
-        setSuccess(true)
+        setSuccess(true);
         setTimeout(() => {
-          onPaymentSuccess(data.subscription_id)
+          onPaymentSuccess(data.subscription_id);
           if (expertSlug) {
-            window.location.href = `/expert/${expertSlug}?payment_success=true&session_id=${data.subscription_id}`
+            window.location.href = `/expert/${expertSlug}?payment_success=true&session_id=${data.subscription_id}`;
           }
-        }, 2000)
+        }, 2000);
       }
-
     } catch (err) {
-      console.error('Subscription error:', err)
-      setError('An unexpected error occurred. Please try again.')
+      console.error("Subscription error:", err);
+      setError("An unexpected error occurred. Please try again.");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleSubscribe = async () => {
-    if (!selectedPlan) return
+    if (!selectedPlan) return;
 
     if (!activeToken) {
-      setAccountError(null)
-      setCurrentStep('account')
-      return
+      setAccountError(null);
+      setCurrentStep("account");
+      return;
     }
 
-    await processSubscription(activeToken)
-  }
+    await processSubscription(activeToken);
+  };
 
   const handleAccountSubmit = async (event: React.FormEvent) => {
-    event.preventDefault()
+    event.preventDefault();
 
     if (!accountForm.email || !accountForm.password) {
-      setAccountError('Please enter both email and password.')
-      return
+      setAccountError("Please enter both email and password.");
+      return;
     }
 
-    setIsCreatingAccount(true)
-    setAccountError(null)
+    setIsCreatingAccount(true);
+    setAccountError(null);
 
     try {
       const resultAction = await dispatch(
@@ -211,31 +218,30 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
           email: accountForm.email.trim().toLowerCase(),
           password: accountForm.password,
           username: generateUsername(accountForm.email),
-        })
-      )
+        }),
+      );
 
       if (registerUser.fulfilled.match(resultAction)) {
-        const payload = resultAction.payload as AuthResponse
-        setActiveToken(payload.access_token)
-        setCurrentStep('plan')
-        setAccountForm({ email: '', password: '' })
-        await processSubscription(payload.access_token)
+        const payload = resultAction.payload as AuthResponse;
+        setActiveToken(payload.access_token);
+        setCurrentStep("plan");
+        setAccountForm({ email: "", password: "" });
+        await processSubscription(payload.access_token);
       } else {
         const message =
           (resultAction.payload as string) ||
-          'We could not create your account. Please try again.'
-        setAccountError(message)
+          "We could not create your account. Please try again.";
+        setAccountError(message);
       }
     } catch (err) {
-      console.error('Account creation error:', err)
-      setAccountError('Something went wrong. Please try again.')
+      console.error("Account creation error:", err);
+      setAccountError("Something went wrong. Please try again.");
     } finally {
-      setIsCreatingAccount(false)
+      setIsCreatingAccount(false);
     }
-  }
+  };
 
-  const isAuthenticated = Boolean(activeToken)
-
+  const isAuthenticated = Boolean(activeToken);
 
   if (success) {
     return (
@@ -251,19 +257,20 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
             </p>
             <div className="bg-blue-50 rounded-lg p-4 mb-6">
               <p className="text-sm text-blue-800">
-                <strong>Invoice Sent:</strong> A detailed invoice has been sent to your email address.
+                <strong>Invoice Sent:</strong> A detailed invoice has been sent
+                to your email address.
               </p>
             </div>
-            <Button 
+            <Button
               onClick={() => {
-                onClose()
+                onClose();
                 if (expertSlug) {
-                  onPaymentSuccess('')
+                  onPaymentSuccess("");
                 }
               }}
               className="w-full bg-green-600 hover:bg-green-700 text-white py-3"
             >
-              OK, Continue to {selectedPlan?.name || 'Service'}
+              OK, Continue to {selectedPlan?.name || "Service"}
             </Button>
             <div className="flex items-center justify-center gap-2 text-sm text-gray-500 mt-4">
               <Shield className="w-4 h-4" />
@@ -272,7 +279,7 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
           </div>
         </DialogContent>
       </Dialog>
-    )
+    );
   }
 
   return (
@@ -287,18 +294,18 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
           </p>
         </DialogHeader>
 
-        {currentStep === 'plan' ? (
+        {currentStep === "plan" ? (
           <div className="space-y-8 py-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 min-h-[400px]">
               {plans.map((plan) => {
-                const dynamicFeatures = plan.features
+                const dynamicFeatures = plan.features;
                 return (
                   <Card
                     key={plan.id}
                     className={`cursor-pointer transition-all duration-200 hover:shadow-xl h-full ${
                       selectedPlan?.id === plan.id
-                        ? 'ring-4 ring-blue-500 ring-offset-2 border-blue-200'
-                        : 'hover:border-gray-300'
+                        ? "ring-4 ring-blue-500 ring-offset-2 border-blue-200"
+                        : "hover:border-gray-300"
                     }`}
                     onClick={() => setSelectedPlan(plan)}
                   >
@@ -337,7 +344,7 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
                       </ul>
                     </CardContent>
                   </Card>
-                )
+                );
               })}
             </div>
 
@@ -348,7 +355,9 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
                     <>
                       <CreditCard className="w-6 h-6 text-blue-600" />
                       <div>
-                        <p className="font-medium text-gray-900">Saved Payment Method</p>
+                        <p className="font-medium text-gray-900">
+                          Saved Payment Method
+                        </p>
                         <p className="text-sm text-gray-600">
                           We'll use your saved card for instant activation
                         </p>
@@ -358,9 +367,12 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
                     <>
                       <Shield className="w-6 h-6 text-blue-600" />
                       <div>
-                        <p className="font-medium text-gray-900">Secure Checkout</p>
+                        <p className="font-medium text-gray-900">
+                          Secure Checkout
+                        </p>
                         <p className="text-sm text-gray-600">
-                          You'll be redirected to Stripe to add your payment details
+                          You'll be redirected to Stripe to add your payment
+                          details
                         </p>
                       </div>
                     </>
@@ -433,9 +445,9 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
                 type="button"
                 className="text-blue-600 hover:underline font-medium"
                 onClick={() => {
-                  setCurrentStep('plan')
-                  setAccountForm({ email: '', password: '' })
-                  setAccountError(null)
+                  setCurrentStep("plan");
+                  setAccountForm({ email: "", password: "" });
+                  setAccountError(null);
                 }}
               >
                 Change plan
@@ -457,7 +469,12 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
                   type="email"
                   placeholder="you@email.com"
                   value={accountForm.email}
-                  onChange={(e) => setAccountForm(prev => ({ ...prev, email: e.target.value }))}
+                  onChange={(e) =>
+                    setAccountForm((prev) => ({
+                      ...prev,
+                      email: e.target.value,
+                    }))
+                  }
                   required
                 />
               </div>
@@ -469,7 +486,12 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
                   type="password"
                   placeholder="Create a password"
                   value={accountForm.password}
-                  onChange={(e) => setAccountForm(prev => ({ ...prev, password: e.target.value }))}
+                  onChange={(e) =>
+                    setAccountForm((prev) => ({
+                      ...prev,
+                      password: e.target.value,
+                    }))
+                  }
                   required
                 />
                 <p className="text-xs text-gray-500">Minimum 6 characters.</p>
@@ -480,8 +502,8 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
                   type="button"
                   variant="outline"
                   onClick={() => {
-                    setCurrentStep('plan')
-                    setAccountError(null)
+                    setCurrentStep("plan");
+                    setAccountError(null);
                   }}
                   disabled={isCreatingAccount}
                   className="flex-1"
@@ -499,7 +521,7 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
                       Creating account...
                     </>
                   ) : (
-                    'Continue to payment'
+                    "Continue to payment"
                   )}
                 </Button>
               </div>
@@ -513,7 +535,7 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
         )}
       </DialogContent>
     </Dialog>
-  )
-}
+  );
+};
 
-export default CleanPaymentModal
+export default CleanPaymentModal;
