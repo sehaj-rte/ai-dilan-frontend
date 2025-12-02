@@ -249,15 +249,23 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
             <p className="text-gray-600 mb-4">
               Thank you for your subscription to {expertName}
             </p>
-            <div className="bg-blue-50 rounded-lg p-4 mb-4">
+            <div className="bg-blue-50 rounded-lg p-4 mb-6">
               <p className="text-sm text-blue-800">
                 <strong>Invoice Sent:</strong> A detailed invoice has been sent to your email address.
               </p>
             </div>
-            <p className="text-gray-500 text-sm">
-              You can start using the service immediately
-            </p>
-            <div className="flex items-center justify-center gap-2 text-sm text-gray-500 mt-2">
+            <Button 
+              onClick={() => {
+                onClose()
+                if (expertSlug) {
+                  onPaymentSuccess('')
+                }
+              }}
+              className="w-full bg-green-600 hover:bg-green-700 text-white py-3"
+            >
+              OK, Continue to {selectedPlan?.name || 'Service'}
+            </Button>
+            <div className="flex items-center justify-center gap-2 text-sm text-gray-500 mt-4">
               <Shield className="w-4 h-4" />
               <span>Secure and encrypted</span>
             </div>

@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { API_URL } from "@/lib/config";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useClientAuthFlow } from "@/contexts/ClientAuthFlowContext";
 import { notificationService } from "@/lib/notifications";
 import AuthModal from "@/components/client/AuthModal";
@@ -41,6 +42,7 @@ import {
   LogOut,
   Loader2,
   AlertCircle,
+  Shield,
 } from "lucide-react";
 
 interface Expert {
@@ -140,6 +142,7 @@ const ClientExpertPage = () => {
   const [checkingSubscription, setCheckingSubscription] = useState(false);
   const [isExpertOwner, setIsExpertOwner] = useState(false);
   const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
+  const [paymentSuccessMessage, setPaymentSuccessMessage] = useState('');
 
   const convertS3UrlToProxy = (s3Url: string): string => {
     if (!s3Url) return s3Url;
@@ -273,12 +276,8 @@ const ClientExpertPage = () => {
         }
 
         // Show payment success message
+        setPaymentSuccessMessage(`Thank you for your payment! A detailed invoice has been sent to ${currentUser?.email || 'your email address'}.`);
         setShowPaymentSuccess(true);
-              
-        // Hide the success message after 5 seconds
-        setTimeout(() => {
-          setShowPaymentSuccess(false);
-        }, 5000);
         
         // Payment successful, check/update subscription status
         if (expert?.id) {
@@ -753,21 +752,6 @@ const ClientExpertPage = () => {
           </div>
         </div>
       </div>
-
-      {/* Payment Success Message */}
-      {showPaymentSuccess && (
-        <div className="container mx-auto px-4 py-6">
-          <div className="max-w-2xl mx-auto">
-            <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6 flex items-center">
-              <CheckCircle2 className="h-6 w-6 text-green-600 mr-3 flex-shrink-0" />
-              <div>
-                <p className="font-medium text-green-800">Payment Successful!</p>
-                <p className="text-sm text-green-700">A detailed invoice has been sent to your email address.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
       
       {/* Main Content - Centered */}
       <div className="container mx-auto px-4 py-16">
@@ -894,6 +878,39 @@ const ClientExpertPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Payment Success Modal */}
+      <Dialog open={showPaymentSuccess} onOpenChange={setShowPaymentSuccess}>
+        <DialogContent className="max-w-md">
+          <div className="text-center py-6">
+            <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
+            <h2 className="text-2xl font-bold text-green-600 mb-2">
+              Payment Successful!
+            </h2>
+            <p className="text-gray-600 mb-6">
+              {paymentSuccessMessage}
+            </p>
+            <Button 
+              onClick={() => {
+                setShowPaymentSuccess(false);
+                // Redirect to chat or call based on selected session type
+                if (selectedSessionType === "chat") {
+                  router.push(`/expert/${slug}/chat`);
+                } else {
+                  router.push(`/expert/${slug}/call`);
+                }
+              }}
+              className="w-full bg-green-600 hover:bg-green-700 text-white py-3"
+            >
+              OK, Continue to {selectedSessionType === "chat" ? "Chat" : "Call"}
+            </Button>
+            <div className="flex items-center justify-center gap-2 text-sm text-gray-500 mt-4">
+              <Shield className="w-4 h-4" />
+              <span>Secure and encrypted</span>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Auth Modal */}
       <AuthModal
