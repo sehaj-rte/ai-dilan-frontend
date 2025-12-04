@@ -2822,6 +2822,7 @@ const ClientChatPage = () => {
         currentPlan={currentPlan}
         featureType="chat"
         expertSlug={slug}
+        subscription={subscription}
       />
     </div>
   );

@@ -939,6 +939,7 @@ const ClientCallPage = () => {
           currentPlan={currentPlan}
           featureType="call"
           expertSlug={slug}
+          subscription={subscription}
         />
       </div>
     </div>

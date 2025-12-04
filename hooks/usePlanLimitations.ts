@@ -58,6 +58,7 @@ export const usePlanLimitations = ({
     (
       usage: UserUsage | null,
       plan: PlanWithLimitations | null,
+      subscription: UserSubscriptionWithPlan | null,
     ): UsageLimitStatus => {
       // If not authenticated, allow usage (will be handled by auth checks elsewhere)
       if (!isAuthenticated) {
@@ -84,14 +85,28 @@ export const usePlanLimitations = ({
         };
       }
 
-      const isUnlimited = !plan.message_limit && !plan.minute_limit;
+      // Check if this is a trial subscription and use trial limits
+      let effectiveMessageLimit = plan.message_limit;
+      let effectiveMinuteLimit = plan.minute_limit;
+      let effectiveMessagesUsed = usage.messages_used;
+      let effectiveMinutesUsed = usage.minutes_used;
+
+      // For trial subscriptions, use trial usage info if available
+      if (subscription?.status === "trialing" && subscription?.usage_info) {
+        effectiveMessageLimit = subscription.usage_info.message_limit;
+        effectiveMinuteLimit = subscription.usage_info.minute_limit;
+        effectiveMessagesUsed = subscription.usage_info.messages_used;
+        effectiveMinutesUsed = subscription.usage_info.minutes_used;
+      }
+
+      const isUnlimited = !effectiveMessageLimit && !effectiveMinuteLimit;
 
       // Calculate remaining usage
-      const messagesRemaining = plan.message_limit
-        ? Math.max(0, plan.message_limit - usage.messages_used)
+      const messagesRemaining = effectiveMessageLimit
+        ? Math.max(0, effectiveMessageLimit - effectiveMessagesUsed)
         : null;
-      const minutesRemaining = plan.minute_limit
-        ? Math.max(0, plan.minute_limit - usage.minutes_used)
+      const minutesRemaining = effectiveMinuteLimit
+        ? Math.max(0, effectiveMinuteLimit - effectiveMinutesUsed)
         : null;
 
       // Check what limits are reached
@@ -100,13 +115,13 @@ export const usePlanLimitations = ({
       let canMakeCall = true;
 
       // Check message limits
-      if (plan.message_limit && usage.messages_used >= plan.message_limit) {
+      if (effectiveMessageLimit && effectiveMessagesUsed >= effectiveMessageLimit) {
         canSendMessage = false;
         limitReachedType = "messages";
       }
 
       // Check minute limits
-      if (plan.minute_limit && usage.minutes_used >= plan.minute_limit) {
+      if (effectiveMinuteLimit && effectiveMinutesUsed >= effectiveMinuteLimit) {
         canMakeCall = false;
         if (limitReachedType === "none") limitReachedType = "minutes";
       }
@@ -123,7 +138,7 @@ export const usePlanLimitations = ({
     [isAuthenticated],
   );
 
-  const limitStatus = calculateLimitStatus(usage, currentPlan);
+  const limitStatus = calculateLimitStatus(usage, currentPlan, subscription);
 
   // Fetch user's current usage and plan
   const fetchUsageAndPlan = useCallback(async () => {

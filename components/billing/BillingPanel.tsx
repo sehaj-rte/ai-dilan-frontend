@@ -164,9 +164,9 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
 
           // Find the subscription for this expert if we have one
           if (expertIdLocal && filteredSubscriptions.length > 0) {
-            // Only consider active subscriptions
+            // Only consider active and trialing subscriptions
             const activeSubscriptions = filteredSubscriptions.filter(
-              (sub: Subscription) => sub.status === "active",
+              (sub: Subscription) => sub.status === "active" || sub.status === "trialing",
             );
             const expertSubscription =
               activeSubscriptions.length > 0 ? activeSubscriptions[0] : null; // Take the first active one
@@ -785,9 +785,9 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
             <div className="flex justify-center">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
                 {plans.map((plan, index) => {
-                  // Check if this is the current plan for any ACTIVE subscription
+                  // Check if this is the current plan for any ACTIVE or TRIALING subscription
                   const isCurrentPlan = subscriptions.some(
-                    (sub) => sub.plan_id === plan.id && sub.status === "active",
+                    (sub) => sub.plan_id === plan.id && (sub.status === "active" || sub.status === "trialing"),
                   );
                   // Always show the badge on the second plan (index 1)
                   const showRecommendedBadge = index === 1 && plan.recommended;
@@ -948,6 +948,40 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
                                 {subscription.plan_interval}
                               </span>
                             </div>
+                            {/* Trial Usage Information */}
+                            {subscription.status === "trialing" && subscription.usage_info && (
+                              <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                                <div className="text-xs font-semibold text-blue-800 mb-2">
+                                  Trial Usage ({subscription.usage_info.trial_days_remaining} days left)
+                                </div>
+                                <div className="space-y-1">
+                                  <div className="flex justify-between text-xs">
+                                    <span className="text-gray-600">Messages:</span>
+                                    <span className="font-medium">
+                                      {subscription.usage_info.messages_used}/{subscription.usage_info.message_limit}
+                                    </span>
+                                  </div>
+                                  <div className="w-full bg-gray-200 rounded-full h-1.5">
+                                    <div 
+                                      className="bg-blue-600 h-1.5 rounded-full" 
+                                      style={{ width: `${subscription.usage_info.message_percentage}%` }}
+                                    ></div>
+                                  </div>
+                                  <div className="flex justify-between text-xs">
+                                    <span className="text-gray-600">Minutes:</span>
+                                    <span className="font-medium">
+                                      {subscription.usage_info.minutes_used}/{subscription.usage_info.minute_limit}
+                                    </span>
+                                  </div>
+                                  <div className="w-full bg-gray-200 rounded-full h-1.5">
+                                    <div 
+                                      className="bg-blue-600 h-1.5 rounded-full" 
+                                      style={{ width: `${subscription.usage_info.minute_percentage}%` }}
+                                    ></div>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>

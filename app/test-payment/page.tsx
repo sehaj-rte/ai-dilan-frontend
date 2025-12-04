@@ -1,63 +1,63 @@
-'use client'
+"use client";
 
-import React, { useState } from 'react'
-import CleanPaymentModal from '@/components/payment/CleanPaymentModal'
-import { Button } from '@/components/ui/button'
+import React, { useState } from "react";
+import CleanPaymentModal from "@/components/payment/CleanPaymentModal";
+import { Button } from "@/components/ui/button";
 
 const TestPaymentPage: React.FC = () => {
-  const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Mock plans data
   const mockPlans = [
     {
-      id: '1',
-      name: 'Basic Plan',
+      id: "1",
+      name: "Basic Plan",
       price: 29,
-      currency: 'USD',
-      billing_interval: 'month',
+      currency: "USD",
+      billing_interval: "month",
       features: [
-        'Unlimited chat sessions',
-        'Email support',
-        'Cancel anytime',
-        'Basic analytics'
-      ]
-    },
-    {
-      id: '2',
-      name: 'Pro Plan',
-      price: 59,
-      currency: 'USD',
-      billing_interval: 'month',
-      features: [
-        'Unlimited chat & call sessions',
-        'Priority support',
-        'Advanced analytics',
-        'Custom integrations',
-        'Cancel anytime'
+        "Unlimited chat sessions",
+        "Email support",
+        "Cancel anytime",
+        "Basic analytics",
       ],
-      recommended: true
     },
     {
-      id: '3',
-      name: 'Enterprise Plan',
-      price: 99,
-      currency: 'USD',
-      billing_interval: 'month',
+      id: "2",
+      name: "Pro Plan",
+      price: 59,
+      currency: "USD",
+      billing_interval: "month",
       features: [
-        'Everything in Pro',
-        'Dedicated support',
-        'Custom branding',
-        'API access',
-        'SLA guarantee'
-      ]
-    }
-  ]
+        "Unlimited chat & call sessions",
+        "Priority support",
+        "Advanced analytics",
+        "Custom integrations",
+        "Cancel anytime",
+      ],
+      recommended: true,
+    },
+    {
+      id: "3",
+      name: "Enterprise Plan",
+      price: 99,
+      currency: "USD",
+      billing_interval: "month",
+      features: [
+        "Everything in Pro",
+        "Dedicated support",
+        "Custom branding",
+        "API access",
+        "SLA guarantee",
+      ],
+    },
+  ];
 
   const handlePaymentSuccess = (subscriptionId: string) => {
-    console.log('Payment successful! Subscription ID:', subscriptionId)
-    setIsModalOpen(false)
-    alert(`Payment successful! Subscription ID: ${subscriptionId}`)
-  }
+    console.log("Payment successful! Subscription ID:", subscriptionId);
+    setIsModalOpen(false);
+    alert(`Payment successful! Subscription ID: ${subscriptionId}`);
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
@@ -68,8 +68,8 @@ const TestPaymentPage: React.FC = () => {
         <p className="text-gray-600 mb-8">
           Click the button below to test the new Windsurf-style payment modal
         </p>
-        
-        <Button 
+
+        <Button
           onClick={() => setIsModalOpen(true)}
           className="w-full bg-blue-600 hover:bg-blue-700 text-white"
           size="lg"
@@ -93,10 +93,14 @@ const TestPaymentPage: React.FC = () => {
         plans={mockPlans}
         expertName="Test Expert"
         onPaymentSuccess={handlePaymentSuccess}
-        userToken={typeof window !== 'undefined' ? localStorage.getItem('dilan_ai_token') || '' : ''}
+        userToken={
+          typeof window !== "undefined"
+            ? localStorage.getItem("dilan_ai_token") || ""
+            : ""
+        }
       />
     </div>
-  )
-}
+  );
+};
 
-export default TestPaymentPage
+export default TestPaymentPage;
