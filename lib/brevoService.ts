@@ -69,28 +69,38 @@ class BrevoService {
   ): Promise<boolean> {
     try {
       // Prepare recipient list (both expert and super admins)
-      const recipients = [
-        ...ADMIN_EMAILS.EXPERTS.map((email) => ({
-          email,
-          name: "Expert Admin",
-        })),
-        ...ADMIN_EMAILS.SUPER_ADMINS.map((email) => ({
-          email,
-          name: "Super Admin",
-        })),
-      ];
+    const customerRecipient = {
+      email: userData.userEmail,
+      name: userData.fullName || userData.userName,
+    };
 
+    // 2) Admin recipients
+    const adminRecipients = [
+      ...ADMIN_EMAILS.EXPERTS.map((email) => ({
+        email,
+        name: "Expert Admin",
+      })),
+      ...ADMIN_EMAILS.SUPER_ADMINS.map((email) => ({
+        email,
+        name: "Super Admin",
+      })),
+    ];
+
+    // 3) Customer + Admins all receive this email
+    const recipients = [customerRecipient, ...adminRecipients];
+
+  const PRODUCT_NAME =
+      process.env.NEXT_PUBLIC_PRODUCT_NAME || "AI Jeff";
+    const DASHBOARD_URL =
+      process.env.NEXT_PUBLIC_DASHBOARD_URL ||
+      "https://your-domain.com/dashboard";
       const sendSmtpEmail = new SendSmtpEmail();
       sendSmtpEmail.to = recipients;
       sendSmtpEmail.templateId = TEMPLATES.USER_REGISTRATION;
       sendSmtpEmail.params = {
-        USER_EMAIL: userData.userEmail,
-        USER_NAME: userData.userName,
-        FULL_NAME: userData.fullName || userData.userName,
-        REGISTRATION_DATE: userData.registrationDate,
-        DASHBOARD_URL:
-          process.env.NEXT_PUBLIC_DASHBOARD_URL ||
-          "https://your-domain.com/dashboard",
+        CLIENT_NAME: userData.fullName || userData.userName,
+      PRODUCT_NAME,
+      ACCESS_LINK: DASHBOARD_URL,
       };
 
       const api = getApiInstance();

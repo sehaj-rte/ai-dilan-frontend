@@ -112,6 +112,7 @@ const ClientExpertPage = () => {
     handleChatOrCall,
     handleLogin,
     handleSignup,
+    handleForgotPassword,
     handlePaymentSuccess: contextHandlePaymentSuccess,
     currentUser,
     setCurrentUser,
@@ -921,6 +922,7 @@ const ClientExpertPage = () => {
         }}
         onLogin={handleLogin}
         onSignup={handleSignup}
+        onForgotPassword={handleForgotPassword}
         sessionType={selectedSessionType}
         expertName={publication?.display_name || expert?.name}
         showSignupInitially={showSignupInitially}

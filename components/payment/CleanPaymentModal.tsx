@@ -22,12 +22,15 @@ import {
   ArrowRight,
   MessageCircle,
   Phone,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { API_URL } from "@/lib/config";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAppDispatch } from "@/store/hooks";
 import { registerUser, type AuthResponse } from "@/store/slices/authSlice";
+import { notificationService } from "@/lib/notifications";
 
 interface Plan {
   id: string;
@@ -72,6 +75,7 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
   const [accountError, setAccountError] = useState<string | null>(null);
   const [currentStep, setCurrentStep] = useState<"plan" | "account">("plan");
   const [isCreatingAccount, setIsCreatingAccount] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   // Auto-select recommended plan or first plan
   useEffect(() => {
@@ -173,6 +177,29 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
       if (data.checkout_url) {
         window.location.href = data.checkout_url;
       } else if (data.subscription_id) {
+        // Send payment success notification
+        try {
+          const userToken = localStorage.getItem("dilan_ai_token");
+          const userData = localStorage.getItem("dilan_ai_user");
+          
+          if (userData) {
+            const user = JSON.parse(userData);
+            await notificationService.sendPaymentSuccessNotification({
+              userEmail: user.email || "",
+              userName: user.username || "",
+              fullName: user.full_name || user.name || "",
+              expertName: expertName,
+              expertSlug: expertSlug || "",
+              planName: selectedPlan?.name || "Subscription Plan",
+              amount: selectedPlan?.price || 0,
+              currency: selectedPlan?.currency || "USD",
+              sessionType: "chat", // Default to chat, will be updated by expert page
+            });
+          }
+        } catch (error) {
+          console.warn("Failed to send payment success notification:", error);
+        }
+        
         setSuccess(true);
         setTimeout(() => {
           onPaymentSuccess(data.subscription_id);
@@ -223,6 +250,18 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
 
       if (registerUser.fulfilled.match(resultAction)) {
         const payload = resultAction.payload as AuthResponse;
+        
+        // Send user registration notification
+        try {
+          await notificationService.sendUserRegistrationNotification({
+            userEmail: accountForm.email.trim().toLowerCase(),
+            userName: generateUsername(accountForm.email),
+            fullName: payload.user?.full_name || payload.user?.name || "",
+          });
+        } catch (error) {
+          console.warn("Failed to send user registration notification:", error);
+        }
+        
         setActiveToken(payload.access_token);
         setCurrentStep("plan");
         setAccountForm({ email: "", password: "" });
@@ -463,7 +502,7 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
               )}
 
               <div className="space-y-2">
-                <Label htmlFor="account-email">Email</Label>
+                <Label htmlFor="account-email">Email Address</Label>
                 <Input
                   id="account-email"
                   type="email"
@@ -481,19 +520,33 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
 
               <div className="space-y-2">
                 <Label htmlFor="account-password">Password</Label>
-                <Input
-                  id="account-password"
-                  type="password"
-                  placeholder="Create a password"
-                  value={accountForm.password}
-                  onChange={(e) =>
-                    setAccountForm((prev) => ({
-                      ...prev,
-                      password: e.target.value,
-                    }))
-                  }
-                  required
-                />
+                <div className="relative">
+                  <Input
+                    id="account-password"
+                    type={showPassword ? "text" : "password"}
+                    placeholder="Create a password"
+                    value={accountForm.password}
+                    onChange={(e) =>
+                      setAccountForm((prev) => ({
+                        ...prev,
+                        password: e.target.value,
+                      }))
+                    }
+                    className="pr-10"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
                 <p className="text-xs text-gray-500">Minimum 6 characters.</p>
               </div>
 

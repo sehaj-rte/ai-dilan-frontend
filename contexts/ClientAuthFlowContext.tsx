@@ -56,6 +56,9 @@ interface ClientAuthFlowContextType {
     email: string,
     password: string,
   ) => Promise<{ success: boolean; error?: string }>;
+  handleForgotPassword: (
+    email: string,
+  ) => Promise<{ success: boolean; error?: string }>;
 
   // Payment Success Handler
   handlePaymentSuccess: (sessionId: string) => void;
@@ -257,6 +260,33 @@ export function ClientAuthFlowProvider({
   };
 
   /**
+   * Handle forgot password - sends reset email
+   */
+  const handleForgotPassword = async (
+    email: string,
+  ): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const response = await fetch(`${API_URL}/password-reset/forgot-password`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        return { success: true };
+      } else {
+        return { success: false, error: data.detail || "Failed to send reset email" };
+      }
+    } catch (error) {
+      return { success: false, error: "Network error. Please try again." };
+    }
+  };
+
+  /**
    * Continue flow after successful authentication
    */
   const continueFlowAfterAuth = async () => {
@@ -358,6 +388,7 @@ export function ClientAuthFlowProvider({
         handleChatOrCall,
         handleLogin,
         handleSignup,
+        handleForgotPassword,
         handlePaymentSuccess,
         currentUser,
         setCurrentUser,

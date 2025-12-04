@@ -24,6 +24,7 @@ import {
 import { loadStripe } from "@stripe/stripe-js";
 import { API_URL } from "@/lib/config";
 import AddPaymentMethodModal from "./AddPaymentMethodModal";
+import CancelSubscriptionModal from "./CancelSubscriptionModal";
 
 // Initialize Stripe
 const stripePromise = loadStripe(
@@ -101,6 +102,8 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showAddPaymentModal, setShowAddPaymentModal] = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [subscriptionToCancel, setSubscriptionToCancel] = useState<Subscription | null>(null);
   const [upgrading, setUpgrading] = useState(false); // Add upgrading state
   const [selectedSubscription, setSelectedSubscription] =
     useState<Subscription | null>(null); // Add selected subscription for upgrade
@@ -363,13 +366,6 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
   };
 
   const handleCancelSubscription = async (subscriptionId: string) => {
-    if (
-      !confirm(
-        "Are you sure you want to cancel this subscription? It will remain active until the end of your current billing period.",
-      )
-    )
-      return;
-
     try {
       const response = await fetch(
         `${API_URL}/payments/subscriptions/${subscriptionId}/cancel`,
@@ -391,7 +387,14 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
               : sub,
           ),
         );
-        showSuccess("Subscription cancelled successfully");
+        
+        const subscription = subscriptions.find(
+          (sub) => sub.stripe_subscription_id === subscriptionId,
+        );
+        
+        showSuccess(
+          `Subscription cancelled successfully. You'll continue to have access until ${subscription ? formatDate(subscription.current_period_end) : 'the end of your billing period'}.`
+        );
       } else {
         showError(
           "Failed to cancel subscription: " + (data.error || "Unknown error"),
@@ -401,6 +404,11 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
       console.error("Error canceling subscription:", err);
       showError("Failed to cancel subscription");
     }
+  };
+
+  const handleShowCancelModal = (subscription: Subscription) => {
+    setSubscriptionToCancel(subscription);
+    setShowCancelModal(true);
   };
 
   const handleReactivateSubscription = async (subscriptionId: string) => {
@@ -1010,7 +1018,14 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
                               </Button>
                             </div>
                           ) : subscription.status === "active" ? (
-''
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleShowCancelModal(subscription)}
+                              className="text-red-600 hover:text-red-700 border-red-200 hover:border-red-300"
+                            >
+                              Cancel Subscription
+                            </Button>
                           ) : (
                             ""
                           )}
@@ -1238,6 +1253,17 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
         isOpen={showAddPaymentModal}
         onClose={() => setShowAddPaymentModal(false)}
         onSuccess={handlePaymentMethodAdded}
+      />
+
+      {/* Cancel Subscription Modal */}
+      <CancelSubscriptionModal
+        isOpen={showCancelModal}
+        onClose={() => {
+          setShowCancelModal(false);
+          setSubscriptionToCancel(null);
+        }}
+        subscription={subscriptionToCancel}
+        onConfirm={handleCancelSubscription}
       />
     </div>
   );
