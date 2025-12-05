@@ -76,7 +76,14 @@ export const UsageStatusBar: React.FC<UsageStatusBarProps> = ({
   if (compact) {
     return (
       <div className="flex items-center gap-2 text-xs text-gray-600 bg-gray-50 px-3 py-1 rounded">
-        {currentPlan.message_limit && (
+        {/* Show trial indicator in compact mode */}
+        {(currentPlan as any)?.status === "trialing" && (
+          <div className="flex items-center gap-1">
+            <Clock className="h-3 w-3 text-blue-500" />
+            <span className="text-blue-600 font-medium">Trial</span>
+          </div>
+        )}
+        {(limitStatus.messagesRemaining !== null || currentPlan.message_limit) && (
           <div className="flex items-center gap-1">
             <MessageCircle className="h-3 w-3" />
             <span>
@@ -87,7 +94,7 @@ export const UsageStatusBar: React.FC<UsageStatusBarProps> = ({
             </span>
           </div>
         )}
-        {currentPlan.minute_limit && (
+        {(limitStatus.minutesRemaining !== null || currentPlan.minute_limit) && (
           <div className="flex items-center gap-1">
             <Phone className="h-3 w-3" />
             <span>
@@ -119,7 +126,15 @@ export const UsageStatusBar: React.FC<UsageStatusBarProps> = ({
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <Zap className="h-4 w-4 text-blue-500" />
-            <h3 className="font-medium text-sm">{currentPlan.name} Usage</h3>
+            <h3 className="font-medium text-sm">
+              {currentPlan.name} Usage
+              {/* Show trial indicator if this is a trial */}
+              {(currentPlan as any)?.status === "trialing" && (
+                <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                  Trial
+                </span>
+              )}
+            </h3>
           </div>
           {(!limitStatus.canSendMessage || !limitStatus.canMakeCall) && (
             <div className="flex items-center gap-2">

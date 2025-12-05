@@ -40,6 +40,7 @@ const PrivateExpertPaymentModal: React.FC<PrivateExpertPaymentModalProps> = ({
   onPaymentSuccess,
 }) => {
   const [plans, setPlans] = useState<Plan[]>([])
+  const [expertId, setExpertId] = useState<string>("")
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -93,6 +94,9 @@ const PrivateExpertPaymentModal: React.FC<PrivateExpertPaymentModalProps> = ({
         const data = await response.json();
 
         if (data.success && data.plans) {
+          // Store expert ID for coupon validation
+          setExpertId(data.expert_id);
+          
           const transformedPlans = data.plans.map(
             (plan: any, index: number) => ({
               id: plan.id,
@@ -142,6 +146,7 @@ const PrivateExpertPaymentModal: React.FC<PrivateExpertPaymentModalProps> = ({
       plans={plans}
       expertName={publication.display_name}
       expertSlug={publication.slug}
+      expertId={expertId}
       onPaymentSuccess={onPaymentSuccess}
       userToken={
         typeof window !== "undefined"

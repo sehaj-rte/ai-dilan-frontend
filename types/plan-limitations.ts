@@ -60,9 +60,19 @@ export interface UserSubscriptionWithPlan {
   user_id: string;
   expert_id: string;
   plan: PlanWithLimitations;
-  status: "active" | "inactive" | "cancelled" | "past_due";
+  status: "active" | "inactive" | "cancelled" | "past_due" | "trialing";
   current_period_start: string;
   current_period_end: string;
   created_at: string;
   updated_at: string;
+  usage_info?: {
+    is_trial: boolean;
+    trial_days_remaining: number;
+    messages_used: number;
+    message_limit: number;
+    minutes_used: number;
+    minute_limit: number;
+    message_percentage: number;
+    minute_percentage: number;
+  };
 }

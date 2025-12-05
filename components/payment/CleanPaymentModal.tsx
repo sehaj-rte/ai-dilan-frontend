@@ -47,6 +47,7 @@ interface CleanPaymentModalProps {
   plans: Plan[];
   expertName: string;
   expertSlug?: string;
+  expertId?: string;
   onPaymentSuccess: (subscriptionId: string) => void;
   userToken: string;
 }
@@ -57,6 +58,7 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
   plans,
   expertName,
   expertSlug,
+  expertId,
   onPaymentSuccess,
   userToken,
 }) => {
@@ -72,6 +74,15 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
   const [accountError, setAccountError] = useState<string | null>(null);
   const [currentStep, setCurrentStep] = useState<"plan" | "account">("plan");
   const [isCreatingAccount, setIsCreatingAccount] = useState(false);
+  
+  // Coupon state
+  const [couponCode, setCouponCode] = useState("");
+  const [couponValidation, setCouponValidation] = useState<{
+    isValid: boolean;
+    isValidating: boolean;
+    message: string;
+  }>({ isValid: false, isValidating: false, message: "" });
+  const [showTrialTerms, setShowTrialTerms] = useState(false);
 
   // Auto-select recommended plan or first plan
   useEffect(() => {
@@ -91,6 +102,9 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
       setAccountForm({ email: "", password: "" });
       setAccountError(null);
       setIsCreatingAccount(false);
+      setCouponCode("");
+      setCouponValidation({ isValid: false, isValidating: false, message: "" });
+      setShowTrialTerms(false);
     }
   }, [isOpen]);
 
@@ -142,6 +156,86 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
     return `${base}`.slice(0, 20) + Math.floor(Math.random() * 10000);
   };
 
+  const validateCoupon = async (coupon: string) => {
+    if (!coupon.trim()) {
+      setCouponValidation({ isValid: false, isValidating: false, message: "" });
+      setShowTrialTerms(false);
+      return;
+    }
+
+    setCouponValidation({ isValid: false, isValidating: true, message: "Validating coupon..." });
+
+    try {
+      // Ensure we have an expert ID for validation
+      if (!expertId) {
+        setCouponValidation({
+          isValid: false,
+          isValidating: false,
+          message: "Expert ID not available for coupon validation"
+        });
+        return;
+      }
+
+      const response = await fetch(`${API_URL}/plans/validate-coupon`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          coupon: coupon.trim().toUpperCase(),
+          expert_id: expertId
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+
+      if (data.success && data.validation && data.validation.is_valid === true) {
+        setCouponValidation({
+          isValid: true,
+          isValidating: false,
+          message: "Valid trial coupon! 7-day free trial will be applied."
+        });
+        setShowTrialTerms(true);
+      } else {
+        setCouponValidation({
+          isValid: false,
+          isValidating: false,
+          message: data.validation?.error_message || "Invalid coupon code"
+        });
+        setShowTrialTerms(false);
+      }
+    } catch (err) {
+      console.error("Error validating coupon:", err);
+      setCouponValidation({
+        isValid: false,
+        isValidating: false,
+        message: "Error validating coupon. Please try again."
+      });
+      setShowTrialTerms(false);
+    }
+  };
+
+  const handleCouponChange = (value: string) => {
+    const upperValue = value.toUpperCase();
+    setCouponCode(upperValue);
+
+    // Clear previous validation when typing
+    if (couponValidation.isValid || couponValidation.message) {
+      setCouponValidation({ isValid: false, isValidating: false, message: "" });
+      setShowTrialTerms(false);
+    }
+  };
+
+  const handleApplyCoupon = () => {
+    if (couponCode.trim()) {
+      validateCoupon(couponCode.trim());
+    }
+  };
+
   const processSubscription = async (token: string) => {
     if (!selectedPlan) {
       setError("Please choose a plan to continue.");
@@ -159,7 +253,8 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
         },
         body: JSON.stringify({
           plan_id: selectedPlan.id,
-          expert_name: expertName
+          expert_name: expertName,
+          ...(couponValidation.isValid && couponCode && { coupon: couponCode })
         })
       })
 
@@ -348,6 +443,8 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
               })}
             </div>
 
+
+
             {isAuthenticated && !checkingPaymentMethods && (
               <div className="bg-gray-50 rounded-xl p-4">
                 <div className="flex items-center gap-3">
@@ -495,6 +592,63 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
                   required
                 />
                 <p className="text-xs text-gray-500">Minimum 6 characters.</p>
+              </div>
+
+              {/* Coupon Code Field */}
+              <div className="space-y-2">
+                <Label htmlFor="coupon-code">Trial Coupon Code (Optional)</Label>
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Input
+                      id="coupon-code"
+                      type="text"
+                      placeholder="Enter coupon code (e.g., TRIAL2024)"
+                      value={couponCode}
+                      onChange={(e) => handleCouponChange(e.target.value)}
+                      className="font-mono text-center tracking-wider"
+                      maxLength={20}
+                    />
+                    {couponValidation.isValidating && (
+                      <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                        <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
+                      </div>
+                    )}
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleApplyCoupon}
+                    disabled={!couponCode.trim() || couponValidation.isValidating}
+                    className="px-4 py-2 whitespace-nowrap"
+                  >
+                    Apply
+                  </Button>
+                </div>
+                
+                {/* Coupon Validation Message or Hint */}
+                {couponCode.trim() && !couponValidation.message && !couponValidation.isValidating && (
+                  <div className="flex items-center gap-2 text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded-lg p-2">
+                    <ArrowRight className="w-3 h-3 flex-shrink-0" />
+                    <span>Click "Apply" to validate your coupon code</span>
+                  </div>
+                )}
+                
+                {couponValidation.message && (
+                  <div className={`flex items-center gap-2 text-xs ${
+                    couponValidation.isValid 
+                      ? 'text-green-700 bg-green-50 border border-green-200' 
+                      : 'text-red-700 bg-red-50 border border-red-200'
+                  } rounded-lg p-2`}>
+                    {couponValidation.isValid ? (
+                      <CheckCircle2 className="w-3 h-3 flex-shrink-0" />
+                    ) : (
+                      <AlertCircle className="w-3 h-3 flex-shrink-0" />
+                    )}
+                    <span>{couponValidation.message}</span>
+                  </div>
+                )}
+                
+                <p className="text-xs text-gray-500">Enter a trial coupon to get 7 days free access</p>
               </div>
 
               <div className="flex flex-col sm:flex-row gap-4">
