@@ -48,6 +48,15 @@ interface Subscription {
   created_at: string;
   updated_at: string;
   plan_id?: string; // Add plan_id to the interface
+  usage_info?: {
+    trial_days_remaining: number;
+    messages_used: number;
+    message_limit: number;
+    message_percentage: number;
+    minutes_used: number;
+    minute_limit: number;
+    minute_percentage: number;
+  };
 }
 
 interface PaymentMethod {
@@ -747,6 +756,106 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
     }
   };
 
+  // Handle payment confirmation for trial termination
+  const handleTrialPaymentConfirmation = async (clientSecret: string) => {
+    try {
+      const stripe = await stripePromise;
+
+      if (!stripe) {
+        throw new Error("Stripe failed to initialize");
+      }
+
+      // Confirm the payment with 3D Secure authentication
+      const { error, paymentIntent } = await stripe.confirmCardPayment(clientSecret);
+
+      if (error) {
+        console.error("Payment confirmation error:", error);
+        showError(`Payment authentication failed: ${error.message}`);
+      } else if (paymentIntent.status === "succeeded") {
+        showSuccess("Payment confirmed! Your paid plan is now active.");
+        // Refresh the page to show updated subscription
+        setTimeout(() => {
+          window.location.reload();
+        }, 2000);
+      } else if (paymentIntent.status === "processing") {
+        showSuccess("Payment is being processed. Your plan will be activated shortly.");
+        setTimeout(() => {
+          window.location.reload();
+        }, 3000);
+      } else {
+        showError(`Payment status: ${paymentIntent.status}. Please try again.`);
+      }
+    } catch (error) {
+      console.error("Error confirming trial payment:", error);
+      showError("Failed to confirm payment. Please try again.");
+    }
+  };
+
+  // Handle starting paid plan when trial is exhausted
+  const handleStartPaidPlan = async (subscriptionId: string) => {
+    if (!confirm("Are you sure you want to end your trial and start the paid plan now? This action cannot be undone.")) {
+      return;
+    }
+
+    try {
+      setUpgrading(true);
+      
+      const response = await fetch(
+        `${API_URL}/payments/subscriptions/${subscriptionId}/terminate-trial`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${userToken}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Handle different payment scenarios
+        if (data.requires_confirmation || data.requires_action) {
+          // Payment requires additional authentication (3D Secure)
+          showSuccess("Processing payment authentication...");
+          await handleTrialPaymentConfirmation(data.client_secret);
+        } else if (data.billing_started) {
+          // Payment succeeded immediately
+          showSuccess("Trial ended successfully! Your paid plan is now active.");
+          setTimeout(() => {
+            window.location.reload();
+          }, 2000);
+        } else if (data.requires_payment_action) {
+          // Payment is incomplete but trial was ended
+          showSuccess("Trial ended. Please complete payment to activate your plan.");
+          setTimeout(() => {
+            window.location.reload();
+          }, 2000);
+        } else {
+          // Generic success
+          showSuccess("Trial ended successfully!");
+          setTimeout(() => {
+            window.location.reload();
+          }, 2000);
+        }
+      } else {
+        // Handle specific error cases
+        if (data.requires_payment_method) {
+          showError("No payment method found. Please add a payment method to continue.");
+          // Open the add payment method modal immediately
+          setShowAddPaymentModal(true);
+        } else {
+          showError("Failed to start paid plan: " + (data.error || "Unknown error"));
+        }
+      }
+    } catch (err) {
+      console.error("Error starting paid plan:", err);
+      showError("Failed to start paid plan. Please try again.");
+    } finally {
+      setUpgrading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -980,6 +1089,57 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
                                     ></div>
                                   </div>
                                 </div>
+                                
+                                {/* Show Start Paid Plan button if trial is exhausted */}
+                                {(subscription.usage_info.message_percentage >= 100 || 
+                                  subscription.usage_info.minute_percentage >= 100 ||
+                                  subscription.usage_info.trial_days_remaining <= 0) && (
+                                  <div className="mt-3 pt-3 border-t border-blue-200">
+                                    <div className="flex items-center gap-2 mb-2">
+                                      <AlertCircle className="h-4 w-4 text-orange-500" />
+                                      <span className="text-xs font-semibold text-orange-700">
+                                        Trial Limit Reached
+                                      </span>
+                                    </div>
+                                    {paymentMethods.length === 0 ? (
+                                      <>
+                                        <p className="text-xs text-red-600 mb-3">
+                                          Add a payment method to start your paid plan and continue using all features.
+                                        </p>
+                                        <Button
+                                          onClick={() => setShowAddPaymentModal(true)}
+                                          className="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs py-2"
+                                        >
+                                          <Plus className="h-3 w-3 mr-2" />
+                                          Add Payment Method
+                                        </Button>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <p className="text-xs text-gray-600 mb-3">
+                                          Start your paid plan now to continue using all features without limits.
+                                        </p>
+                                        <Button
+                                          onClick={() => handleStartPaidPlan(subscription.stripe_subscription_id)}
+                                          className="w-full bg-orange-600 hover:bg-orange-700 text-white text-xs py-2"
+                                          disabled={upgrading}
+                                        >
+                                          {upgrading ? (
+                                            <>
+                                              <Loader2 className="h-3 w-3 mr-2 animate-spin" />
+                                              Starting Paid Plan...
+                                            </>
+                                          ) : (
+                                            <>
+                                              <Zap className="h-3 w-3 mr-2" />
+                                              Start Paid Plan Now
+                                            </>
+                                          )}
+                                        </Button>
+                                      </>
+                                    )}
+                                  </div>
+                                )}
                               </div>
                             )}
                           </div>
@@ -1042,6 +1202,51 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
                               >
                                 Reactivate
                               </Button>
+                            </div>
+                          ) : subscription.status === "trialing" && 
+                             subscription.usage_info && 
+                             (subscription.usage_info.message_percentage >= 100 || 
+                              subscription.usage_info.minute_percentage >= 100 ||
+                              subscription.usage_info.trial_days_remaining <= 0) ? (
+                            <div className="flex items-center gap-2">
+                              <span className="text-sm text-orange-600 font-medium">
+                                Trial exhausted
+                              </span>
+                              {paymentMethods.length === 0 ? (
+                                <Button
+                                  variant="default"
+                                  size="sm"
+                                  onClick={() => setShowAddPaymentModal(true)}
+                                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                                >
+                                  <Plus className="mr-2 h-4 w-4" />
+                                  Add Payment Method
+                                </Button>
+                              ) : (
+                                <Button
+                                  variant="default"
+                                  size="sm"
+                                  onClick={() =>
+                                    handleStartPaidPlan(
+                                      subscription.stripe_subscription_id,
+                                    )
+                                  }
+                                  className="bg-orange-600 hover:bg-orange-700 text-white"
+                                  disabled={upgrading}
+                                >
+                                  {upgrading ? (
+                                    <>
+                                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                      Starting...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Zap className="mr-2 h-4 w-4" />
+                                      Start Paid Plan
+                                    </>
+                                  )}
+                                </Button>
+                              )}
                             </div>
                           ) : subscription.status === "active" ? (
 ''
