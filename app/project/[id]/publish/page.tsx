@@ -1898,6 +1898,10 @@ const PublishManagerPage = () => {
                                 price: "",
                                 messageLimit: "",
                                 minuteLimit: "",
+                                freeTrialEnabled: false,
+                                trialCoupon: "",
+                                trialMessageLimit: "",
+                                trialMinuteLimit: "",
                               });
                             }}
                             variant="outline"
