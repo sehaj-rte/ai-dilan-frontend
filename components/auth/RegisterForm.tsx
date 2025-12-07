@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { registerUser, clearError } from "@/store/slices/authSlice";
 import { notificationService } from "@/lib/notifications";
+import { Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 
 interface RegisterFormProps {
@@ -25,6 +26,8 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
   const [validationErrors, setValidationErrors] = useState<
     Record<string, string>
   >({});
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -200,18 +203,31 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
             >
               Password
             </label>
-            <input
-              type="password"
-              id="password"
-              name="password"
-              value={formData.password}
-              onChange={handleChange}
-              required
-              className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
-                validationErrors.password ? "border-red-300" : "border-gray-300"
-              }`}
-              placeholder="Create a password"
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                id="password"
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                required
+                className={`w-full px-4 py-3 pr-12 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                  validationErrors.password ? "border-red-300" : "border-gray-300"
+                }`}
+                placeholder="Create a password"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                {showPassword ? (
+                  <EyeOff className="h-5 w-5" />
+                ) : (
+                  <Eye className="h-5 w-5" />
+                )}
+              </button>
+            </div>
             {validationErrors.password && (
               <p className="text-red-600 text-sm mt-1">
                 {validationErrors.password}
@@ -226,20 +242,33 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
             >
               Confirm Password
             </label>
-            <input
-              type="password"
-              id="confirmPassword"
-              name="confirmPassword"
-              value={formData.confirmPassword}
-              onChange={handleChange}
-              required
-              className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
-                validationErrors.confirmPassword
-                  ? "border-red-300"
-                  : "border-gray-300"
-              }`}
-              placeholder="Confirm your password"
-            />
+            <div className="relative">
+              <input
+                type={showConfirmPassword ? "text" : "password"}
+                id="confirmPassword"
+                name="confirmPassword"
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                required
+                className={`w-full px-4 py-3 pr-12 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 ${
+                  validationErrors.confirmPassword
+                    ? "border-red-300"
+                    : "border-gray-300"
+                }`}
+                placeholder="Confirm your password"
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                {showConfirmPassword ? (
+                  <EyeOff className="h-5 w-5" />
+                ) : (
+                  <Eye className="h-5 w-5" />
+                )}
+              </button>
+            </div>
             {validationErrors.confirmPassword && (
               <p className="text-red-600 text-sm mt-1">
                 {validationErrors.confirmPassword}

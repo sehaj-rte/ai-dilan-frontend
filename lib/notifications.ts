@@ -17,9 +17,7 @@ class NotificationService {
   private baseUrl: string;
 
   constructor() {
-    this.baseUrl =
-      process.env.NEXT_PUBLIC_BASE_URL ||
-      (typeof window !== "undefined" ? window.location.origin : "");
+    this.baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/bapi";
   }
 
   /**
@@ -30,7 +28,7 @@ class NotificationService {
   ): Promise<boolean> {
     try {
       const response = await fetch(
-        `${this.baseUrl}/api/notifications/user-registration`,
+        `${this.baseUrl}/notifications/user-registration`,
         {
           method: "POST",
           headers: {
@@ -66,7 +64,7 @@ class NotificationService {
   ): Promise<boolean> {
     try {
       const response = await fetch(
-        `${this.baseUrl}/api/notifications/payment-success`,
+        `${this.baseUrl}/notifications/payment-success`,
         {
           method: "POST",
           headers: {

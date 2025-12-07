@@ -1613,21 +1613,101 @@ const ClientChatPage = () => {
 
   return (
     <div
-      className="flex h-screen bg-gray-50 overflow-hidden"
+      className="flex h-screen overflow-hidden relative"
       style={{
-        backgroundImage: publication?.banner_url
-          ? `url(${convertS3UrlToProxy(publication.banner_url)})`
-          : undefined,
-        backgroundSize: "cover",
+        background: publication?.banner_url
+          ? `linear-gradient(135deg, rgba(0,0,0,0.1), rgba(0,0,0,0.05)), url(${convertS3UrlToProxy(publication.banner_url)})`
+          : `linear-gradient(135deg, ${primaryColor}15, ${secondaryColor}10), linear-gradient(45deg, #f8fafc, #e2e8f0)`,
+        backgroundSize: publication?.banner_url ? "cover" : "400% 400%",
         backgroundPosition: "center",
         backgroundRepeat: "no-repeat",
         backgroundAttachment: "fixed",
+        animation: !publication?.banner_url ? "gradientShift 15s ease infinite" : undefined,
       }}
     >
-      {/* Overlay for better text readability */}
-      {publication?.banner_url && (
-        <div className="absolute inset-0 bg-black bg-opacity-30 pointer-events-none z-0"></div>
+      {/* Animated background overlay for non-banner publications */}
+      {!publication?.banner_url && (
+        <div 
+          className="absolute inset-0 opacity-30 pointer-events-none"
+          style={{
+            background: `radial-gradient(circle at 20% 80%, ${primaryColor}20 0%, transparent 50%), 
+                        radial-gradient(circle at 80% 20%, ${secondaryColor}20 0%, transparent 50%),
+                        radial-gradient(circle at 40% 40%, ${primaryColor}10 0%, transparent 50%)`,
+            animation: "float 20s ease-in-out infinite",
+          }}
+        />
       )}
+      
+      {/* Enhanced overlay for better text readability */}
+      <div className="absolute inset-0 bg-gradient-to-br from-white/5 via-transparent to-black/10 pointer-events-none z-0"></div>
+      
+      {/* Floating particles for extra visual appeal */}
+      {!publication?.banner_url && (
+        <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
+          {[...Array(6)].map((_, i) => (
+            <div
+              key={i}
+              className="absolute rounded-full opacity-20"
+              style={{
+                background: `linear-gradient(45deg, ${primaryColor}, ${secondaryColor})`,
+                width: `${Math.random() * 100 + 50}px`,
+                height: `${Math.random() * 100 + 50}px`,
+                left: `${Math.random() * 100}%`,
+                top: `${Math.random() * 100}%`,
+                animation: `floatParticle ${15 + Math.random() * 10}s ease-in-out infinite`,
+                animationDelay: `${Math.random() * 5}s`,
+              }}
+            />
+          ))}
+        </div>
+      )}
+      
+      <style jsx>{`
+        @keyframes gradientShift {
+          0%, 100% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+        }
+        
+        @keyframes float {
+          0%, 100% { transform: translateY(0px) rotate(0deg); }
+          33% { transform: translateY(-20px) rotate(1deg); }
+          66% { transform: translateY(10px) rotate(-1deg); }
+        }
+        
+        @keyframes floatParticle {
+          0%, 100% { 
+            transform: translateY(0px) translateX(0px) rotate(0deg) scale(1); 
+            opacity: 0.1;
+          }
+          25% { 
+            transform: translateY(-30px) translateX(20px) rotate(90deg) scale(1.1); 
+            opacity: 0.2;
+          }
+          50% { 
+            transform: translateY(-10px) translateX(-15px) rotate(180deg) scale(0.9); 
+            opacity: 0.15;
+          }
+          75% { 
+            transform: translateY(20px) translateX(10px) rotate(270deg) scale(1.05); 
+            opacity: 0.25;
+          }
+        }
+        
+        .message-enter {
+          animation: messageSlideIn 0.3s ease-out;
+        }
+        
+        @keyframes messageSlideIn {
+          from {
+            opacity: 0;
+            transform: translateY(20px) scale(0.95);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
+      `}</style>
       {/* Mobile Overlay */}
       {isSidebarOpen && (
         <div
@@ -1640,10 +1720,18 @@ const ClientChatPage = () => {
       <div
         className={`
         fixed lg:relative inset-y-0 left-0 z-50
-        w-64 ${publication?.banner_url ? "bg-gray-900/95 backdrop-blur-md border-r border-gray-700/50" : "bg-gray-900"} text-white flex flex-col
+        w-64 text-white flex flex-col
         transform transition-transform duration-300 ease-in-out
         ${isSidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
       `}
+        style={{
+          background: publication?.banner_url 
+            ? "rgba(17, 24, 39, 0.95)" 
+            : `linear-gradient(180deg, rgba(17, 24, 39, 0.95) 0%, rgba(31, 41, 55, 0.95) 100%)`,
+          backdropFilter: "blur(20px)",
+          borderRight: publication?.banner_url ? "1px solid rgba(75, 85, 99, 0.5)" : `1px solid ${primaryColor}30`,
+          boxShadow: "0 0 30px rgba(0, 0, 0, 0.3)",
+        }}
       >
         <div className="p-3 border-b border-gray-700">
           <Button
@@ -1980,11 +2068,17 @@ const ClientChatPage = () => {
       <div className="flex-1 flex flex-col min-w-0 relative z-10">
         {/* Header */}
         <div
-          className={`border-b px-3 sm:px-6 py-3 sm:py-4 flex items-center justify-between relative overflow-visible ${
-            publication?.banner_url
-              ? "bg-white/60 backdrop-blur-xl border-white/30 shadow-lg"
-              : "bg-white border-gray-200"
-          }`}
+          className="px-3 sm:px-6 py-3 sm:py-4 flex items-center justify-between relative overflow-visible"
+          style={{
+            background: publication?.banner_url
+              ? "rgba(255, 255, 255, 0.95)"
+              : `linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.98) 100%)`,
+            backdropFilter: "blur(20px)",
+            borderBottom: publication?.banner_url 
+              ? "1px solid rgba(255, 255, 255, 0.3)" 
+              : `1px solid ${primaryColor}20`,
+            boxShadow: "0 4px 20px rgba(0, 0, 0, 0.1)",
+          }}
         >
           {/* Mobile Menu Button */}
           <button
@@ -2233,7 +2327,16 @@ const ClientChatPage = () => {
 
         {/* Usage Status Bar - only show for authenticated users with plan limitations */}
         {isAuthenticated && currentPlan && !limitStatus.isUnlimited && (
-          <div className="border-b bg-gray-50 px-3 sm:px-6 py-2">
+          <div 
+            className="px-3 sm:px-6 py-2"
+            style={{
+              background: publication?.banner_url
+                ? "rgba(249, 250, 251, 0.8)"
+                : `linear-gradient(135deg, rgba(249, 250, 251, 0.9) 0%, rgba(243, 244, 246, 0.9) 100%)`,
+              backdropFilter: "blur(10px)",
+              borderBottom: `1px solid ${primaryColor}15`,
+            }}
+          >
             <UsageStatusBar
               limitStatus={limitStatus}
               currentPlan={currentPlan}
@@ -2246,12 +2349,28 @@ const ClientChatPage = () => {
 
         {/* Messages */}
         <div
-          className={`flex-1 overflow-y-auto p-3 sm:p-6 ${publication?.banner_url ? "bg-white/60 backdrop-blur-xl" : ""}`}
+          className="flex-1 overflow-y-auto p-3 sm:p-6 relative"
+          style={{
+            background: publication?.banner_url
+              ? "rgba(255, 255, 255, 0.85)"
+              : `linear-gradient(180deg, rgba(255, 255, 255, 0.9) 0%, rgba(248, 250, 252, 0.95) 100%)`,
+            backdropFilter: "blur(15px)",
+          }}
         >
           <div className="max-w-3xl mx-auto space-y-4 sm:space-y-6">
             {/* Initial greeting when no messages */}
             {messages.length === 0 && !isWaitingForResponse && (
-              <div className="flex flex-col items-center justify-center h-full text-center space-y-3">
+              <div 
+                className="flex flex-col items-center justify-center h-full text-center space-y-4 animate-in fade-in duration-1000"
+                style={{
+                  background: publication?.banner_url 
+                    ? "rgba(255, 255, 255, 0.9)" 
+                    : `radial-gradient(circle, ${primaryColor}10 0%, rgba(255, 255, 255, 0.8) 70%)`,
+                  borderRadius: "2rem",
+                  padding: "2rem",
+                  backdropFilter: "blur(5px)",
+                }}
+              >
                 {expert?.avatar_url ? (
                   <div className="relative h-16 w-16">
                     {expertImageLoading && (
@@ -2306,10 +2425,13 @@ const ClientChatPage = () => {
               </div>
             )}
 
-            {messages.map((m) => (
+            {messages.map((m, index) => (
               <div
                 key={m.id}
-                className={`group ${m.type === "user" ? "py-1.5 sm:py-2" : "py-2 sm:py-4"}`}
+                className={`group message-enter ${m.type === "user" ? "py-1.5 sm:py-2" : "py-2 sm:py-4"}`}
+                style={{
+                  animationDelay: `${index * 0.1}s`,
+                }}
               >
                 <div
                   className={`flex items-start gap-2 sm:gap-3 ${m.type === "user" ? "flex-row-reverse" : ""}`}
@@ -2351,15 +2473,20 @@ const ClientChatPage = () => {
                     className={`${m.type === "user" ? "flex justify-end w-full" : "flex-1 min-w-0"}`}
                   >
                     <div
-                      className={`${m.type === "user" ? "text-white inline-block px-3 py-2 max-w-[85%] sm:max-w-[80%]" : "bg-gray-100 text-gray-900 inline-block max-w-[90%] sm:max-w-[85%] px-3 py-2.5 sm:px-5 sm:py-3.5"}`}
+                      className={`${m.type === "user" ? "text-white inline-block px-3 py-2 max-w-[85%] sm:max-w-[80%] shadow-lg" : "text-gray-900 inline-block max-w-[90%] sm:max-w-[85%] px-3 py-2.5 sm:px-5 sm:py-3.5 shadow-md"}`}
                       style={
                         m.type === "user"
                           ? {
-                              backgroundColor: primaryColor,
+                              background: `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`,
                               borderRadius: "1rem 1rem 0 1rem",
+                              boxShadow: `0 4px 15px ${primaryColor}40`,
                             }
                           : {
+                              background: "rgba(255, 255, 255, 0.95)",
                               borderRadius: "1rem 1rem 1rem 0",
+                              backdropFilter: "blur(10px)",
+                              border: `1px solid ${primaryColor}20`,
+                              boxShadow: "0 2px 10px rgba(0, 0, 0, 0.1)",
                             }
                       }
                     >
@@ -2539,19 +2666,43 @@ const ClientChatPage = () => {
         </div>
 
         {/* Input */}
-        <div className="border-t bg-gradient-to-b from-white to-gray-50 px-3 sm:px-6 py-3 sm:py-5">
+        <div 
+          className="px-3 sm:px-6 py-3 sm:py-5"
+          style={{
+            background: publication?.banner_url
+              ? "rgba(255, 255, 255, 0.98)"
+              : `linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.98) 100%)`,
+            backdropFilter: "blur(20px)",
+            borderTop: `1px solid ${primaryColor}20`,
+            boxShadow: "0 -4px 20px rgba(0, 0, 0, 0.1)",
+          }}
+        >
           <div className="max-w-3xl mx-auto">
             {/* File Upload Loader */}
             {isUploadingFiles && (
-              <div className="mb-3 sm:mb-4 flex items-center gap-2 sm:gap-3 bg-blue-50 rounded-xl px-3 sm:px-4 py-2 sm:py-3 border border-blue-200 animate-in slide-in-from-bottom-2 duration-200">
+              <div 
+                className="mb-3 sm:mb-4 flex items-center gap-2 sm:gap-3 rounded-xl px-3 sm:px-4 py-2 sm:py-3 animate-in slide-in-from-bottom-2 duration-200"
+                style={{
+                  background: `linear-gradient(135deg, ${primaryColor}10, ${secondaryColor}05)`,
+                  border: `1px solid ${primaryColor}30`,
+                  backdropFilter: "blur(10px)",
+                  boxShadow: `0 4px 15px ${primaryColor}20`,
+                }}
+              >
                 <div className="flex items-center justify-center">
                   <div className="animate-spin rounded-full h-5 w-5 border-2 border-blue-500 border-t-transparent"></div>
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-blue-900">
+                  <p 
+                    className="text-sm font-medium"
+                    style={{ color: primaryColor }}
+                  >
                     Uploading files...
                   </p>
-                  <p className="text-xs text-blue-600 mt-0.5">
+                  <p 
+                    className="text-xs mt-0.5"
+                    style={{ color: secondaryColor }}
+                  >
                     Please wait while we upload your files to the cloud
                   </p>
                 </div>
@@ -2564,7 +2715,12 @@ const ClientChatPage = () => {
                 {uploadedFiles.map((file, idx) => (
                   <div
                     key={idx}
-                    className="group flex items-center gap-2 bg-white rounded-xl px-3 py-2.5 border border-gray-200 shadow-sm hover:shadow-md hover:border-gray-300 transition-all duration-200"
+                    className="group flex items-center gap-2 rounded-xl px-3 py-2.5 shadow-sm hover:shadow-lg transition-all duration-300 transform hover:scale-105"
+                    style={{
+                      background: "rgba(255, 255, 255, 0.95)",
+                      border: `1px solid ${primaryColor}20`,
+                      backdropFilter: "blur(10px)",
+                    }}
                   >
                     <button
                       onClick={() => {
@@ -2615,7 +2771,29 @@ const ClientChatPage = () => {
 
             {/* Input Container */}
             <div className="relative">
-              <div className="flex items-center gap-1 sm:gap-2 bg-white rounded-2xl border-2 border-gray-200 focus-within:border-gray-300 shadow-lg hover:shadow-xl transition-all duration-200 p-1.5 sm:p-2">
+              <div 
+                className="flex items-center gap-1 sm:gap-2 rounded-2xl p-1.5 sm:p-2 transition-all duration-300 hover:shadow-2xl"
+                style={{
+                  background: "rgba(255, 255, 255, 0.95)",
+                  backdropFilter: "blur(15px)",
+                  border: `2px solid ${primaryColor}30`,
+                  boxShadow: `0 8px 25px rgba(0, 0, 0, 0.1), 0 0 0 1px ${primaryColor}10`,
+                }}
+                onFocus={() => {
+                  const element = document.querySelector('.input-container') as HTMLElement;
+                  if (element) {
+                    element.style.borderColor = primaryColor;
+                    element.style.boxShadow = `0 8px 30px rgba(0, 0, 0, 0.15), 0 0 0 3px ${primaryColor}20`;
+                  }
+                }}
+                onBlur={() => {
+                  const element = document.querySelector('.input-container') as HTMLElement;
+                  if (element) {
+                    element.style.borderColor = `${primaryColor}30`;
+                    element.style.boxShadow = `0 8px 25px rgba(0, 0, 0, 0.1), 0 0 0 1px ${primaryColor}10`;
+                  }
+                }}
+              >
                 {/* File Upload Button */}
                 <input
                   ref={fileInputRef}
