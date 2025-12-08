@@ -133,7 +133,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, projectId }) => {
           title: "Persona",
           items: [
             {
-              title: "Talk To AI Persona",
+              title: `Talk to ${projectName || "AI Persona"}`,
               href: `/project/${projectId}/chat`,
               icon: MessageSquare,
             },
@@ -205,11 +205,9 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, projectId }) => {
           onClick={handleLinkClick}
         >
           <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
-            <span className="text-white font-bold text-sm">
-              {projectName.charAt(0).toUpperCase()}
-            </span>
+            <span className="text-white font-bold text-sm">A</span>
           </div>
-          <span className="text-xl font-bold text-blue-600">{projectName}</span>
+          <span className="text-xl font-bold text-blue-600">All View</span>
         </Link>
         {/* Close button for mobile */}
         {onClose && (
@@ -240,22 +238,13 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, projectId }) => {
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
               <span className="text-white font-semibold text-sm">
-                {(
-                  user.full_name?.charAt(0) ||
-                  user.username?.charAt(0) ||
-                  user.email?.charAt(0) ||
-                  "U"
-                ).toUpperCase()}
+                {(projectName?.charAt(0) || "A").toUpperCase()}
               </span>
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-gray-900 truncate">
-                {user.full_name ||
-                  user.username ||
-                  user.email?.split("@")[0] ||
-                  "User"}
+                {projectName || "AI Persona"}
               </p>
-              <p className="text-xs text-gray-500 truncate">{user.email}</p>
             </div>
           </div>
         </div>

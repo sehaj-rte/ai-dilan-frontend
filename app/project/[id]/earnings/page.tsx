@@ -218,7 +218,7 @@ export default function SubscriptionHistoryPage() {
             </Card>
             <Card className="shadow">
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm text-gray-500">Canceled Subscriptions</CardTitle>
+                <CardTitle className="text-sm text-gray-500">Cancelled Subscriptions</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold text-gray-700">{summary.canceled_subscriptions}</div>
