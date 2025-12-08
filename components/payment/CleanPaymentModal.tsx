@@ -352,7 +352,7 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
           await notificationService.sendUserRegistrationNotification({
             userEmail: accountForm.email.trim().toLowerCase(),
             userName: generateUsername(accountForm.email),
-            fullName: payload.user?.full_name || payload.user?.name || "",
+            fullName: payload.user?.full_name || "",
           });
         } catch (error) {
           console.warn("Failed to send user registration notification:", error);
