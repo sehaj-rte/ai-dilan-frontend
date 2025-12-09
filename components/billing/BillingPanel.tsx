@@ -27,9 +27,9 @@ import AddPaymentMethodModal from "./AddPaymentMethodModal";
 import CancelSubscriptionModal from "./CancelSubscriptionModal";
 
 // Initialize Stripe
-const stripePromise = loadStripe(
-  process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!,
-);
+const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY 
+  ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY)
+  : null;
 
 interface Subscription {
   id: string;
@@ -339,10 +339,11 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
     return <Badge className={`${config.color} text-xs`}>{config.label}</Badge>;
   };
 
-  // Generate dynamic features based on plan limits
-  const generatePlanFeatures = (plan: Plan) => {
+  // Generate dynamic features based on plan limits (always show plan features, not trial limits)
+  const generatePlanFeatures = (plan: Plan, subscription?: Subscription) => {
     const features = [...plan.features]; // Start with existing features
 
+    // Always show the actual plan limits, not trial limits
     // Add message limit feature
     if (plan.message_limit !== undefined && plan.message_limit !== null) {
       if (plan.message_limit > 0) {
@@ -573,7 +574,7 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
       if (data.success && data.client_secret) {
         const stripe = await stripePromise;
         if (!stripe) {
-          throw new Error("Stripe failed to initialize");
+          throw new Error("Stripe failed to initialize. Please check your configuration.");
         }
 
         showSuccess("Processing payment...");
@@ -739,7 +740,7 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
       const stripe = await stripePromise;
 
       if (!stripe) {
-        throw new Error("Stripe failed to initialize");
+        throw new Error("Stripe failed to initialize. Please check your configuration.");
       }
 
       // Confirm the payment
@@ -770,7 +771,7 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
       const stripe = await stripePromise;
 
       if (!stripe) {
-        throw new Error("Stripe failed to initialize");
+        throw new Error("Stripe failed to initialize. Please check your configuration.");
       }
 
       // Confirm the payment with 3D Secure authentication
@@ -796,6 +797,39 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
     } catch (error) {
       console.error("Error confirming trial payment:", error);
       showError("Failed to confirm payment. Please try again.");
+    }
+  };
+
+  // Sync subscription status with Stripe
+  const syncSubscriptionStatus = async (subscriptionId: string) => {
+    try {
+      const response = await fetch(
+        `${API_URL}/payments/sync-subscription-status/${subscriptionId}`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${userToken}`,
+          },
+        }
+      );
+
+      const data = await response.json();
+      if (data.success) {
+        if (data.old_status && data.new_status && data.old_status !== data.new_status) {
+          showSuccess(`Subscription status synced: ${data.old_status} → ${data.new_status}`);
+          // Refresh the page to show updated status
+          setTimeout(() => {
+            window.location.reload();
+          }, 2000);
+        }
+        return data;
+      } else {
+        console.error("Failed to sync subscription status:", data);
+        return null;
+      }
+    } catch (err) {
+      console.error("Error syncing subscription status:", err);
+      return null;
     }
   };
 
@@ -864,6 +898,24 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
     }
   };
 
+  // Check if Stripe is configured
+  if (!process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) {
+    return (
+      <div className="flex items-center justify-center py-8">
+        <div className="text-center">
+          <AlertCircle className="w-12 h-12 mx-auto mb-4 text-red-500" />
+          <h3 className="text-lg font-semibold text-red-700 mb-2">Stripe Not Configured</h3>
+          <p className="text-gray-600">
+            The Stripe publishable key is missing from the environment configuration.
+          </p>
+          <p className="text-sm text-gray-500 mt-2">
+            Please add NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY to your environment variables.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -890,6 +942,72 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
         style={{ maxWidth: "950px", margin: "0 auto" }}
         className="space-y-10"
       >
+        {/* Trial Status Banner - Show for trial subscriptions */}
+        {subscriptions.some(sub => sub.status === "trialing") && (
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="bg-blue-100 p-2 rounded-full">
+                  <Calendar className="h-5 w-5 text-blue-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-blue-900">Free Trial Active</h3>
+                  {subscriptions.filter(sub => sub.status === "trialing").map(subscription => (
+                    <div key={subscription.id}>
+                      <p className="text-blue-700">
+                        {subscription.usage_info?.trial_days_remaining || 0} days remaining
+                      </p>
+                      {subscription.usage_info && (
+                        <div className="mt-3 grid grid-cols-2 gap-4">
+                          <div>
+                            <div className="flex justify-between text-sm text-blue-700 mb-1">
+                              <span>Messages Used</span>
+                              <span>{subscription.usage_info.messages_used}/{subscription.usage_info.message_limit}</span>
+                            </div>
+                            <div className="w-full bg-blue-200 rounded-full h-2">
+                              <div 
+                                className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+                                style={{ width: `${Math.min(subscription.usage_info.message_percentage, 100)}%` }}
+                              ></div>
+                            </div>
+                          </div>
+                          <div>
+                            <div className="flex justify-between text-sm text-blue-700 mb-1">
+                              <span>Minutes Used</span>
+                              <span>{subscription.usage_info.minutes_used}/{subscription.usage_info.minute_limit}</span>
+                            </div>
+                            <div className="w-full bg-blue-200 rounded-full h-2">
+                              <div 
+                                className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+                                style={{ width: `${Math.min(subscription.usage_info.minute_percentage, 100)}%` }}
+                              ></div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              {subscriptions.some(sub => 
+                sub.status === "trialing" && 
+                sub.usage_info && 
+                (sub.usage_info.message_percentage >= 100 || 
+                 sub.usage_info.minute_percentage >= 100 ||
+                 sub.usage_info.trial_days_remaining <= 0)
+              ) && (
+                <div className="text-right">
+                  <Badge className="bg-orange-100 text-orange-800 mb-2">
+                    Trial Limit Reached
+                  </Badge>
+                  <p className="text-sm text-orange-700">
+                    Upgrade to continue using all features
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
         {/* Plan Selection - Added section */}
         {plans.length > 0 && (
           <div>
@@ -900,7 +1018,7 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
               </p>
             )}
             <div className="flex justify-center">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-10">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-10 px-4 py-2">
                 {plans.map((plan, index) => {
                   // Check if this is the current plan for any ACTIVE or TRIALING subscription
                   const isCurrentPlan = subscriptions.some(
@@ -908,10 +1026,17 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
                   );
                   // Always show the badge on the second plan (index 1)
                   const showRecommendedBadge = index === 1 && plan.recommended;
-                  const dynamicFeatures = generatePlanFeatures(plan);
+                  
+                  // Find the current subscription for this plan to show trial info if applicable
+                  const currentSubscription = subscriptions.find(
+                    (sub) => sub.plan_id === plan.id && (sub.status === "active" || sub.status === "trialing")
+                  );
+                  
+                  const dynamicFeatures = generatePlanFeatures(plan, currentSubscription);
 
                   return (
                     <div key={plan.id} className="relative flex justify-center">
+                      {/* Recommended Badge */}
                       {showRecommendedBadge && (
                         <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 z-10">
                           <Badge className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2 rounded-full shadow-lg whitespace-nowrap">
@@ -919,10 +1044,21 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
                           </Badge>
                         </div>
                       )}
+                      
+                      {/* Current Plan Ribbon */}
+                      {isCurrentPlan && (
+                        <div className="absolute -top-1 -right-1 z-20">
+                          <div className="relative">
+                            <div className="bg-gradient-to-r from-green-500 to-green-600 text-white text-xs font-bold px-4 py-2 rounded-full shadow-lg transform rotate-12 border-2 border-white hover:scale-105 transition-transform duration-200">
+                              ✓ Current
+                            </div>
+                          </div>
+                        </div>
+                      )}
                       <Card
-                        className={`w-full max-w-[300px] cursor-pointer transition-all duration-200 hover:shadow-xl flex flex-col h-full ${
+                        className={`w-full max-w-[300px] cursor-pointer transition-all duration-200 hover:shadow-xl flex flex-col min-h-[500px] ${
                           isCurrentPlan
-                            ? "ring-4 ring-green-500 ring-offset-2 border-green-200"
+                            ? "ring-4 ring-green-500 ring-offset-2 border-green-200 mt-2 mr-2"
                             : selectedPlan?.id === plan.id
                               ? "ring-4 ring-blue-500 ring-offset-2 border-blue-200"
                               : "hover:border-gray-300"
@@ -937,28 +1073,41 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
                         <CardHeader className="pb-4 pt-6">
                           <div className="flex items-center justify-between">
                             <div className="flex flex-col">
-                              <CardTitle className="text-xl flex items-center gap-2">
-                                {plan.name}
-                              </CardTitle>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <CardTitle className="text-xl">
+                                  {plan.name}
+                                </CardTitle>
+                                {currentSubscription && currentSubscription.status === "trialing" && (
+                                  <Badge className="bg-gradient-to-r from-blue-100 to-blue-200 text-blue-800 text-xs border border-blue-300">
+                                    Trial ({currentSubscription.usage_info?.trial_days_remaining || 0}d left)
+                                  </Badge>
+                                )}
+                              </div>
                               <div className="text-2xl font-bold text-blue-600 mt-3">
-                                ${plan.price}
-                                <span className="text-base text-gray-500 font-normal">
-                                  /{plan.billing_interval}
-                                </span>
+                                {currentSubscription && currentSubscription.status === "trialing" ? (
+                                  <>
+                                    <span className="text-green-600">FREE</span>
+                                    <span className="text-base text-gray-500 font-normal ml-1">
+                                      (Trial)
+                                    </span>
+                                  </>
+                                ) : (
+                                  <>
+                                    ${plan.price}
+                                    <span className="text-base text-gray-500 font-normal">
+                                      /{plan.billing_interval}
+                                    </span>
+                                  </>
+                                )}
                               </div>
                             </div>
-                            {isCurrentPlan ? (
-                              <Badge className="bg-green-500 text-white text-sm px-2 py-1">
-                                Current Plan
-                              </Badge>
-                            ) : (
-                              selectedPlan?.id === plan.id && (
-                                <CheckCircle2 className="w-6 h-6 text-blue-600" />
-                              )
+                            {!isCurrentPlan && selectedPlan?.id === plan.id && (
+                              <CheckCircle2 className="w-6 h-6 text-blue-600" />
                             )}
                           </div>
                         </CardHeader>
                         <CardContent className="pt-4 pb-6 flex-grow flex flex-col">
+                          {/* Plan Features */}
                           <ul className="space-y-3 text-sm flex-grow">
                             {dynamicFeatures.map((feature, index) => (
                               <li
@@ -970,46 +1119,131 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
                               </li>
                             ))}
                           </ul>
+
+                          {/* Trial Usage Display (only for current trial plan) */}
+                          {isCurrentPlan && currentSubscription && currentSubscription.status === "trialing" && currentSubscription.usage_info && (
+                            <div className="mt-4 pt-4 border-t border-gray-200">
+                              <div className="text-xs font-semibold text-blue-800 mb-3">
+                                Trial Usage
+                              </div>
+                              <div className="space-y-3">
+                                <div>
+                                  <div className="flex justify-between text-xs text-gray-600 mb-1">
+                                    <span>Messages Used</span>
+                                    <span>{currentSubscription.usage_info.messages_used}/{currentSubscription.usage_info.message_limit}</span>
+                                  </div>
+                                  <div className="w-full bg-gray-200 rounded-full h-1.5">
+                                    <div 
+                                      className="bg-blue-600 h-1.5 rounded-full" 
+                                      style={{ width: `${Math.min(currentSubscription.usage_info.message_percentage, 100)}%` }}
+                                    ></div>
+                                  </div>
+                                </div>
+                                <div>
+                                  <div className="flex justify-between text-xs text-gray-600 mb-1">
+                                    <span>Minutes Used</span>
+                                    <span>{currentSubscription.usage_info.minutes_used}/{currentSubscription.usage_info.minute_limit}</span>
+                                  </div>
+                                  <div className="w-full bg-gray-200 rounded-full h-1.5">
+                                    <div 
+                                      className="bg-blue-600 h-1.5 rounded-full" 
+                                      style={{ width: `${Math.min(currentSubscription.usage_info.minute_percentage, 100)}%` }}
+                                    ></div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
                         </CardContent>
                         {/* Action button at the bottom of each card */}
-                        <div className="px-6 pb-8 pt-4">
-                          {!isCurrentPlan && (
-                            <Button
-                              className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setSelectedPlan(plan);
-                                // Use a timeout to ensure state is updated before calling handleUpgradePlan
-                                setTimeout(() => handleUpgradePlan(plan), 0);
-                              }}
-                              disabled={upgrading}
-                            >
-                              {upgrading && selectedPlan?.id === plan.id ? (
-                                <>
-                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                  {selectedSubscription
-                                    ? "Upgrading..."
-                                    : "Subscribing..."}
-                                </>
-                              ) : (
-                                <>
-                                  <Zap className="h-4 w-4 mr-2" />
-                                  {selectedSubscription
-                                    ? "Upgrade Plan"
-                                    : "Subscribe to Plan"}
-                                </>
-                              )}
-                            </Button>
-                          )}
-                          {isCurrentPlan && (
-                            <Button
-                              variant="outline"
-                              className="w-full py-3"
-                              disabled
-                            >
-                              Current Plan
-                            </Button>
-                          )}
+                        <div className="px-6 pb-8 pt-4 mt-auto">
+                          {(() => {
+                            if (isCurrentPlan) {
+                              return (
+                                <Button
+                                  variant="outline"
+                                  className="w-full py-3 bg-green-50 border-green-200 text-green-700"
+                                  disabled
+                                >
+                                  ✓ Current Plan
+                                </Button>
+                              );
+                            }
+
+                            if (!selectedSubscription) {
+                              // No subscription yet - show subscribe
+                              return (
+                                <Button
+                                  className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedPlan(plan);
+                                    setTimeout(() => handleUpgradePlan(plan), 0);
+                                  }}
+                                  disabled={upgrading}
+                                >
+                                  {upgrading && selectedPlan?.id === plan.id ? (
+                                    <>
+                                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                      Subscribing...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Zap className="h-4 w-4 mr-2" />
+                                      Subscribe to Plan
+                                    </>
+                                  )}
+                                </Button>
+                              );
+                            }
+
+                            // Has subscription - determine if upgrade or downgrade
+                            const currentPlanPrice = selectedSubscription.plan_price;
+                            const targetPlanPrice = plan.price;
+                            
+                            if (targetPlanPrice > currentPlanPrice) {
+                              // Upgrade
+                              return (
+                                <Button
+                                  className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setSelectedPlan(plan);
+                                    setTimeout(() => handleUpgradePlan(plan), 0);
+                                  }}
+                                  disabled={upgrading}
+                                >
+                                  {upgrading && selectedPlan?.id === plan.id ? (
+                                    <>
+                                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                      Upgrading...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Zap className="h-4 w-4 mr-2" />
+                                      Upgrade Plan
+                                    </>
+                                  )}
+                                </Button>
+                              );
+                            } else {
+                              // Downgrade - show disabled button with explanation
+                              return (
+                                <div className="space-y-2">
+                                  <Button
+                                    variant="outline"
+                                    className="w-full py-3 text-gray-500 cursor-not-allowed"
+                                    disabled
+                                  >
+                                    Lower Plan
+                                  </Button>
+                                  <p className="text-xs text-gray-500 text-center">
+                                    Contact support for downgrades
+                                  </p>
+                                </div>
+                              );
+                            }
+                          })()}
                         </div>
                       </Card>
                     </div>
@@ -1061,8 +1295,11 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
                             <div className="flex items-center gap-2 mt-2">
                               <DollarSign className="w-4 h-4" />
                               <span className="font-semibold">
-                                ${subscription.plan_price}/
-                                {subscription.plan_interval}
+                                {subscription.status === "trialing" ? (
+                                  <span className="text-green-600">FREE (Trial)</span>
+                                ) : (
+                                  `$${subscription.plan_price}/${subscription.plan_interval}`
+                                )}
                               </span>
                             </div>
                             {/* Trial Usage Information */}
@@ -1164,7 +1401,18 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
 
                       <div className="md:col-span-1 flex items-center justify-between md:justify-end gap-2">
                         <div className="hidden md:block">
-                          {getStatusBadge(subscription.status)}
+                          {subscription.status === "trialing" ? (
+                            <div className="flex flex-col items-end gap-1">
+                              {getStatusBadge(subscription.status)}
+                              {subscription.usage_info && (
+                                <span className="text-xs text-blue-600 font-medium">
+                                  {subscription.usage_info.trial_days_remaining} days left
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            getStatusBadge(subscription.status)
+                          )}
                         </div>
                         <div className="flex gap-2">
                           {subscription.status === "incomplete" ? (
@@ -1257,14 +1505,25 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
                               )}
                             </div>
                           ) : subscription.status === "active" ? (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleShowCancelModal(subscription)}
-                              className="text-red-600 hover:text-red-700 border-red-200 hover:border-red-300"
-                            >
-                              Cancel Subscription
-                            </Button>
+                            <div className="flex gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => syncSubscriptionStatus(subscription.stripe_subscription_id)}
+                                className="text-blue-600 hover:text-blue-700 border-blue-200 hover:border-blue-300"
+                                title="Sync status with Stripe"
+                              >
+                                Sync Status
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleShowCancelModal(subscription)}
+                                className="text-red-600 hover:text-red-700 border-red-200 hover:border-red-300"
+                              >
+                                Cancel Subscription
+                              </Button>
+                            </div>
                           ) : (
                             ""
                           )}
