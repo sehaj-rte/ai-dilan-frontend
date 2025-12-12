@@ -39,6 +39,7 @@ interface PlanUpgradeModalProps {
 
 interface AvailablePlan extends PlanWithLimitations {
   recommended?: boolean;
+  billing_interval_count?: number; // Add billing interval count field
 }
 
 export const PlanUpgradeModal: React.FC<PlanUpgradeModalProps> = ({

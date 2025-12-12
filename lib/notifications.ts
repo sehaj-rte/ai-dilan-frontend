@@ -36,11 +36,11 @@ class NotificationService {
   ): Promise<boolean> {
     // Alert popup for notification API call
     alert(`🚀 NOTIFICATION API: Starting call\nURL: ${this.baseUrl}/notifications/user-registration\nEmail: ${data.userEmail}\nSubscription ID: ${data.subscriptionId || 'None'}`);
-    
+
     console.log("🚀 FRONTEND DEBUG: Starting notification API call");
     console.log("📝 FRONTEND DEBUG: API URL:", `${this.baseUrl}/notifications/user-registration`);
     console.log("📝 FRONTEND DEBUG: Request data:", data);
-    
+
     try {
       const response = await fetch(
         `${this.baseUrl}/notifications/user-registration`,
@@ -54,7 +54,7 @@ class NotificationService {
       );
 
       const result = await response.json();
-      
+
       // Alert popup for API response
       if (response.ok) {
         alert(`✅ NOTIFICATION API: Success!\nStatus: ${response.status}\nMessage: ${result.message}\nCheck your email: ${data.userEmail}`);
@@ -66,7 +66,8 @@ class NotificationService {
         return false;
       }
     } catch (error) {
-      alert(`❌ NOTIFICATION API: Network Error!\nError: ${error.message || error.toString()}\nCheck if backend is running`);
+      const errorMessage = error instanceof Error ? error.message : error?.toString() || 'Unknown error';
+      alert(`❌ NOTIFICATION API: Network Error!\\nError: ${errorMessage}\\nCheck if backend is running`);
       console.error("❌ FRONTEND DEBUG: Error sending notification:", error);
       return false;
     }

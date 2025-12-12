@@ -34,6 +34,7 @@ export interface PlanWithLimitations {
   price: number;
   currency: string;
   billing_interval: string;
+  billing_interval_count?: number; // Add billing interval count field
   stripe_product_id: string | null;
   stripe_price_id: string | null;
   is_active: boolean;
