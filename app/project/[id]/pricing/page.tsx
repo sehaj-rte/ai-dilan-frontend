@@ -9,12 +9,12 @@ import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
-import { 
-  Plus, 
-  DollarSign, 
-  Edit, 
-  Trash2, 
-  Loader2, 
+import {
+  Plus,
+  DollarSign,
+  Edit,
+  Trash2,
+  Loader2,
   CheckCircle2,
   AlertCircle
 } from 'lucide-react'
@@ -28,6 +28,7 @@ interface Plan {
   price: number
   currency: string
   billing_interval: string
+  billing_interval_count?: number // Add billing interval count field
   stripe_product_id: string | null
   stripe_price_id: string | null
   is_active: boolean
@@ -38,13 +39,13 @@ interface Plan {
 const PricingPage: React.FC = () => {
   const params = useParams()
   const expertId = params.id as string
-  
+
   const [plans, setPlans] = useState<Plan[]>([])
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
-  
+
   const [newPlan, setNewPlan] = useState({
     name: '',
     price: '',
@@ -66,7 +67,7 @@ const PricingPage: React.FC = () => {
         }
       })
       const data = await response.json()
-      
+
       if (data.success) {
         setPlans(data.plans || [])
       }
@@ -79,7 +80,7 @@ const PricingPage: React.FC = () => {
 
   const handleCreatePlan = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!newPlan.name || !newPlan.price) {
       alert('Please fill in all required fields')
       return
@@ -100,9 +101,9 @@ const PricingPage: React.FC = () => {
           billing_interval: newPlan.billing_interval
         })
       })
-      
+
       const data = await response.json()
-      
+
       if (data.success) {
         await fetchPlans() // Refresh the list
         setShowCreateForm(false)
@@ -132,9 +133,9 @@ const PricingPage: React.FC = () => {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
       })
-      
+
       const data = await response.json()
-      
+
       if (data.success) {
         await fetchPlans() // Refresh the list
         alert('Plan deleted successfully')
@@ -168,7 +169,7 @@ const PricingPage: React.FC = () => {
               Create and manage subscription plans for your AI expert
             </p>
           </div>
-          <Button 
+          <Button
             onClick={() => setShowCreateForm(true)}
             className="bg-gradient-to-r from-blue-500 to-purple-600"
           >
@@ -213,12 +214,12 @@ const PricingPage: React.FC = () => {
                     />
                   </div>
                 </div>
-                
+
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <Label htmlFor="currency">Currency</Label>
-                    <Select 
-                      value={newPlan.currency} 
+                    <Select
+                      value={newPlan.currency}
                       onValueChange={(value) => setNewPlan(prev => ({ ...prev, currency: value }))}
                     >
                       <SelectTrigger>
@@ -234,8 +235,8 @@ const PricingPage: React.FC = () => {
                   </div>
                   <div>
                     <Label htmlFor="interval">Billing Interval</Label>
-                    <Select 
-                      value={newPlan.billing_interval} 
+                    <Select
+                      value={newPlan.billing_interval}
                       onValueChange={(value) => setNewPlan(prev => ({ ...prev, billing_interval: value }))}
                     >
                       <SelectTrigger>
@@ -249,8 +250,8 @@ const PricingPage: React.FC = () => {
                   </div>
                   <div>
                     <Label htmlFor="intervalCount">Billing Period</Label>
-                    <Select 
-                      value={newPlan.billing_interval_count.toString()} 
+                    <Select
+                      value={newPlan.billing_interval_count.toString()}
                       onValueChange={(value) => setNewPlan(prev => ({ ...prev, billing_interval_count: parseInt(value) }))}
                     >
                       <SelectTrigger>
@@ -266,7 +267,7 @@ const PricingPage: React.FC = () => {
                     </Select>
                   </div>
                 </div>
-                
+
                 {/* Display Preview */}
                 {newPlan.price && newPlan.billing_interval_count > 1 && (
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -327,7 +328,7 @@ const PricingPage: React.FC = () => {
               <p className="text-gray-600 mb-4">
                 Create your first pricing plan to start accepting subscriptions
               </p>
-              <Button 
+              <Button
                 onClick={() => setShowCreateForm(true)}
                 className="bg-gradient-to-r from-blue-500 to-purple-600"
               >
