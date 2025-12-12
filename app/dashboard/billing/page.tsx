@@ -4,8 +4,8 @@ import React, { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { 
-  CreditCard, 
+import {
+  CreditCard,
   Plus,
   Trash2,
   Loader2,
@@ -56,7 +56,7 @@ const BillingPage: React.FC = () => {
         }
       })
       const data = await response.json()
-      
+
       if (data.success) {
         setPaymentMethods(data.payment_methods || [])
         // The first one is usually default
@@ -85,7 +85,7 @@ const BillingPage: React.FC = () => {
         }
       })
       const data = await response.json()
-      
+
       if (data.success) {
         await fetchPaymentMethods()
       } else {
@@ -108,7 +108,7 @@ const BillingPage: React.FC = () => {
       'discover': 'bg-orange-600',
       'default': 'bg-gray-600'
     }
-    
+
     return brandClass[brandLower as keyof typeof brandClass] || brandClass.default
   }
 
@@ -140,7 +140,7 @@ const BillingPage: React.FC = () => {
               Manage your payment methods and billing information
             </p>
           </div>
-          <Button 
+          <Button
             onClick={() => setShowAddModal(true)}
             className="bg-gradient-to-r from-blue-500 to-purple-600"
           >
@@ -166,7 +166,7 @@ const BillingPage: React.FC = () => {
                   </span>
                 )}
               </div>
-              
+
               {paymentMethods.length === 0 ? (
                 <Card>
                   <CardContent className="text-center py-16">
@@ -177,7 +177,7 @@ const BillingPage: React.FC = () => {
                     <p className="text-gray-600 mb-6 max-w-md mx-auto">
                       Add a payment method to start subscribing to AI experts and manage your payments easily
                     </p>
-                    <Button 
+                    <Button
                       onClick={() => setShowAddModal(true)}
                       className="bg-gradient-to-r from-blue-500 to-purple-600"
                     >
@@ -189,11 +189,10 @@ const BillingPage: React.FC = () => {
               ) : (
                 <div className="grid gap-4">
                   {paymentMethods.map((method, index) => (
-                    <Card 
+                    <Card
                       key={method.id}
-                      className={`transition-all hover:shadow-md ${
-                        defaultPaymentMethod === method.id ? 'ring-2 ring-blue-500' : ''
-                      }`}
+                      className={`transition-all hover:shadow-md ${defaultPaymentMethod === method.id ? 'ring-2 ring-blue-500' : ''
+                        }`}
                     >
                       <CardContent className="pt-6">
                         <div className="flex items-center justify-between">
@@ -202,7 +201,7 @@ const BillingPage: React.FC = () => {
                             <div className={`w-12 h-12 rounded-lg ${getCardBrandLogo(method.card.brand)} flex items-center justify-center text-white font-bold shadow-md`}>
                               {method.card.brand.substring(0, 1).toUpperCase()}
                             </div>
-                            
+
                             {/* Card Details */}
                             <div className="flex-1">
                               <div className="flex items-center gap-2">
@@ -229,7 +228,7 @@ const BillingPage: React.FC = () => {
                               )}
                             </div>
                           </div>
-                          
+
                           {/* Actions */}
                           <div className="flex items-center gap-2">
                             <Button

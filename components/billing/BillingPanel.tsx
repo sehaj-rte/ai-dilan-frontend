@@ -11,7 +11,6 @@ import {
   DollarSign,
   Settings,
   Plus,
-  Trash2,
   CheckCircle2,
   AlertCircle,
   Loader2,
@@ -334,34 +333,7 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
     );
   };
 
-  const handleSetDefaultPaymentMethod = async (paymentMethodId: string) => {
-    try {
-      const response = await fetch(
-        `${API_URL}/payments/payment-methods/${paymentMethodId}/default`,
-        {
-          method: "PUT",
-          headers: {
-            Authorization: `Bearer ${userToken}`,
-          },
-        },
-      );
 
-      const data = await response.json();
-      if (data.success) {
-        showSuccess("Default payment method updated successfully");
-        // Refresh billing data
-        await refetchBillingData();
-      } else {
-        showError(
-          "Failed to update default payment method: " +
-          (data.error || "Unknown error"),
-        );
-      }
-    } catch (err) {
-      console.error("Error setting default payment method:", err);
-      showError("Failed to update default payment method");
-    }
-  };
 
   const handleAddPaymentMethod = () => {
     setShowAddPaymentModal(true);
@@ -1319,36 +1291,7 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
                           )}
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        {!method.is_default ? (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() =>
-                              handleSetDefaultPaymentMethod(method.id)
-                            }
-                            className="text-blue-600 hover:text-blue-700"
-                          >
-                            Set Default
-                          </Button>
-                        ) : (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            disabled
-                            className="text-gray-400"
-                          >
-                            Default
-                          </Button>
-                        )}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-red-600 hover:text-red-700"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      </div>
+
                     </div>
                   </CardContent>
                 </Card>

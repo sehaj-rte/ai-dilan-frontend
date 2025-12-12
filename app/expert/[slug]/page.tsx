@@ -144,6 +144,17 @@ const ClientExpertPage = () => {
   const [isExpertOwner, setIsExpertOwner] = useState(false);
   const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
   const [paymentSuccessMessage, setPaymentSuccessMessage] = useState('');
+  const [paymentSuccessShown, setPaymentSuccessShown] = useState(false);
+
+  // Cleanup effect to prevent modal from persisting across route changes
+  useEffect(() => {
+    return () => {
+      // Cleanup when component unmounts
+      setShowPaymentSuccess(false);
+      setPaymentSuccessMessage('');
+      setPaymentSuccessShown(false);
+    };
+  }, []);
 
   // Custom payment success handler that doesn't auto-redirect
   const handleCustomPaymentSuccess = (sessionId: string) => {
@@ -151,10 +162,8 @@ const ClientExpertPage = () => {
     // Show success modal immediately without auto-redirect
     setPaymentSuccessMessage(`Payment successful! A detailed invoice has been sent to your email address.`);
     setShowPaymentSuccess(true);
-    
-    // Update URL to show success state
-    window.history.pushState({}, '', `/expert/${slug}?payment_success=true&session_id=${sessionId}`);
-    
+    setPaymentSuccessShown(true);
+
     // Update subscription status in background
     if (expert?.id) {
       checkUserSubscription();
@@ -167,10 +176,8 @@ const ClientExpertPage = () => {
     // Show success modal immediately without auto-redirect
     setPaymentSuccessMessage(`Payment successful! A detailed invoice has been sent to your email address.`);
     setShowPaymentSuccess(true);
-    
-    // Update URL to show success state
-    window.history.pushState({}, '', `/expert/${slug}?payment_success=true&session_id=${sessionId}`);
-    
+    setPaymentSuccessShown(true);
+
     // Update subscription status in background
     if (expert?.id) {
       checkUserSubscription();
@@ -190,6 +197,10 @@ const ClientExpertPage = () => {
 
   useEffect(() => {
     console.log("slug", slug);
+    // Reset payment success state when slug changes
+    setPaymentSuccessShown(false);
+    setShowPaymentSuccess(false);
+    setPaymentSuccessMessage('');
     fetchExpertData();
   }, [slug]);
 
@@ -205,23 +216,43 @@ const ClientExpertPage = () => {
     const paymentSuccess = searchParams.get("payment_success");
     const sessionId = searchParams.get("session_id");
 
-    if (paymentSuccess === "true" && sessionId) {
-      console.log("💳 Payment success detected from URL");
-      
-      // Show success modal immediately for better UX
-      setPaymentSuccessMessage(`Payment successful! A detailed invoice has been sent to your email address.`);
-      setShowPaymentSuccess(true);
-      
-      // Validate session in background if authenticated
-      if (isAuthenticated) {
-        console.log("💳 Validating session:", sessionId);
-        validatePaymentSession(sessionId);
+    if (paymentSuccess === "true" && sessionId && !paymentSuccessShown) {
+      // Check if we've already shown this payment success for this session
+      const sessionKey = `payment_success_shown_${sessionId}`;
+      const alreadyShown = sessionStorage.getItem(sessionKey);
+
+      if (!alreadyShown) {
+        console.log("💳 Payment success detected from URL");
+
+        // Mark as shown in both state and sessionStorage
+        setPaymentSuccessShown(true);
+        sessionStorage.setItem(sessionKey, 'true');
+
+        // Show success modal immediately for better UX
+        setPaymentSuccessMessage(`Payment successful! A detailed invoice has been sent to your email address.`);
+        setShowPaymentSuccess(true);
+
+        // Clear URL parameters to prevent re-triggering
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, '', newUrl);
+
+        // Validate session in background if authenticated
+        if (isAuthenticated) {
+          console.log("💳 Validating session:", sessionId);
+          validatePaymentSession(sessionId);
+        }
+      } else {
+        console.log("💳 Payment success already shown for this session, skipping");
+        // Still clear URL parameters even if we don't show the modal
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, '', newUrl);
       }
     }
   }, [
     searchParams.get("payment_success"),
     searchParams.get("session_id"),
     isAuthenticated,
+    paymentSuccessShown,
   ]);
 
   const fetchExpertData = async () => {
@@ -305,7 +336,7 @@ const ClientExpertPage = () => {
         // Show payment success message
         setPaymentSuccessMessage(`Thank you for your payment! A detailed invoice has been sent to ${currentUser?.email || 'your email address'}.`);
         setShowPaymentSuccess(true);
-        
+
         // Payment successful, check/update subscription status
         if (expert?.id) {
           checkUserSubscription();
@@ -746,7 +777,7 @@ const ClientExpertPage = () => {
           </div>
         </div>
       </div>
-      
+
       {/* Main Content - Centered */}
       <div className="container mx-auto px-4 py-16">
         <div
@@ -823,12 +854,12 @@ const ClientExpertPage = () => {
 
           {/* Browser Compatibility Notice */}
           <div className="flex justify-center mb-12">
-            <div 
+            <div
               className="border rounded-full px-4 py-2 shadow-sm"
-              style={{ 
-                borderColor: primaryColor + '40', 
+              style={{
+                borderColor: primaryColor + '40',
                 backgroundColor: primaryColor + '10',
-                color: primaryColor 
+                color: primaryColor
               }}
             >
               <div className="flex items-center space-x-2">
@@ -875,11 +906,10 @@ const ClientExpertPage = () => {
                         onClick={() =>
                           setShowFullDescription(!showFullDescription)
                         }
-                        className={`text-sm font-medium transition-colors ${
-                          publication?.banner_url
+                        className={`text-sm font-medium transition-colors ${publication?.banner_url
                             ? "text-gray-600 hover:text-gray-900 bg-gray-100/50 hover:bg-gray-200/50 px-3 py-1 rounded-full"
                             : "text-gray-500 hover:text-gray-700"
-                        }`}
+                          }`}
                       >
                         {showFullDescription ? "View less ~" : "View more ~"}
                       </button>
@@ -893,47 +923,25 @@ const ClientExpertPage = () => {
       </div>
 
       {/* Payment Success Modal */}
-      <Dialog open={showPaymentSuccess} onOpenChange={setShowPaymentSuccess}>
+      <Dialog 
+        open={showPaymentSuccess} 
+        onOpenChange={(open) => {
+          setShowPaymentSuccess(open);
+          if (!open) {
+            // Reset the message when modal is closed
+            setPaymentSuccessMessage('');
+          }
+        }}
+      >
         <DialogContent className="max-w-md">
-          <div className="text-center py-6">
+          <div className="text-center py-8">
             <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
             <h2 className="text-2xl font-bold text-green-600 mb-2">
               Payment Successful!
             </h2>
-            <p className="text-gray-600 mb-6">
+            <p className="text-gray-600 mb-4">
               {paymentSuccessMessage}
             </p>
-            <div className="space-y-3">
-              <Button 
-                onClick={() => {
-                  setShowPaymentSuccess(false);
-                  router.push(`/expert/${slug}/chat`);
-                }}
-                className="w-full bg-green-600 hover:bg-green-700 text-white py-3"
-              >
-                <MessageCircle className="h-4 w-4 mr-2" />
-                Start Chatting
-              </Button>
-              <Button 
-                onClick={() => {
-                  setShowPaymentSuccess(false);
-                  router.push(`/expert/${slug}/call`);
-                }}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3"
-              >
-                <Phone className="h-4 w-4 mr-2" />
-                Start Voice Call
-              </Button>
-              <Button 
-                onClick={() => {
-                  setShowPaymentSuccess(false);
-                }}
-                variant="outline"
-                className="w-full py-3"
-              >
-                Stay on Profile
-              </Button>
-            </div>
             <div className="flex items-center justify-center gap-2 text-sm text-gray-500 mt-4">
               <Shield className="w-4 h-4" />
               <span>Secure and encrypted</span>
@@ -977,14 +985,14 @@ const ClientExpertPage = () => {
 
       {/* Private Expert Payment Modal - Hide for super_admins and expert owners */}
       {publication?.is_private && !isSuperAdmin && !isExpertOwner && (
-          <PrivateExpertPaymentModal
-            isOpen={showPrivatePaymentModal}
-            onClose={() => setShowPrivatePaymentModal(false)}
-            publication={publication}
-            sessionType={selectedSessionType}
-            onPaymentSuccess={handlePrivatePaymentSuccess}
-          />
-        )}
+        <PrivateExpertPaymentModal
+          isOpen={showPrivatePaymentModal}
+          onClose={() => setShowPrivatePaymentModal(false)}
+          publication={publication}
+          sessionType={selectedSessionType}
+          onPaymentSuccess={handlePrivatePaymentSuccess}
+        />
+      )}
     </div>
   );
 };
