@@ -44,7 +44,15 @@ interface UserRegistrationData {
   userEmail: string;
   userName: string;
   fullName?: string;
-  registrationDate: string;
+  registrationDate?: string;
+  includePaymentSuccess?: boolean;
+  includeVoiceSetup?: boolean;
+  invoiceUrl?: string;
+  invoiceId?: string;
+  subscriptionId?: string;
+  customerId?: string;
+  paymentIntentId?: string;
+  expertName?: string;
 }
 
 interface PaymentSuccessData {
@@ -62,46 +70,79 @@ interface PaymentSuccessData {
 
 class BrevoService {
   /**
-   * Send user registration notification to admins
+   * Send combined user registration and payment success notification with voice setup steps
    */
   async sendUserRegistrationNotification(
     userData: UserRegistrationData,
   ): Promise<boolean> {
     try {
-      // Prepare recipient list (both expert and super admins)
-    const customerRecipient = {
-      email: userData.userEmail,
-      name: userData.fullName || userData.userName,
-    };
+      // Prepare customer recipient (user gets the email)
+      const customerRecipient = {
+        email: userData.userEmail,
+        name: userData.fullName || userData.userName,
+      };
 
-    // 2) Admin recipients
-    const adminRecipients = [
-      ...ADMIN_EMAILS.EXPERTS.map((email) => ({
-        email,
-        name: "Expert Admin",
-      })),
-      ...ADMIN_EMAILS.SUPER_ADMINS.map((email) => ({
-        email,
-        name: "Super Admin",
-      })),
-    ];
+      // Admin recipients
+      const adminRecipients = [
+        ...ADMIN_EMAILS.EXPERTS.map((email) => ({
+          email,
+          name: "Expert Admin",
+        })),
+        ...ADMIN_EMAILS.SUPER_ADMINS.map((email) => ({
+          email,
+          name: "Super Admin",
+        })),
+      ];
 
-    // 3) Customer + Admins all receive this email
-    const recipients = [customerRecipient, ...adminRecipients];
+      // Customer + Admins all receive this email
+      const recipients = [customerRecipient, ...adminRecipients];
 
-  const PRODUCT_NAME =
-      process.env.NEXT_PUBLIC_PRODUCT_NAME || "AI Jeff";
-    const DASHBOARD_URL =
-      process.env.NEXT_PUBLIC_DASHBOARD_URL ||
-      "https://your-domain.com/dashboard";
+      const expertName = userData.expertName || "AI Expert";
+      const DASHBOARD_URL =
+        process.env.NEXT_PUBLIC_DASHBOARD_URL ||
+        "https://your-domain.com/dashboard";
+
       const sendSmtpEmail = new SendSmtpEmail();
       sendSmtpEmail.to = recipients;
       sendSmtpEmail.templateId = TEMPLATES.USER_REGISTRATION;
-      sendSmtpEmail.params = {
+      
+      // Set dynamic subject
+      sendSmtpEmail.subject = `${expertName} | Welcome to ${expertName} — Your Receipt & Access Details`;
+      
+      // Dynamic subject
+      const dynamicSubject = `${expertName} | Welcome to ${expertName} — Your Receipt & Access Details`;
+      
+      // Base parameters with dynamic expert name
+      const params: any = {
         CLIENT_NAME: userData.fullName || userData.userName,
-      PRODUCT_NAME,
-      ACCESS_LINK: DASHBOARD_URL,
+        USER_EMAIL: userData.userEmail,
+        PRODUCT_NAME: expertName,  // Dynamic expert name
+        EXPERT_NAME: expertName,   // Also as EXPERT_NAME
+        ACCESS_LINK: DASHBOARD_URL,
+        EMAIL_SUBJECT: dynamicSubject,  // Dynamic subject as parameter
+        REGISTRATION_DATE: userData.registrationDate || new Date().toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        }),
       };
+
+      // Add payment success message if requested
+      if (userData.includePaymentSuccess !== false) {
+        params.PAYMENT_SUCCESS = "✅ Payment processed successfully!";
+      }
+
+      // Voice setup steps removed as requested
+
+      // Add invoice URL if available
+      if (userData.invoiceUrl) {
+        params.INVOICE_URL = userData.invoiceUrl;
+        params.INVOICE_MESSAGE = "📄 View your invoice and receipt";
+      }
+
+      sendSmtpEmail.params = params;
 
       const api = getApiInstance();
       if (!api) {
@@ -109,12 +150,12 @@ class BrevoService {
       }
       const response = await api.sendTransacEmail(sendSmtpEmail);
       console.log(
-        "✅ User registration notification sent successfully:",
+        "✅ Combined registration and payment notification with voice setup sent successfully:",
         response,
       );
       return true;
     } catch (error) {
-      console.error("❌ Failed to send user registration notification:", error);
+      console.error("❌ Failed to send registration notification:", error);
       return false;
     }
   }

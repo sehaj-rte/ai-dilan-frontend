@@ -145,6 +145,38 @@ const ClientExpertPage = () => {
   const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
   const [paymentSuccessMessage, setPaymentSuccessMessage] = useState('');
 
+  // Custom payment success handler that doesn't auto-redirect
+  const handleCustomPaymentSuccess = (sessionId: string) => {
+    setShowPaymentModal(false);
+    // Show success modal immediately without auto-redirect
+    setPaymentSuccessMessage(`Payment successful! A detailed invoice has been sent to your email address.`);
+    setShowPaymentSuccess(true);
+    
+    // Update URL to show success state
+    window.history.pushState({}, '', `/expert/${slug}?payment_success=true&session_id=${sessionId}`);
+    
+    // Update subscription status in background
+    if (expert?.id) {
+      checkUserSubscription();
+    }
+  };
+
+  // Custom private payment success handler
+  const handlePrivatePaymentSuccess = (sessionId: string) => {
+    setShowPrivatePaymentModal(false);
+    // Show success modal immediately without auto-redirect
+    setPaymentSuccessMessage(`Payment successful! A detailed invoice has been sent to your email address.`);
+    setShowPaymentSuccess(true);
+    
+    // Update URL to show success state
+    window.history.pushState({}, '', `/expert/${slug}?payment_success=true&session_id=${sessionId}`);
+    
+    // Update subscription status in background
+    if (expert?.id) {
+      checkUserSubscription();
+    }
+  };
+
   const convertS3UrlToProxy = (s3Url: string): string => {
     if (!s3Url) return s3Url;
     const match = s3Url.match(
@@ -173,12 +205,18 @@ const ClientExpertPage = () => {
     const paymentSuccess = searchParams.get("payment_success");
     const sessionId = searchParams.get("session_id");
 
-    if (paymentSuccess === "true" && sessionId && isAuthenticated) {
-      console.log(
-        "💳 Payment success detected, validating session:",
-        sessionId,
-      );
-      validatePaymentSession(sessionId);
+    if (paymentSuccess === "true" && sessionId) {
+      console.log("💳 Payment success detected from URL");
+      
+      // Show success modal immediately for better UX
+      setPaymentSuccessMessage(`Payment successful! A detailed invoice has been sent to your email address.`);
+      setShowPaymentSuccess(true);
+      
+      // Validate session in background if authenticated
+      if (isAuthenticated) {
+        console.log("💳 Validating session:", sessionId);
+        validatePaymentSession(sessionId);
+      }
     }
   }, [
     searchParams.get("payment_success"),
@@ -256,21 +294,9 @@ const ClientExpertPage = () => {
 
       const data = await response.json();
       if (data.success && data.session.payment_status === "succeeded") {
-        // Send payment success notification to admins
+        // Payment success - registration notification already includes payment success and voice setup
         try {
-          if (currentUser && expert && data.session) {
-            await notificationService.sendPaymentSuccessNotification({
-              userEmail: currentUser.email,
-              userName: currentUser.username,
-              fullName: currentUser.full_name || "",
-              expertName: expert.name || publication?.display_name || "",
-              expertSlug: slug,
-              planName: data.session.plan_name || "Expert Session",
-              amount: data.session.amount || 0,
-              currency: data.session.currency || "USD",
-              sessionType: selectedSessionType || "chat",
-            });
-          }
+          // Registration notification with voice setup is sent during account creation
         } catch (error) {
           // Don't block the user flow if notification fails
           console.warn("Failed to send payment success notification:", error);
@@ -360,27 +386,18 @@ const ClientExpertPage = () => {
         setHasActiveSubscription(data.has_subscription);
         console.log("✅ Subscription status updated:", data.has_subscription);
 
-        // If subscription was just activated, redirect to chat/call
+        // If subscription was just activated, close payment modal but don't auto-redirect
         if (
           data.has_subscription &&
           (showPrivatePaymentModal ||
             searchParams.get("payment_success") === "true")
         ) {
-          console.log("🎉 Subscription activated, redirecting...");
+          console.log("🎉 Subscription activated");
           // Close payment modal if open
           if (showPrivatePaymentModal) {
             setShowPrivatePaymentModal(false);
           }
-          // Redirect to chat or call based on selected session type after showing success message
-          setTimeout(() => {
-            if (selectedSessionType === "chat") {
-              console.log("➡️ Redirecting to chat after payment success");
-              router.push(`/expert/${slug}/chat`);
-            } else {
-              console.log("➡️ Redirecting to call after payment success");
-              router.push(`/expert/${slug}/call`);
-            }
-          }, 3000);
+          // Don't auto-redirect - let user choose via success modal
         }
       }
     } catch (error) {
@@ -547,35 +564,9 @@ const ClientExpertPage = () => {
     }
   };
 
-  const handlePaymentSuccess = (subscriptionId: string) => {
-    setShowPaymentModal(false);
-    setHasActiveSubscription(true);
-    setShowPaymentSuccess(true);
 
-    // Redirect to the selected session type after showing success message
-    setTimeout(() => {
-      if (selectedSessionType === "chat") {
-        router.push(`/expert/${slug}/chat`);
-      } else {
-        router.push(`/expert/${slug}/call`);
-      }
-    }, 3000);
-  };
 
-  const handlePrivatePaymentSuccess = (subscriptionId: string) => {
-    setShowPrivatePaymentModal(false);
-    setHasActiveSubscription(true);
-    setShowPaymentSuccess(true);
 
-    // Redirect to the selected session type after showing success message
-    setTimeout(() => {
-      if (selectedSessionType === "chat") {
-        router.push(`/expert/${slug}/chat`);
-      } else {
-        router.push(`/expert/${slug}/call`);
-      }
-    }, 3000);
-  };
 
   // Remove duplicate functions - using the ones defined above
 
@@ -606,11 +597,11 @@ const ClientExpertPage = () => {
 
     switch (publication.pricing_model) {
       case "per_session":
-        return `$${publication.price_per_session}/session`;
+        return `£${publication.price_per_session}/session`;
       case "per_minute":
-        return `$${publication.price_per_minute}/minute`;
+        return `£${publication.price_per_minute}/minute`;
       case "subscription":
-        return `$${publication.monthly_subscription_price}/month`;
+        return `£${publication.monthly_subscription_price}/month`;
       default:
         return "Contact for pricing";
     }
@@ -680,6 +671,8 @@ const ClientExpertPage = () => {
                   {publication?.display_name || expert?.name || "Expert"}
                 </h1>
               </div>
+
+
 
               {/* User Info & Actions */}
               {isAuthenticated && user ? (
@@ -804,7 +797,7 @@ const ClientExpertPage = () => {
           )}
 
           {/* CTA Buttons */}
-          <div className="flex justify-center gap-3 mb-12">
+          <div className="flex justify-center gap-3 mb-8">
             <Button
               size="lg"
               variant="outline"
@@ -826,6 +819,25 @@ const ClientExpertPage = () => {
               <Phone className="h-5 w-5 mr-2" />
               Call
             </Button>
+          </div>
+
+          {/* Browser Compatibility Notice */}
+          <div className="flex justify-center mb-12">
+            <div 
+              className="border rounded-full px-4 py-2 shadow-sm"
+              style={{ 
+                borderColor: primaryColor + '40', 
+                backgroundColor: primaryColor + '10',
+                color: primaryColor 
+              }}
+            >
+              <div className="flex items-center space-x-2">
+                <Globe className="h-4 w-4 flex-shrink-0" />
+                <p className="text-sm font-medium">
+                  Best experience with Chrome or Safari
+                </p>
+              </div>
+            </div>
           </div>
 
           {/* Description Section */}
@@ -891,20 +903,37 @@ const ClientExpertPage = () => {
             <p className="text-gray-600 mb-6">
               {paymentSuccessMessage}
             </p>
-            <Button 
-              onClick={() => {
-                setShowPaymentSuccess(false);
-                // Redirect to chat or call based on selected session type
-                if (selectedSessionType === "chat") {
+            <div className="space-y-3">
+              <Button 
+                onClick={() => {
+                  setShowPaymentSuccess(false);
                   router.push(`/expert/${slug}/chat`);
-                } else {
+                }}
+                className="w-full bg-green-600 hover:bg-green-700 text-white py-3"
+              >
+                <MessageCircle className="h-4 w-4 mr-2" />
+                Start Chatting
+              </Button>
+              <Button 
+                onClick={() => {
+                  setShowPaymentSuccess(false);
                   router.push(`/expert/${slug}/call`);
-                }
-              }}
-              className="w-full bg-green-600 hover:bg-green-700 text-white py-3"
-            >
-              OK, Continue to {selectedSessionType === "chat" ? "Chat" : "Call"}
-            </Button>
+                }}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3"
+              >
+                <Phone className="h-4 w-4 mr-2" />
+                Start Voice Call
+              </Button>
+              <Button 
+                onClick={() => {
+                  setShowPaymentSuccess(false);
+                }}
+                variant="outline"
+                className="w-full py-3"
+              >
+                Stay on Profile
+              </Button>
+            </div>
             <div className="flex items-center justify-center gap-2 text-sm text-gray-500 mt-4">
               <Shield className="w-4 h-4" />
               <span>Secure and encrypted</span>
@@ -937,7 +966,7 @@ const ClientExpertPage = () => {
           onClose={() => setShowPaymentModal(false)}
           publication={publication}
           sessionType={selectedSessionType}
-          onPaymentSuccess={handlePaymentSuccess}
+          onPaymentSuccess={handleCustomPaymentSuccess}
           userToken={
             typeof window !== "undefined"
               ? localStorage.getItem("dilan_ai_token") || undefined

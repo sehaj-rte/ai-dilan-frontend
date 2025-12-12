@@ -356,24 +356,40 @@ const ProjectsPage = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
       <div className="container mx-auto px-4 py-8">
-        {/* Top Bar with Super Admin and Logout */}
-        <div className="flex justify-end mb-6 space-x-3">
-          {/* Super Admin Badge - View only, not clickable */}
-          {user?.role === 'super_admin' && (
-            <div className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-md border border-red-600 cursor-default">
-              <Shield className="h-4 w-4" />
-              <span className="font-medium">Super Admin</span>
+        {/* Top Bar with Browser Notice, Super Admin and Logout */}
+        <div className="flex justify-between items-center mb-6">
+          {/* Left spacer */}
+          <div className="flex-1"></div>
+
+          {/* Browser Compatibility Notice - Centered and Highlighted */}
+          <div className="bg-gradient-to-r from-blue-100 to-indigo-100 border-2 border-blue-300 rounded-lg px-4 py-2 shadow-sm">
+            <div className="flex items-center space-x-2">
+              <Globe className="h-4 w-4 text-blue-600 flex-shrink-0" />
+              <p className="text-sm text-blue-800 font-medium">
+                <span className="font-semibold">Best experience:</span> Use Chrome or Safari for full compatibility
+              </p>
             </div>
-          )}
-          
-          <Button
-            onClick={handleLogout}
-            variant="outline"
-            className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 border-gray-300 hover:border-gray-400"
-          >
-            <LogOut className="h-4 w-4" />
-            <span>Logout</span>
-          </Button>
+          </div>
+
+          {/* Right side buttons */}
+          <div className="flex space-x-3 flex-1 justify-end">
+            {/* Super Admin Badge - View only, not clickable */}
+            {user?.role === 'super_admin' && (
+              <div className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-md border border-red-600 cursor-default">
+                <Shield className="h-4 w-4" />
+                <span className="font-medium">Super Admin</span>
+              </div>
+            )}
+            
+            <Button
+              onClick={handleLogout}
+              variant="outline"
+              className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 border-gray-300 hover:border-gray-400"
+            >
+              <LogOut className="h-4 w-4" />
+              <span>Logout</span>
+            </Button>
+          </div>
         </div>
 
         {/* Header */}

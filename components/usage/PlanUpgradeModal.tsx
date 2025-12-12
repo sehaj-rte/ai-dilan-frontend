@@ -223,10 +223,24 @@ export const PlanUpgradeModal: React.FC<PlanUpgradeModalProps> = ({
                 <CardHeader className="pb-2">
                   <CardTitle className="text-lg">{plan.name}</CardTitle>
                   <div className="text-2xl font-bold text-gray-900">
-                    ${plan.price}
-                    <span className="text-sm font-normal text-gray-600">
-                      /{plan.billing_interval}
-                    </span>
+                    {(plan.billing_interval_count && plan.billing_interval_count > 1) ? (
+                      <div className="flex flex-col">
+                        <div>
+                          £{(plan.price / plan.billing_interval_count).toFixed(2)}
+                          <span className="text-sm font-normal text-gray-600">/month</span>
+                        </div>
+                        <div className="text-sm font-bold text-orange-600 mt-1">
+                          £{plan.price} for {plan.billing_interval_count} {plan.billing_interval}{plan.billing_interval_count > 1 ? 's' : ''}
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        £{plan.price}
+                        <span className="text-sm font-normal text-gray-600">
+                          /{plan.billing_interval || 'month'}
+                        </span>
+                      </>
+                    )}
                   </div>
                 </CardHeader>
 

@@ -38,6 +38,7 @@ interface Plan {
   price: number
   currency: string
   billing_interval: string
+  billing_interval_count?: number
   stripe_product_id: string | null
   stripe_price_id: string | null
   is_active: boolean
@@ -105,19 +106,32 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   const getPricingPlans = () => {
     // Map dynamic plans from API to display format
     return plans.map((plan, index) => {
-      const billingDisplay = plan.billing_interval === 'month' 
-        ? '/month' 
-        : plan.billing_interval === 'year' 
-        ? '/year' 
-        : ''
+      let description = ''
+      let billingFeature = ''
+      
+      if (plan.billing_interval_count && plan.billing_interval_count > 1) {
+        // Multi-month plan (e.g., 6 months)
+        const monthlyPrice = (plan.price / plan.billing_interval_count).toFixed(2)
+        description = `£${monthlyPrice}/month (£${plan.price} for ${plan.billing_interval_count} ${plan.billing_interval}${plan.billing_interval_count > 1 ? 's' : ''})`
+        billingFeature = `${plan.billing_interval_count}-${plan.billing_interval} commitment plan`
+      } else {
+        // Regular monthly/yearly plan
+        const billingDisplay = plan.billing_interval === 'month' 
+          ? '/month' 
+          : plan.billing_interval === 'year' 
+          ? '/year' 
+          : ''
+        description = `£${plan.price}${billingDisplay}`
+        billingFeature = `${plan.billing_interval.charAt(0).toUpperCase() + plan.billing_interval.slice(1)}ly billing`
+      }
       
       return {
         id: plan.id,
         name: plan.name,
         price: plan.price,
-        description: `${plan.currency} ${plan.price}${billingDisplay}`,
+        description: description,
         features: [
-          `${plan.billing_interval.charAt(0).toUpperCase() + plan.billing_interval.slice(1)}ly billing`,
+          billingFeature,
           'Full access to AI expert',
           'Session recording available',
           'Cancel anytime'
@@ -125,7 +139,8 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
         badge: index === 0 ? 'Recommended' : '',
         badgeColor: 'bg-blue-500',
         currency: plan.currency,
-        billing_interval: plan.billing_interval
+        billing_interval: plan.billing_interval,
+        billing_interval_count: plan.billing_interval_count
       }
     })
   }

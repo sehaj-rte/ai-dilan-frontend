@@ -171,6 +171,8 @@ const PublishManagerPage = () => {
     price: "",
     messageLimit: "", // New field for message limit
     minuteLimit: "", // New field for minute limit
+    billingInterval: "month", // New field for billing interval
+    billingIntervalCount: 1, // New field for billing interval count
     freeTrialEnabled: false, // New field for trial toggle
     trialCoupon: "", // New field for trial coupon
     trialMessageLimit: "", // New field for trial message limit
@@ -657,8 +659,9 @@ const PublishManagerPage = () => {
       const planData: any = {
         name: createPlanForm.name,
         price: price,
-        currency: "USD",
-        billing_interval: "month",
+        currency: "GBP",
+        billing_interval: createPlanForm.billingInterval,
+        billing_interval_count: createPlanForm.billingIntervalCount,
       };
 
       // Add optional fields if provided
@@ -698,6 +701,8 @@ const PublishManagerPage = () => {
           price: "",
           messageLimit: "",
           minuteLimit: "",
+          billingInterval: "month",
+          billingIntervalCount: 1,
           freeTrialEnabled: false,
           trialCoupon: "",
           trialMessageLimit: "",
@@ -1838,7 +1843,7 @@ const PublishManagerPage = () => {
                               </div>
                               <div className="mt-2">
                                 <p className="text-2xl font-bold text-gray-900">
-                                  ${plan.price}
+                                  £{plan.price}
                                   <span className="text-sm font-normal text-gray-600">
                                     /{plan.billing_interval}
                                   </span>
@@ -1898,6 +1903,8 @@ const PublishManagerPage = () => {
                                 price: "",
                                 messageLimit: "",
                                 minuteLimit: "",
+                                billingInterval: "month",
+                                billingIntervalCount: 1,
                                 freeTrialEnabled: false,
                                 trialCoupon: "",
                                 trialMessageLimit: "",
@@ -1931,11 +1938,11 @@ const PublishManagerPage = () => {
 
                           <div>
                             <Label className="block text-sm font-medium text-gray-700 mb-2">
-                              Monthly Price (USD)
+                              Total Price (GBP)
                             </Label>
                             <div className="relative">
                               <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">
-                                $
+                                £
                               </span>
                               <Input
                                 type="number"
@@ -1948,11 +1955,65 @@ const PublishManagerPage = () => {
                                     price: e.target.value,
                                   })
                                 }
-                                placeholder="29.99"
+                                placeholder="120.00"
                                 className="w-full pl-8"
                               />
                             </div>
                           </div>
+
+                          {/* Billing Interval Fields */}
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <Label className="block text-sm font-medium text-gray-700 mb-2">
+                                Billing Interval
+                              </Label>
+                              <select
+                                value={createPlanForm.billingInterval}
+                                onChange={(e) =>
+                                  setCreatePlanForm({
+                                    ...createPlanForm,
+                                    billingInterval: e.target.value,
+                                  })
+                                }
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              >
+                                <option value="month">Monthly</option>
+                                <option value="year">Yearly</option>
+                              </select>
+                            </div>
+                            <div>
+                              <Label className="block text-sm font-medium text-gray-700 mb-2">
+                                Billing Period
+                              </Label>
+                              <select
+                                value={createPlanForm.billingIntervalCount}
+                                onChange={(e) =>
+                                  setCreatePlanForm({
+                                    ...createPlanForm,
+                                    billingIntervalCount: parseInt(e.target.value),
+                                  })
+                                }
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              >
+                                <option value={1}>1 {createPlanForm.billingInterval}</option>
+                                <option value={2}>2 {createPlanForm.billingInterval}s</option>
+                                <option value={3}>3 {createPlanForm.billingInterval}s</option>
+                                <option value={6}>6 {createPlanForm.billingInterval}s</option>
+                                <option value={12}>12 {createPlanForm.billingInterval}s</option>
+                              </select>
+                            </div>
+                          </div>
+
+                          {/* Pricing Preview */}
+                          {createPlanForm.price && createPlanForm.billingIntervalCount > 1 && (
+                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                              <h4 className="font-medium text-blue-900 mb-1">Pricing Preview</h4>
+                              <div className="text-sm text-blue-800">
+                                <p><strong>Display to customers:</strong> £{(parseFloat(createPlanForm.price) / createPlanForm.billingIntervalCount).toFixed(2)}/month</p>
+                                <p><strong>Actual billing:</strong> £{createPlanForm.price} every {createPlanForm.billingIntervalCount} {createPlanForm.billingInterval}{createPlanForm.billingIntervalCount > 1 ? 's' : ''}</p>
+                              </div>
+                            </div>
+                          )}
 
                           {/* Message Limit Field */}
                           <div>
@@ -2002,124 +2063,7 @@ const PublishManagerPage = () => {
                             </p>
                           </div>
 
-                          {/* Free Trial Configuration */}
-                          <div className="border-t pt-4">
-                            <div className="flex items-center justify-between mb-4">
-                              <div>
-                                <Label className="block text-sm font-medium text-gray-700">
-                                  Free Trial (7 days)
-                                </Label>
-                                <p className="text-xs text-gray-500 mt-1">
-                                  Offer a 7-day free trial with usage limits
-                                </p>
-                              </div>
-                              <Switch
-                                checked={createPlanForm.freeTrialEnabled}
-                                onCheckedChange={(checked) =>
-                                  setCreatePlanForm({
-                                    ...createPlanForm,
-                                    freeTrialEnabled: checked,
-                                    trialCoupon: checked ? generateTrialCoupon() : "",
-                                  })
-                                }
-                              />
-                            </div>
 
-                            {createPlanForm.freeTrialEnabled && (
-                              <div className="space-y-4 bg-blue-50 p-4 rounded-lg">
-                                {/* Trial Coupon Code */}
-                                <div>
-                                  <Label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Trial Coupon Code
-                                  </Label>
-                                  <div className="flex gap-2">
-                                    <Input
-                                      value={createPlanForm.trialCoupon}
-                                      onChange={(e) =>
-                                        setCreatePlanForm({
-                                          ...createPlanForm,
-                                          trialCoupon: e.target.value.toUpperCase(),
-                                        })
-                                      }
-                                      placeholder="TRIAL2024"
-                                      className="w-full font-mono"
-                                      maxLength={20}
-                                    />
-                                    <Button
-                                      type="button"
-                                      variant="outline"
-                                      onClick={() =>
-                                        setCreatePlanForm({
-                                          ...createPlanForm,
-                                          trialCoupon: generateTrialCoupon(),
-                                        })
-                                      }
-                                      className="whitespace-nowrap"
-                                    >
-                                      Generate
-                                    </Button>
-                                  </div>
-                                  <p className="text-xs text-gray-500 mt-1">
-                                    Unique code users will enter to activate the trial
-                                  </p>
-                                </div>
-
-                                {/* Trial Message Limit */}
-                                <div>
-                                  <Label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Trial Message Limit *
-                                  </Label>
-                                  <Input
-                                    type="number"
-                                    min="1"
-                                    value={createPlanForm.trialMessageLimit}
-                                    onChange={(e) =>
-                                      setCreatePlanForm({
-                                        ...createPlanForm,
-                                        trialMessageLimit: e.target.value,
-                                      })
-                                    }
-                                    placeholder="e.g., 50"
-                                    className="w-full"
-                                    required={createPlanForm.freeTrialEnabled}
-                                  />
-                                  <p className="text-xs text-gray-500 mt-1">
-                                    Number of messages allowed during trial period
-                                  </p>
-                                </div>
-
-                                {/* Trial Minute Limit */}
-                                <div>
-                                  <Label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Trial Voice Minutes *
-                                  </Label>
-                                  <Input
-                                    type="number"
-                                    min="1"
-                                    value={createPlanForm.trialMinuteLimit}
-                                    onChange={(e) =>
-                                      setCreatePlanForm({
-                                        ...createPlanForm,
-                                        trialMinuteLimit: e.target.value,
-                                      })
-                                    }
-                                    placeholder="e.g., 30"
-                                    className="w-full"
-                                    required={createPlanForm.freeTrialEnabled}
-                                  />
-                                  <p className="text-xs text-gray-500 mt-1">
-                                    Number of voice call minutes allowed during trial
-                                  </p>
-                                </div>
-
-                                <div className="bg-yellow-50 border border-yellow-200 rounded p-3">
-                                  <p className="text-xs text-yellow-800">
-                                    <strong>Note:</strong> Trial users will automatically convert to paid subscribers after 7 days or when they exceed usage limits.
-                                  </p>
-                                </div>
-                              </div>
-                            )}
-                          </div>
 
                           <div className="bg-blue-50 p-3 rounded-lg">
                             <p className="text-sm text-blue-800">
@@ -2138,6 +2082,8 @@ const PublishManagerPage = () => {
                                   price: "",
                                   messageLimit: "",
                                   minuteLimit: "",
+                                  billingInterval: "month",
+                                  billingIntervalCount: 1,
                                   freeTrialEnabled: false,
                                   trialCoupon: "",
                                   trialMessageLimit: "",

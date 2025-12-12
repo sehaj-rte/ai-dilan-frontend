@@ -92,7 +92,8 @@ export const usePlanLimitations = ({
       let effectiveMinutesUsed = usage.minutes_used;
 
       // For trial subscriptions, use trial usage info if available
-      if (subscription?.status === "trialing" && subscription?.usage_info) {
+      // Check for usage_info presence instead of status (Stripe may mark as 'active' during trial)
+      if (subscription?.usage_info) {
         effectiveMessageLimit = subscription.usage_info.message_limit;
         effectiveMinuteLimit = subscription.usage_info.minute_limit;
         effectiveMessagesUsed = subscription.usage_info.messages_used;

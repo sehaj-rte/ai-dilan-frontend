@@ -489,7 +489,7 @@ const ExpertPublishPage = () => {
 
                 {publicationData.pricing_model === 'per_session' && (
                   <div>
-                    <Label htmlFor="price_per_session">Price per Session ($)</Label>
+                    <Label htmlFor="price_per_session">Price per Session (£)</Label>
                     <Input
                       id="price_per_session"
                       type="number"
@@ -503,7 +503,7 @@ const ExpertPublishPage = () => {
 
                 {publicationData.pricing_model === 'per_minute' && (
                   <div>
-                    <Label htmlFor="price_per_minute">Price per Minute ($)</Label>
+                    <Label htmlFor="price_per_minute">Price per Minute (£)</Label>
                     <Input
                       id="price_per_minute"
                       type="number"
@@ -517,7 +517,7 @@ const ExpertPublishPage = () => {
 
                 {publicationData.pricing_model === 'subscription' && (
                   <div>
-                    <Label htmlFor="monthly_subscription_price">Monthly Subscription ($)</Label>
+                    <Label htmlFor="monthly_subscription_price">Monthly Subscription (£)</Label>
                     <Input
                       id="monthly_subscription_price"
                       type="number"

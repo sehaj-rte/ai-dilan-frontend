@@ -38,6 +38,7 @@ interface Plan {
   price: number;
   currency: string;
   billing_interval: string;
+  billing_interval_count?: number;
   features: string[];
   recommended?: boolean;
   message_limit?: number | null;
@@ -77,6 +78,7 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
   const [accountError, setAccountError] = useState<string | null>(null);
   const [currentStep, setCurrentStep] = useState<"plan" | "account">("plan");
   const [isCreatingAccount, setIsCreatingAccount] = useState(false);
+  const [isRedirectingToStripe, setIsRedirectingToStripe] = useState(false);
 
   const [showPassword, setShowPassword] = useState(false);
   
@@ -107,6 +109,7 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
       setAccountForm({ email: "", password: "" });
       setAccountError(null);
       setIsCreatingAccount(false);
+      setIsRedirectingToStripe(false);
       setCouponCode("");
       setCouponValidation({ isValid: false, isValidating: false, message: "" });
       setShowTrialTerms(false);
@@ -242,73 +245,130 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
   };
 
   const processSubscription = async (token: string) => {
+    console.log("🚀 PAYMENT DEBUG: Starting processSubscription");
+    console.log("🚀 PAYMENT DEBUG: selectedPlan:", selectedPlan);
+    console.log("🚀 PAYMENT DEBUG: token:", token ? "Present" : "Missing");
+    
     if (!selectedPlan) {
+      console.log("❌ PAYMENT DEBUG: No plan selected");
       setError("Please choose a plan to continue.");
       return;
     }
-    setLoading(true);
+
+    // Immediately show redirect overlay for better UX
+    setIsRedirectingToStripe(true);
     setError(null);
 
     try {
+      const requestBody = {
+        plan_id: selectedPlan.id,
+        expert_name: expertName,
+        ...(couponValidation.isValid && couponCode && { coupon: couponCode })
+      };
+      
+      alert(`📤 PAYMENT DEBUG: Making payment API call\nPlan: ${requestBody.plan_id}\nExpert: ${requestBody.expert_name}\nAPI: ${API_URL}/payments/create-subscription`);
+      
+      console.log("📤 PAYMENT DEBUG: Making API call to create subscription");
+      console.log("📤 PAYMENT DEBUG: API URL:", `${API_URL}/payments/create-subscription`);
+      console.log("📤 PAYMENT DEBUG: Request body:", requestBody);
+      
       const response = await fetch(`${API_URL}/payments/create-subscription`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          plan_id: selectedPlan.id,
-          expert_name: expertName,
-          ...(couponValidation.isValid && couponCode && { coupon: couponCode })
-        })
+        body: JSON.stringify(requestBody)
       })
+      
+      console.log("📊 PAYMENT DEBUG: Response status:", response.status);
 
       const data = await response.json();
+      
+      // Store payment response in localStorage
+      const paymentResponseDebug = {
+        timestamp: new Date().toISOString(),
+        step: "payment_response",
+        data: data,
+        status: response.status
+      };
+      localStorage.setItem("payment_response_log", JSON.stringify(paymentResponseDebug));
+      
+      console.log("🔍 PAYMENT DEBUG: Payment response received:", data);
 
       if (!data.success) {
+        console.log("❌ PAYMENT DEBUG: Payment failed:", data.error);
+        setIsRedirectingToStripe(false); // Reset redirect state on error
         setError(data.error || "Failed to create subscription");
         return;
       }
 
       if (data.checkout_url) {
+        alert(`🔗 PAYMENT DEBUG: Redirecting to Stripe Checkout\nURL: ${data.checkout_url}\nNote: Notification will be sent via webhook after payment`);
+        // Redirect immediately without additional delay since we're already showing loading
         window.location.href = data.checkout_url;
       } else if (data.subscription_id) {
-        // Send payment success notification
+        alert(`✅ PAYMENT DEBUG: Direct subscription created!\nSubscription ID: ${data.subscription_id}\nNow sending notification...`);
+        console.log("✅ PAYMENT DEBUG: Payment successful, subscription_id:", data.subscription_id);
+        // Send combined registration/payment/voice setup notification with invoice
         try {
           const userToken = localStorage.getItem("dilan_ai_token");
           const userData = localStorage.getItem("dilan_ai_user");
           
+          // Alert popup for debugging
+          alert(`🔍 PAYMENT DEBUG: Starting notification process\nSubscription ID: ${data.subscription_id}\nUser Data: ${userData ? 'Found' : 'Missing'}`);
+          
+          console.log("🔍 PAYMENT DEBUG: Starting notification process");
+          console.log("🔍 PAYMENT DEBUG: subscription_id:", data.subscription_id);
+          console.log("🔍 PAYMENT DEBUG: userData:", userData);
+          
           if (userData) {
             const user = JSON.parse(userData);
-            await notificationService.sendPaymentSuccessNotification({
+            const notificationData = {
               userEmail: user.email || "",
               userName: user.username || "",
               fullName: user.full_name || user.name || "",
-              expertName: expertName,
-              expertSlug: expertSlug || "",
-              planName: selectedPlan?.name || "Subscription Plan",
-              amount: selectedPlan?.price || 0,
-              currency: selectedPlan?.currency || "USD",
-              sessionType: "chat", // Default to chat, will be updated by expert page
-            });
+              includePaymentSuccess: true,
+              includeVoiceSetup: false, // Voice setup removed as requested
+              subscriptionId: data.subscription_id, // Include subscription ID to get invoice URL
+              expertName: expertName, // Pass expert name for dynamic content
+            };
+            
+            // Alert popup for notification data
+            alert(`📧 PAYMENT DEBUG: Sending notification\nEmail: ${notificationData.userEmail}\nSubscription ID: ${notificationData.subscriptionId}\nInclude Payment Success: ${notificationData.includePaymentSuccess}`);
+            
+            console.log("📧 PAYMENT DEBUG: Sending notification with data:", notificationData);
+            
+            const result = await notificationService.sendUserRegistrationNotification(notificationData);
+            
+            // Alert popup for success
+            alert(`✅ PAYMENT DEBUG: Notification sent successfully!\nResult: ${result}\nEmail should be sent to: ${notificationData.userEmail}`);
+            
+            console.log("✅ PAYMENT DEBUG: Notification sent successfully");
+          } else {
+            console.warn("⚠️ PAYMENT DEBUG: No user data found in localStorage");
           }
         } catch (error) {
-          console.warn("Failed to send payment success notification:", error);
+          // Alert popup for error
+          const errorMessage = error instanceof Error ? error.message : error?.toString() || 'Unknown error';
+          alert(`❌ PAYMENT DEBUG: Error sending notification!\nError: ${errorMessage}\nSubscription ID: ${data.subscription_id}`);
+          
+          console.error("❌ PAYMENT DEBUG: Failed to send registration notification:", error);
         }
         
+        setIsRedirectingToStripe(false); // Reset redirect state
         setSuccess(true);
-        setTimeout(() => {
-          onPaymentSuccess(data.subscription_id);
-          if (expertSlug) {
-            window.location.href = `/expert/${expertSlug}?payment_success=true&session_id=${data.subscription_id}`;
-          }
-        }, 2000);
+        // Remove auto-redirect - let user manually continue
+        onPaymentSuccess(data.subscription_id);
+        if (expertSlug) {
+          // Update URL without redirect to show success state
+          window.history.pushState({}, '', `/expert/${expertSlug}?payment_success=true&session_id=${data.subscription_id}`);
+        }
       }
     } catch (err) {
       console.error("Subscription error:", err);
+      setIsRedirectingToStripe(false); // Reset redirect state on error
       setError("An unexpected error occurred. Please try again.");
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -347,20 +407,12 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
       if (registerUser.fulfilled.match(resultAction)) {
         const payload = resultAction.payload as AuthResponse;
         
-        // Send user registration notification
-        try {
-          await notificationService.sendUserRegistrationNotification({
-            userEmail: accountForm.email.trim().toLowerCase(),
-            userName: generateUsername(accountForm.email),
-            fullName: payload.user?.full_name || "",
-          });
-        } catch (error) {
-          console.warn("Failed to send user registration notification:", error);
-        }
+        // Registration notification will be sent after payment success with invoice information
         
         setActiveToken(payload.access_token);
         setCurrentStep("plan");
         setAccountForm({ email: "", password: "" });
+        setIsCreatingAccount(false); // Reset account creation state before processing
         await processSubscription(payload.access_token);
       } else {
         const message =
@@ -378,6 +430,46 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
 
   const isAuthenticated = Boolean(activeToken);
 
+  // Stripe Redirect Loading Overlay
+  if (isRedirectingToStripe) {
+    return (
+      <Dialog open={isOpen} onOpenChange={() => {}}>
+        <DialogContent className="max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
+          <div className="text-center py-12">
+            <div className="relative">
+              <div className="w-20 h-20 mx-auto mb-6 relative">
+                <div className="absolute inset-0 border-4 border-blue-200 rounded-full"></div>
+                <div className="absolute inset-0 border-4 border-blue-600 rounded-full border-t-transparent animate-spin"></div>
+                <div className="absolute inset-3 bg-blue-50 rounded-full flex items-center justify-center">
+                  <CreditCard className="w-8 h-8 text-blue-600" />
+                </div>
+              </div>
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-3">
+              Redirecting to Stripe
+            </h2>
+            <p className="text-gray-600 mb-6 text-lg">
+              Please wait while we redirect you to our secure payment processor...
+            </p>
+            <div className="bg-blue-50 rounded-lg p-4 mb-4">
+              <div className="flex items-center justify-center gap-2 text-blue-800">
+                <Shield className="w-5 h-5" />
+                <span className="font-medium">Secure Payment Processing</span>
+              </div>
+              <p className="text-sm text-blue-700 mt-1">
+                Your payment information is protected by industry-standard encryption
+              </p>
+            </div>
+            <div className="flex items-center justify-center gap-2 text-sm text-gray-500">
+              <Lock className="w-4 h-4" />
+              <span>Powered by Stripe</span>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
+
   if (success) {
     return (
       <Dialog open={isOpen} onOpenChange={onClose}>
@@ -388,25 +480,8 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
               Payment Successful!
             </h2>
             <p className="text-gray-600 mb-4">
-              Thank you for your subscription to {expertName}
+              Thank you for your payment! A detailed invoice has been sent to your email address.
             </p>
-            <div className="bg-blue-50 rounded-lg p-4 mb-6">
-              <p className="text-sm text-blue-800">
-                <strong>Invoice Sent:</strong> A detailed invoice has been sent
-                to your email address.
-              </p>
-            </div>
-            <Button
-              onClick={() => {
-                onClose();
-                if (expertSlug) {
-                  onPaymentSuccess("");
-                }
-              }}
-              className="w-full bg-green-600 hover:bg-green-700 text-white py-3"
-            >
-              OK, Continue to {selectedPlan?.name || "Service"}
-            </Button>
             <div className="flex items-center justify-center gap-2 text-sm text-gray-500 mt-4">
               <Shield className="w-4 h-4" />
               <span>Secure and encrypted</span>
@@ -418,65 +493,190 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+    <Dialog open={isOpen} onOpenChange={isCreatingAccount || isRedirectingToStripe ? () => {} : onClose}>
+      <DialogContent 
+        className="max-w-6xl max-h-[90vh] overflow-y-auto"
+        onPointerDownOutside={isCreatingAccount || isRedirectingToStripe ? (e) => e.preventDefault() : undefined}
+      >
         <DialogHeader>
-          <DialogTitle className="text-3xl font-bold text-center">
+          <DialogTitle className="text-3xl font-bold text-center mb-2">
             Subscribe to {expertName}
           </DialogTitle>
-          <p className="text-center text-gray-600 mt-2 text-lg">
-            Your plan will give you instant access
-          </p>
         </DialogHeader>
 
         {currentStep === "plan" ? (
-          <div className="space-y-8 py-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 min-h-[400px]">
+          <div className="space-y-6 py-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 min-h-[500px]">
               {plans.map((plan) => {
-                const dynamicFeatures = plan.features;
+                // Enhanced plan descriptions based on client requirements
+                const getEnhancedPlanInfo = (planName: string, price: number, billingIntervalCount?: number) => {
+                  const monthlyPrice = billingIntervalCount ? price / billingIntervalCount : price;
+                  
+                  if (billingIntervalCount === 6) {
+                    return {
+                      title: "AI Jeff — 6-Month Plan",
+                      badge: "Best Value",
+                      subtitle: "Perfect for committed users who want the lowest price.",
+                      features: [
+                        "Full access to AI Jeff — your personalised Building Forensics assistant",
+                        "Jeff Charlton's c.40 years expert mind in your hands",
+                        "Unlimited expert-style responses from UK's #1 mould expert",
+                        "Personalised explanations to mould and fire damage questions",
+                        "Immediate responses: text or call",
+                        "24/7 availability",
+                        "Combination of text messages per month and minutes of voice calls per month"
+                      ],
+                      whyChoose: [
+                        "Best long-term value",
+                        "6-month access at the best value monthly rate",
+                        "Ideal for consistent usage and professionals who want ongoing AI support"
+                      ]
+                    };
+                  } else if (billingIntervalCount === 3) {
+                    return {
+                      title: "AI Jeff — 3-Month Plan",
+                      badge: "Most Popular",
+                      subtitle: "Great for users who want flexibility without paying month-to-month.",
+                      features: [
+                        "Full access to AI Jeff with every feature included",
+                        "Automated analysis of your questions",
+                        "Personalised mould, bacteria and mycotoxin explanations",
+                        "Priority email support if required",
+                        "24/7 access",
+                        "Combination of text messages per month and minutes of voice calls per month"
+                      ],
+                      whyChoose: [
+                        "Lower upfront investment than the 6-month plan",
+                        "A flexible middle option",
+                        "Best for testing AI Jeff over a longer period"
+                      ]
+                    };
+                  } else {
+                    return {
+                      title: "AI Jeff — Monthly Plan",
+                      badge: "Most Flexible",
+                      subtitle: "Ideal for those who want full flexibility with no long-term commitment.",
+                      features: [
+                        "Immediate access to the full use of AI Jeff",
+                        "Explanations to your questions on mould & fire damage findings in plain English",
+                        "Generate Building Forensics-style responses",
+                        "Recommendations based on Jeff's own expert knowledge",
+                        "Cancel anytime",
+                        "Combination of text messages per month and minutes of voice calls per month"
+                      ],
+                      whyChoose: [
+                        "No commitment",
+                        "Cancel anytime",
+                        "Best for short-term or occasional use"
+                      ]
+                    };
+                  }
+                };
+
+                const enhancedInfo = getEnhancedPlanInfo(plan.name, plan.price, plan.billing_interval_count);
+                const isRecommended = plan.recommended || enhancedInfo.badge === "Most Popular";
+                const isBestValue = enhancedInfo.badge === "Best Value";
+
                 return (
                   <Card
                     key={plan.id}
-                    className={`cursor-pointer transition-all duration-200 hover:shadow-xl h-full ${
+                    className={`cursor-pointer transition-all duration-300 h-full relative ${
                       selectedPlan?.id === plan.id
-                        ? "ring-4 ring-blue-500 ring-offset-2 border-blue-200"
-                        : "hover:border-gray-300"
+                        ? "ring-4 ring-blue-500 ring-offset-2 border-blue-200 shadow-2xl"
+                        : isBestValue
+                        ? "border-2 border-green-200 shadow-lg bg-gradient-to-br from-green-50/30 to-white hover:shadow-2xl hover:border-green-300"
+                        : "border border-gray-200 hover:border-gray-300 hover:shadow-xl"
                     }`}
                     onClick={() => setSelectedPlan(plan)}
                   >
-                    <CardHeader className="pb-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex flex-col">
-                          <CardTitle className="text-xl flex items-center gap-2">
-                            {plan.name}
-                            {plan.recommended && (
-                              <Badge className="bg-blue-500 text-white text-sm px-2 py-1">
-                                <Star className="w-4 h-4 mr-1" />
-                                Recommended
-                              </Badge>
-                            )}
+                    {/* Modern Badge Ribbon */}
+                    {enhancedInfo.badge && (
+                      <div className={`absolute -top-3 left-1/2 transform -translate-x-1/2 z-10 px-3 py-1 rounded-full text-xs font-bold shadow-lg ${
+                        enhancedInfo.badge === "Best Value" 
+                          ? "bg-gradient-to-r from-green-500 to-green-600 text-white" 
+                          : enhancedInfo.badge === "Most Popular"
+                          ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white"
+                          : "bg-gradient-to-r from-orange-500 to-orange-600 text-white"
+                      }`}>
+                        <Star className="w-3 h-3 mr-1 inline" />
+                        {enhancedInfo.badge}
+                      </div>
+                    )}
+
+                    <CardHeader className="pb-6 pt-6">
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex-1">
+                          <CardTitle className="text-xl font-bold text-gray-900 mb-3">
+                            {enhancedInfo.title}
                           </CardTitle>
-                          <div className="text-3xl font-bold text-blue-600 mt-2">
-                            ${plan.price}
-                            <span className="text-base text-gray-500 font-normal">
-                              /{plan.billing_interval}
-                            </span>
+                          
+                          {/* Enhanced Pricing Display */}
+                          <div className="mb-4">
+                            {(plan.billing_interval_count && plan.billing_interval_count > 1) ? (
+                              <div className="space-y-1">
+                                <div className="text-4xl font-bold text-gray-900">
+                                  £{(plan.price / plan.billing_interval_count).toFixed(0)}
+                                  <span className="text-lg text-gray-500 font-medium">/month</span>
+                                </div>
+                                <div className="text-sm text-gray-600 font-medium">
+                                  billed £{plan.price} upfront
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="space-y-1">
+                                <div className="text-4xl font-bold text-gray-900">
+                                  £{plan.price}
+                                  <span className="text-lg text-gray-500 font-medium">/month</span>
+                                </div>
+                                <div className="text-sm text-gray-600 font-medium">billed monthly</div>
+                              </div>
+                            )}
                           </div>
+                          
+                          <p className="text-gray-600 leading-relaxed">
+                            {enhancedInfo.subtitle}
+                          </p>
                         </div>
+                        
                         {selectedPlan?.id === plan.id && (
-                          <CheckCircle2 className="w-8 h-8 text-blue-600" />
+                          <CheckCircle2 className="w-7 h-7 text-blue-600 flex-shrink-0 mt-1" />
                         )}
                       </div>
                     </CardHeader>
-                    <CardContent className="pt-2 flex-grow">
-                      <ul className="space-y-3 text-base">
-                        {dynamicFeatures.map((feature, index) => (
-                          <li key={index} className="flex items-start gap-3">
-                            <CheckCircle2 className="h-5 w-5 text-green-500 flex-shrink-0 mt-0.5" />
-                            <span>{feature}</span>
-                          </li>
-                        ))}
-                      </ul>
+                    <CardContent className="pt-0 flex-grow flex flex-col px-6 pb-6">
+                      {/* Key Features Section */}
+                      <div className="mb-6">
+                        <h4 className="font-semibold text-gray-900 mb-3 text-base">What's included:</h4>
+                        <div className="space-y-2.5">
+                          {enhancedInfo.features.slice(0, 4).map((feature, index) => (
+                            <div key={index} className="flex items-start gap-3">
+                              <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" />
+                              <span className="text-gray-700 text-sm leading-relaxed">{feature}</span>
+                            </div>
+                          ))}
+                          {enhancedInfo.features.length > 4 && (
+                            <div className="flex items-start gap-3">
+                              <CheckCircle2 className="w-4 h-4 text-green-500 flex-shrink-0 mt-0.5" />
+                              <span className="text-gray-700 text-sm leading-relaxed">
+                                + {enhancedInfo.features.length - 4} more features
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      
+                      {/* Why Choose Section */}
+                      <div className="mt-auto pt-4 border-t border-gray-100">
+                        <h4 className="font-semibold text-gray-900 mb-2 text-sm">Perfect for:</h4>
+                        <div className="space-y-1.5">
+                          {enhancedInfo.whyChoose.slice(0, 2).map((reason, index) => (
+                            <div key={index} className="flex items-start gap-2">
+                              <div className="w-1.5 h-1.5 bg-blue-500 rounded-full flex-shrink-0 mt-2"></div>
+                              <span className="text-gray-600 text-sm">{reason}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     </CardContent>
                   </Card>
                 );
@@ -529,7 +729,7 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
               <Button
                 variant="outline"
                 onClick={onClose}
-                disabled={loading}
+                disabled={isRedirectingToStripe}
                 className="flex-1 py-6 text-lg"
               >
                 Cancel
@@ -538,17 +738,12 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
                 onClick={handleSubscribe}
                 disabled={
                   !selectedPlan ||
-                  loading ||
+                  isRedirectingToStripe ||
                   (isAuthenticated && checkingPaymentMethods)
                 }
                 className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-6 text-lg"
               >
-                {loading ? (
-                  <>
-                    <Loader2 className="h-5 w-5 mr-3 animate-spin" />
-                    Processing...
-                  </>
-                ) : isAuthenticated && checkingPaymentMethods ? (
+                {isAuthenticated && checkingPaymentMethods ? (
                   <>
                     <Loader2 className="h-5 w-5 mr-3 animate-spin" />
                     Loading...
@@ -713,7 +908,7 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
                     setCurrentStep("plan");
                     setAccountError(null);
                   }}
-                  disabled={isCreatingAccount}
+                  disabled={isCreatingAccount || isRedirectingToStripe}
                   className="flex-1"
                 >
                   Back to plans
@@ -721,12 +916,12 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
                 <Button
                   type="submit"
                   className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
-                  disabled={isCreatingAccount}
+                  disabled={isCreatingAccount || isRedirectingToStripe}
                 >
-                  {isCreatingAccount ? (
+                  {isCreatingAccount || isRedirectingToStripe ? (
                     <>
                       <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                      Creating account...
+                      {isRedirectingToStripe ? "Redirecting..." : "Creating account..."}
                     </>
                   ) : (
                     "Continue to payment"

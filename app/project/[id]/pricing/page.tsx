@@ -48,8 +48,9 @@ const PricingPage: React.FC = () => {
   const [newPlan, setNewPlan] = useState({
     name: '',
     price: '',
-    currency: 'USD',
-    billing_interval: 'month'
+    currency: 'GBP',
+    billing_interval: 'month',
+    billing_interval_count: 1
   })
 
   useEffect(() => {
@@ -105,7 +106,7 @@ const PricingPage: React.FC = () => {
       if (data.success) {
         await fetchPlans() // Refresh the list
         setShowCreateForm(false)
-        setNewPlan({ name: '', price: '', currency: 'USD', billing_interval: 'month' })
+        setNewPlan({ name: '', price: '', currency: 'GBP', billing_interval: 'month', billing_interval_count: 1 })
         alert('Plan created successfully!')
       } else {
         alert(data.message || 'Failed to create plan')
@@ -213,7 +214,7 @@ const PricingPage: React.FC = () => {
                   </div>
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div>
                     <Label htmlFor="currency">Currency</Label>
                     <Select 
@@ -246,7 +247,39 @@ const PricingPage: React.FC = () => {
                       </SelectContent>
                     </Select>
                   </div>
+                  <div>
+                    <Label htmlFor="intervalCount">Billing Period</Label>
+                    <Select 
+                      value={newPlan.billing_interval_count.toString()} 
+                      onValueChange={(value) => setNewPlan(prev => ({ ...prev, billing_interval_count: parseInt(value) }))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="1">1 {newPlan.billing_interval}</SelectItem>
+                        <SelectItem value="2">2 {newPlan.billing_interval}s</SelectItem>
+                        <SelectItem value="3">3 {newPlan.billing_interval}s</SelectItem>
+                        <SelectItem value="6">6 {newPlan.billing_interval}s</SelectItem>
+                        <SelectItem value="12">12 {newPlan.billing_interval}s</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
+                
+                {/* Display Preview */}
+                {newPlan.price && newPlan.billing_interval_count > 1 && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <h4 className="font-medium text-blue-900 mb-2">Pricing Preview</h4>
+                    <div className="text-sm text-blue-800">
+                      <p><strong>Display to customers:</strong> £{(parseFloat(newPlan.price) / newPlan.billing_interval_count).toFixed(2)}/month</p>
+                      <p><strong>Actual billing:</strong> £{newPlan.price} every {newPlan.billing_interval_count} {newPlan.billing_interval}{newPlan.billing_interval_count > 1 ? 's' : ''}</p>
+                      <p className="text-xs mt-1 text-blue-600">
+                        Customers will see "£{(parseFloat(newPlan.price) / newPlan.billing_interval_count).toFixed(2)}/month (£{newPlan.price} total)"
+                      </p>
+                    </div>
+                  </div>
+                )}
 
                 <div className="flex gap-3 pt-4">
                   <Button
@@ -315,10 +348,24 @@ const PricingPage: React.FC = () => {
                     </Badge>
                   </div>
                   <div className="text-3xl font-bold text-blue-600">
-                    {plan.currency} {plan.price}
-                    <span className="text-lg text-gray-500 font-normal">
-                      /{plan.billing_interval}
-                    </span>
+                    {(plan.billing_interval_count && plan.billing_interval_count > 1) ? (
+                      <div className="flex flex-col">
+                        <div>
+                          £{(plan.price / plan.billing_interval_count).toFixed(2)}
+                          <span className="text-lg text-gray-500 font-normal">/month</span>
+                        </div>
+                        <div className="text-lg font-bold text-orange-600 mt-1">
+                          £{plan.price} for {plan.billing_interval_count} {plan.billing_interval}{plan.billing_interval_count > 1 ? 's' : ''}
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        £{plan.price}
+                        <span className="text-lg text-gray-500 font-normal">
+                          /{plan.billing_interval || 'month'}
+                        </span>
+                      </>
+                    )}
                   </div>
                 </CardHeader>
 

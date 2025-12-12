@@ -7,8 +7,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { 
-  CreditCard, 
+import {
+  CreditCard,
   Lock,
   Loader2,
   CheckCircle2,
@@ -17,7 +17,9 @@ import {
 } from 'lucide-react'
 import { API_URL } from '@/lib/config'
 
-const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
+// Validate Stripe key exists before loading
+const stripeKey = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+const stripePromise = stripeKey ? loadStripe(stripeKey) : null;
 
 interface AddPaymentMethodModalProps {
   isOpen: boolean
@@ -52,7 +54,7 @@ const PaymentMethodForm: React.FC<{
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault()
-    
+
     if (!stripe || !elements) {
       onError('Payment system not ready. Please try again.')
       return
@@ -138,7 +140,7 @@ const PaymentMethodForm: React.FC<{
           <CardNumberElement options={cardElementOptions} />
         </div>
       </div>
-      
+
       {/* Expiry and CVC */}
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
@@ -249,6 +251,19 @@ const AddPaymentMethodModal: React.FC<AddPaymentMethodModalProps> = ({
           </DialogDescription>
         </DialogHeader>
 
+        {/* Stripe Configuration Error */}
+        {!stripePromise && (
+          <div className="flex items-start gap-2 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+            <AlertCircle className="h-5 w-5 mt-0.5" />
+            <div>
+              <p className="font-semibold">Payment System Not Configured</p>
+              <p className="text-sm">
+                Stripe payment integration is not configured. Please contact support or check your environment configuration.
+              </p>
+            </div>
+          </div>
+        )}
+
         {error && (
           <div className="flex items-start gap-2 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
             <AlertCircle className="h-5 w-5 mt-0.5" />
@@ -259,12 +274,18 @@ const AddPaymentMethodModal: React.FC<AddPaymentMethodModalProps> = ({
           </div>
         )}
 
-        <Elements stripe={stripePromise}>
-          <PaymentMethodForm
-            onSuccess={handleSuccess}
-            onError={handleError}
-          />
-        </Elements>
+        {stripePromise ? (
+          <Elements stripe={stripePromise}>
+            <PaymentMethodForm
+              onSuccess={handleSuccess}
+              onError={handleError}
+            />
+          </Elements>
+        ) : (
+          <div className="text-center py-8">
+            <p className="text-gray-500">Unable to load payment form</p>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   )

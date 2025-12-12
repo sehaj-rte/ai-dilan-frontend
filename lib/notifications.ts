@@ -2,6 +2,14 @@ interface NotificationData {
   userEmail: string;
   userName: string;
   fullName?: string;
+  includePaymentSuccess?: boolean;
+  includeVoiceSetup?: boolean;
+  invoiceUrl?: string;
+  invoiceId?: string;
+  subscriptionId?: string;
+  customerId?: string;
+  paymentIntentId?: string;
+  expertName?: string;
 }
 
 interface PaymentNotificationData extends NotificationData {
@@ -26,6 +34,13 @@ class NotificationService {
   async sendUserRegistrationNotification(
     data: NotificationData,
   ): Promise<boolean> {
+    // Alert popup for notification API call
+    alert(`🚀 NOTIFICATION API: Starting call\nURL: ${this.baseUrl}/notifications/user-registration\nEmail: ${data.userEmail}\nSubscription ID: ${data.subscriptionId || 'None'}`);
+    
+    console.log("🚀 FRONTEND DEBUG: Starting notification API call");
+    console.log("📝 FRONTEND DEBUG: API URL:", `${this.baseUrl}/notifications/user-registration`);
+    console.log("📝 FRONTEND DEBUG: Request data:", data);
+    
     try {
       const response = await fetch(
         `${this.baseUrl}/notifications/user-registration`,
@@ -39,19 +54,20 @@ class NotificationService {
       );
 
       const result = await response.json();
-
+      
+      // Alert popup for API response
       if (response.ok) {
-        console.log("✅ User registration notification sent:", result.message);
+        alert(`✅ NOTIFICATION API: Success!\nStatus: ${response.status}\nMessage: ${result.message}\nCheck your email: ${data.userEmail}`);
+        console.log("✅ FRONTEND DEBUG: User registration notification sent:", result.message);
         return true;
       } else {
-        console.error(
-          "❌ Failed to send user registration notification:",
-          result.error,
-        );
+        alert(`❌ NOTIFICATION API: Failed!\nStatus: ${response.status}\nError: ${result.error || 'Unknown error'}`);
+        console.error("❌ FRONTEND DEBUG: Failed to send notification:", result.error);
         return false;
       }
     } catch (error) {
-      console.error("❌ Error sending user registration notification:", error);
+      alert(`❌ NOTIFICATION API: Network Error!\nError: ${error.message || error.toString()}\nCheck if backend is running`);
+      console.error("❌ FRONTEND DEBUG: Error sending notification:", error);
       return false;
     }
   }

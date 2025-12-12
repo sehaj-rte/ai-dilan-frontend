@@ -44,7 +44,7 @@ const TestNotificationsPage = () => {
     expertSlug: 'ai-expert',
     planName: 'Monthly Plan',
     amount: 29.99,
-    currency: 'USD',
+    currency: 'GBP',
     sessionType: 'chat' as 'chat' | 'call'
   });
 

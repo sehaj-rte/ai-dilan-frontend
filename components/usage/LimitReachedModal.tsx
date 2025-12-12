@@ -283,7 +283,7 @@ export const LimitReachedModal: React.FC<LimitReachedModalProps> = ({
                 )}
                 <br />
                 <span className="text-xs">
-                  After trial: {currentPlan?.name} plan (${currentPlan?.price}/{currentPlan?.billing_interval})
+                  After trial: {currentPlan?.name} plan (£{currentPlan?.price}/{currentPlan?.billing_interval})
                 </span>
               </>
             ) : (
@@ -293,7 +293,7 @@ export const LimitReachedModal: React.FC<LimitReachedModalProps> = ({
                 {currentPlan?.billing_interval && (
                   <>
                     {" "}
-                    • ${currentPlan.price}/{currentPlan.billing_interval}
+                    • £{currentPlan.price}/{currentPlan.billing_interval}
                   </>
                 )}
               </>

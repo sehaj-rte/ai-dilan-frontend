@@ -13,7 +13,7 @@ const TestPaymentPage: React.FC = () => {
       id: "1",
       name: "Basic Plan",
       price: 29,
-      currency: "USD",
+      currency: "GBP",
       billing_interval: "month",
       features: [
         "Unlimited chat sessions",
@@ -26,7 +26,7 @@ const TestPaymentPage: React.FC = () => {
       id: "2",
       name: "Pro Plan",
       price: 59,
-      currency: "USD",
+      currency: "GBP",
       billing_interval: "month",
       features: [
         "Unlimited chat & call sessions",
@@ -41,7 +41,7 @@ const TestPaymentPage: React.FC = () => {
       id: "3",
       name: "Enterprise Plan",
       price: 99,
-      currency: "USD",
+      currency: "GBP",
       billing_interval: "month",
       features: [
         "Everything in Pro",

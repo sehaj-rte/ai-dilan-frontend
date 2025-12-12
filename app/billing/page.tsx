@@ -34,31 +34,19 @@ const BillingPage = () => {
     enabled: isAuthenticated && !!expertId,
   });
 
-  // Fetch expert ID from slug
+  // Callback to receive expertId from BillingPanel
+  const handleExpertIdFetched = (id: string | null) => {
+    setExpertId(id);
+  };
+
+  // Expert ID will be fetched by BillingPanel - no need to duplicate the call
   useEffect(() => {
-    const fetchExpertId = async () => {
-      if (!expertSlug) {
-        setLoading(false);
-        return;
-      }
-
-      try {
-        const response = await fetch(
-          `${API_URL}/publishing/public/expert/${expertSlug}`,
-        );
-        const data = await response.json();
-
-        if (data.success && data.expert?.id) {
-          setExpertId(data.expert.id);
-        }
-      } catch (error) {
-        console.error("Error fetching expert:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchExpertId();
+    if (!expertSlug) {
+      setLoading(false);
+    } else {
+      // Let BillingPanel handle expert fetching to avoid duplicate calls
+      setLoading(false);
+    }
   }, [expertSlug]);
 
   useEffect(() => {
@@ -145,6 +133,7 @@ const BillingPage = () => {
                   }
                 : undefined
             }
+            onExpertIdFetched={handleExpertIdFetched}
           />
         </Card>
       </div>

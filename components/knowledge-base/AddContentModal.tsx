@@ -29,6 +29,7 @@ import AudioRecorder from "./AudioRecorder";
 import YouTubeTranscriber from "./YouTubeTranscriber";
 import AudioFileUploader from "./AudioFileUploader";
 import WebScraper from "./WebScraper";
+import GoogleDrivePickerFixed from "./GoogleDrivePickerFixed";
 import FolderSelector from "./FolderSelector";
 import { fetchWithAuth, getAuthHeadersForFormData } from "@/lib/api-client";
 import { API_URL } from "@/lib/config";
@@ -55,7 +56,8 @@ type Category =
   | "messaging"
   | "speech"
   | "audio"
-  | "webscraping";
+  | "webscraping"
+  | "googledrive";
 
 interface FileWithValidation extends File {
   isValid: boolean;
@@ -100,6 +102,7 @@ const AddContentModal: React.FC<AddContentModalProps> = ({
     },
     // { id: 'socials' as Category, label: 'Socials', icon: Twitter, active: false },
     { id: "files" as Category, label: "Files", icon: FileText, active: true },
+    { id: "googledrive" as Category, label: "Google Drive", icon: Globe, active: true },
     // { id: 'podcasts' as Category, label: 'Podcasts', icon: Podcast, active: false },
     // { id: 'snippets' as Category, label: 'Snippets', icon: Code, active: false },
     // { id: 'notes' as Category, label: 'Notes Apps', icon: MessageSquare, active: false },
@@ -583,6 +586,27 @@ const AddContentModal: React.FC<AddContentModalProps> = ({
                 </div>
               </Card>
 
+              {/* Google Drive */}
+              <Card
+                className="p-4 hover:shadow-md transition-shadow cursor-pointer border"
+                onClick={() => setSelectedCategory("googledrive")}
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                      <Globe className="h-5 w-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-medium text-gray-900">Google Drive</h3>
+                      <p className="text-sm text-gray-500 mt-1">
+                        Import files directly from Google Drive
+                      </p>
+                    </div>
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-gray-400" />
+                </div>
+              </Card>
+
               {/* Web Scraping - HIDDEN
               <Card
                 className="p-4 hover:shadow-md transition-shadow cursor-pointer border"
@@ -850,6 +874,20 @@ const AddContentModal: React.FC<AddContentModalProps> = ({
               hideFolderSelector={true}
               agentId={agentId}
               onScrapingComplete={() => {
+                onTranscriptionComplete();
+                onClose();
+              }}
+            />
+          </div>
+        );
+
+      case "googledrive":
+        return (
+          <div>
+            <GoogleDrivePickerFixed
+              selectedFolderId={selectedFolderId}
+              agentId={agentId}
+              onUploadComplete={() => {
                 onTranscriptionComplete();
                 onClose();
               }}

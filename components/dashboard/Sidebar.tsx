@@ -27,6 +27,7 @@ import {
   Mic2,
   Share2,
   TestTube,
+  TrendingUp,
 } from "lucide-react";
 
 import type { LucideIcon } from "lucide-react";
@@ -143,6 +144,11 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, projectId }) => {
               icon: MessageSquare,
             },
             {
+              title: "Analytics",
+              href: `/project/${projectId}/analytics`,
+              icon: TrendingUp,
+            },
+            {
               title: "Earnings",
               href: `/project/${projectId}/earnings`,
               icon: BarChart3,
@@ -251,7 +257,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, projectId }) => {
       )}
 
       {/* Navigation */}
-      <nav className="flex-1 px-4 py-4 space-y-1">
+      <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
         {projectId
           ? // Render hierarchical structure for project pages
             (dynamicSidebarItems as SidebarSection[]).map((section, sectionIndex) => (
@@ -285,6 +291,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, projectId }) => {
                     );
                   })}
                 </div>
+
               </div>
             ))
           : // Render flat structure for non-project pages

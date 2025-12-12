@@ -199,11 +199,11 @@ const PublicExpertPage = () => {
     
     switch (publication.pricing_model) {
       case 'per_session':
-        return `$${publication.price_per_session}/session`
+        return `£${publication.price_per_session}/session`
       case 'per_minute':
-        return `$${publication.price_per_minute}/minute`
+        return `£${publication.price_per_minute}/minute`
       case 'subscription':
-        return `$${publication.monthly_subscription_price}/month`
+        return `£${publication.monthly_subscription_price}/month`
       default:
         return 'Contact for pricing'
     }

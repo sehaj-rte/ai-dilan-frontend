@@ -55,6 +55,30 @@ export default function SubscriptionHistoryPage() {
   const [selectedPlanId, setSelectedPlanId] = useState<string>("")
   const [summary, setSummary] = useState<SubscriptionSummary | null>(null)
 
+  // Calculate total earnings
+  const calculateTotalEarnings = () => {
+    if (subscriptions.length === 0) return { amount: 0, currency: 'GBP' }
+    
+    // Group by currency and sum
+    const earningsByCurrency = subscriptions.reduce((acc, sub) => {
+      const currency = sub.currency || 'GBP'
+      acc[currency] = (acc[currency] || 0) + (sub.amount || 0)
+      return acc
+    }, {} as Record<string, number>)
+    
+    // For now, return the primary currency (most common one)
+    const currencies = Object.keys(earningsByCurrency)
+    const primaryCurrency = currencies.length > 0 ? currencies[0] : 'GBP'
+    
+    return {
+      amount: earningsByCurrency[primaryCurrency] || 0,
+      currency: primaryCurrency,
+      allCurrencies: earningsByCurrency
+    }
+  }
+
+  const totalEarnings = calculateTotalEarnings()
+
   // Fetch subscription history
   const fetchSubscriptions = async () => {
     try {
@@ -199,7 +223,22 @@ export default function SubscriptionHistoryPage() {
         </div>
 
         {summary && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
+            <Card className="shadow">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm text-gray-500">Total Earnings</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-blue-600">
+                  {totalEarnings.currency} {totalEarnings.amount.toFixed(2)}
+                </div>
+                {Object.keys(totalEarnings.allCurrencies || {}).length > 1 && (
+                  <div className="text-xs text-gray-500 mt-1">
+                    Multiple currencies
+                  </div>
+                )}
+              </CardContent>
+            </Card>
             <Card className="shadow">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm text-gray-500">Total Subscribers</CardTitle>
@@ -225,6 +264,25 @@ export default function SubscriptionHistoryPage() {
               </CardContent>
             </Card>
           </div>
+        )}
+
+        {/* Earnings Breakdown by Currency */}
+        {totalEarnings.allCurrencies && Object.keys(totalEarnings.allCurrencies).length > 1 && (
+          <Card className="shadow mb-6">
+            <CardHeader>
+              <CardTitle>Earnings by Currency</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                {Object.entries(totalEarnings.allCurrencies).map(([currency, amount]) => (
+                  <div key={currency} className="text-center p-3 bg-gray-50 rounded-lg">
+                    <div className="text-lg font-semibold">{currency}</div>
+                    <div className="text-xl font-bold text-blue-600">{amount.toFixed(2)}</div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
         )}
 
         <Card className="shadow-lg">

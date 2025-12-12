@@ -111,7 +111,7 @@ const CancelSubscriptionModal: React.FC<CancelSubscriptionModalProps> = ({
               <div className="flex justify-between">
                 <span className="text-gray-600">Price:</span>
                 <span className="font-medium">
-                  ${subscription.plan_price}/{subscription.plan_interval}
+                  £{subscription.plan_price}/{subscription.plan_interval}
                 </span>
               </div>
               <div className="flex justify-between">

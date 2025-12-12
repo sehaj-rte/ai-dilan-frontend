@@ -18,6 +18,7 @@ interface Plan {
   price: number;
   currency: string;
   billing_interval: string;
+  billing_interval_count?: number;
   features: string[];
   recommended?: boolean;
   message_limit?: number | null;
@@ -102,8 +103,9 @@ const PrivateExpertPaymentModal: React.FC<PrivateExpertPaymentModalProps> = ({
               id: plan.id,
               name: plan.name,
               price: plan.price,
-              currency: plan.currency || "USD",
+              currency: plan.currency || "GBP",
               billing_interval: plan.billing_interval,
+              billing_interval_count: plan.billing_interval_count,
               message_limit: plan.message_limit,
               minute_limit: plan.minute_limit,
               features: [],
