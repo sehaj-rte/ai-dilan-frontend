@@ -64,7 +64,7 @@ const GoogleDrivePicker: React.FC<GoogleDrivePickerProps> = ({
       if (!window.gapi) {
         await loadScript('https://apis.google.com/js/api.js');
       }
-      
+
       // Wait for gapi to be available
       let attempts = 0;
       while (!window.gapi && attempts < 50) {
@@ -105,7 +105,7 @@ const GoogleDrivePicker: React.FC<GoogleDrivePickerProps> = ({
 
       // Load Picker API separately
       await loadScript('https://apis.google.com/js/api.js?onload=initPicker');
-      
+
       // Wait for picker to be available
       attempts = 0;
       while (!window.google?.picker && attempts < 100) {
@@ -121,7 +121,8 @@ const GoogleDrivePicker: React.FC<GoogleDrivePickerProps> = ({
       setErrorMessage(""); // Clear any previous errors
     } catch (error) {
       console.error('Error loading Google API:', error);
-      setErrorMessage(`Failed to load Google Drive API: ${error.message}`);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      setErrorMessage(`Failed to load Google Drive API: ${errorMessage}`);
     }
   };
 
@@ -152,12 +153,12 @@ const GoogleDrivePicker: React.FC<GoogleDrivePickerProps> = ({
       }
 
       const authInstance = window.gapi.auth2.getAuthInstance();
-      
+
       if (!authInstance) {
         setErrorMessage('Google Auth not initialized. Please check your API credentials.');
         return;
       }
-      
+
       if (!authInstance.isSignedIn.get()) {
         await authInstance.signIn();
       }
@@ -165,12 +166,14 @@ const GoogleDrivePicker: React.FC<GoogleDrivePickerProps> = ({
       openPicker();
     } catch (error) {
       console.error('Authentication failed:', error);
-      if (error.error === 'popup_blocked_by_browser') {
+      const err = error as any; // Google API errors have custom structure
+      if (err.error === 'popup_blocked_by_browser') {
         setErrorMessage('Popup blocked by browser. Please allow popups for this site and try again.');
-      } else if (error.error === 'access_denied') {
+      } else if (err.error === 'access_denied') {
         setErrorMessage('Access denied. Please grant permission to access your Google Drive.');
       } else {
-        setErrorMessage(`Google authentication failed: ${error.message || 'Unknown error'}`);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        setErrorMessage(`Google authentication failed: ${errorMessage}`);
       }
     } finally {
       setIsLoading(false);
@@ -209,7 +212,7 @@ const GoogleDrivePicker: React.FC<GoogleDrivePickerProps> = ({
       };
 
       setSelectedFile(fileMetadata);
-      
+
       if (onFileSelected) {
         onFileSelected(fileMetadata);
       }
@@ -247,7 +250,7 @@ const GoogleDrivePicker: React.FC<GoogleDrivePickerProps> = ({
         if (onUploadComplete) {
           onUploadComplete();
         }
-        
+
         // Reset after a delay
         setTimeout(() => {
           setSelectedFile(null);
@@ -287,7 +290,7 @@ const GoogleDrivePicker: React.FC<GoogleDrivePickerProps> = ({
           <p className="text-gray-600 mb-4">
             Select files directly from your Google Drive
           </p>
-          
+
           {errorMessage && (
             <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
               <div className="flex items-center">
@@ -330,19 +333,19 @@ const GoogleDrivePicker: React.FC<GoogleDrivePickerProps> = ({
             ) : (
               <HardDrive className="h-5 w-5 text-blue-500 flex-shrink-0" />
             )}
-            
+
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-gray-900 truncate">
                 {selectedFile.name}
               </p>
               <p className="text-xs text-gray-500">
-                {uploadStatus === 'uploading' 
+                {uploadStatus === 'uploading'
                   ? 'Uploading from Google Drive...'
                   : uploadStatus === 'success'
-                  ? 'Successfully uploaded!'
-                  : uploadStatus === 'error'
-                  ? 'Upload failed'
-                  : `${formatFileSize(selectedFile.size)} • ${selectedFile.mimeType}`
+                    ? 'Successfully uploaded!'
+                    : uploadStatus === 'error'
+                      ? 'Upload failed'
+                      : `${formatFileSize(selectedFile.size)} • ${selectedFile.mimeType}`
                 }
               </p>
             </div>
