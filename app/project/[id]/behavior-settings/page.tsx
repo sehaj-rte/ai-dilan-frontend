@@ -7,11 +7,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { Slider } from '@/components/ui/slider'
+import { Switch } from '@/components/ui/switch'
 import { 
   Brain,
   HelpCircle,
   RotateCcw,
-  Save
+  Save,
+  MessageSquare,
+  Settings
 } from 'lucide-react'
 import { API_URL } from '@/lib/config'
 import { fetchWithAuth, getAuthHeaders } from '@/lib/api-client'
@@ -27,7 +31,9 @@ const BehaviorSettingsPage = () => {
   // AI Behavior Settings state
   const [behaviorSettings, setBehaviorSettings] = useState({
     kb_mode: 'balanced',
-    custom_instructions: ''
+    custom_instructions: '',
+    response_length: 1, // 0: Short, 1: Medium, 2: Long
+    ask_followup_questions: true
   })
   const [isSavingBehavior, setIsSavingBehavior] = useState(false)
 
@@ -46,7 +52,9 @@ const BehaviorSettingsPage = () => {
       if (data.success && data.settings) {
         setBehaviorSettings({
           kb_mode: data.settings.kb_mode || 'balanced',
-          custom_instructions: data.settings.custom_instructions || ''
+          custom_instructions: data.settings.custom_instructions || '',
+          response_length: data.settings.response_length ?? 1,
+          ask_followup_questions: data.settings.ask_followup_questions ?? true
         })
       }
     } catch (error) {
@@ -87,8 +95,29 @@ const BehaviorSettingsPage = () => {
   const resetBehaviorSettings = () => {
     setBehaviorSettings({
       kb_mode: 'balanced',
-      custom_instructions: ''
+      custom_instructions: '',
+      response_length: 1,
+      ask_followup_questions: true
     })
+  }
+
+  // Helper functions for response length
+  const getResponseLengthLabel = (value: number) => {
+    switch (value) {
+      case 0: return 'Short'
+      case 1: return 'Medium'
+      case 2: return 'Long'
+      default: return 'Medium'
+    }
+  }
+
+  const getResponseLengthDescription = (value: number) => {
+    switch (value) {
+      case 0: return 'Concise answers with minimal explanation'
+      case 1: return 'Balanced detail and clarity'
+      case 2: return 'In-depth, structured responses'
+      default: return 'Balanced detail and clarity'
+    }
   }
 
   if (loading) {
@@ -224,6 +253,107 @@ const BehaviorSettingsPage = () => {
                 </label>
               </div>
 
+              {/* Response Length Slider */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-base font-semibold flex items-center">
+                      <MessageSquare className="h-4 w-4 mr-2 text-blue-600" />
+                      Response Length
+                    </Label>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Control how detailed the AI responses should be
+                    </p>
+                  </div>
+                  <button 
+                    className="text-gray-400 hover:text-gray-600"
+                    title="Adjusts the verbosity and detail level of AI responses"
+                  >
+                    <HelpCircle className="w-4 h-4" />
+                  </button>
+                </div>
+                
+                <div className="space-y-4">
+                  <div className="px-4 py-3 bg-gray-50 rounded-lg">
+                    <div className="flex justify-between items-center mb-3">
+                      <span className="text-sm font-medium text-gray-700">
+                        Current: {getResponseLengthLabel(behaviorSettings.response_length)}
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        {getResponseLengthDescription(behaviorSettings.response_length)}
+                      </span>
+                    </div>
+                    
+                    <div className="relative">
+                      <Slider
+                        value={[behaviorSettings.response_length]}
+                        onValueChange={(value) => setBehaviorSettings({ 
+                          ...behaviorSettings, 
+                          response_length: value[0] 
+                        })}
+                        max={2}
+                        min={0}
+                        step={1}
+                        className="w-full"
+                      />
+                      <div className="flex justify-between text-xs text-gray-500 mt-2">
+                        <span className={behaviorSettings.response_length === 0 ? 'font-semibold text-blue-600' : ''}>
+                          Short
+                        </span>
+                        <span className={behaviorSettings.response_length === 1 ? 'font-semibold text-blue-600' : ''}>
+                          Medium
+                        </span>
+                        <span className={behaviorSettings.response_length === 2 ? 'font-semibold text-blue-600' : ''}>
+                          Long
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Follow-up Questions Toggle */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-base font-semibold flex items-center">
+                      <Settings className="h-4 w-4 mr-2 text-green-600" />
+                      Follow-up Questions
+                    </Label>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Whether the AI should ask relevant follow-up questions
+                    </p>
+                  </div>
+                  <button 
+                    className="text-gray-400 hover:text-gray-600"
+                    title="When enabled, AI will ask relevant follow-up questions at the end of responses"
+                  >
+                    <HelpCircle className="w-4 h-4" />
+                  </button>
+                </div>
+                
+                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                  <div className="flex-1">
+                    <div className="font-medium text-sm text-gray-900">
+                      Ask follow-up questions
+                    </div>
+                    <div className="text-xs text-gray-600 mt-1">
+                      {behaviorSettings.ask_followup_questions 
+                        ? 'AI will ask relevant follow-up questions to better understand user needs'
+                        : 'AI will provide direct answers without asking additional questions'
+                      }
+                    </div>
+                  </div>
+                  <Switch
+                    checked={behaviorSettings.ask_followup_questions}
+                    onCheckedChange={(checked) => setBehaviorSettings({ 
+                      ...behaviorSettings, 
+                      ask_followup_questions: checked 
+                    })}
+                  />
+                </div>
+              </div>
+
               {/* Custom Instructions */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
@@ -262,20 +392,27 @@ const BehaviorSettingsPage = () => {
                 </div>
               </div>
 
-              {/* Current Mode Indicator */}
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              {/* Current Settings Summary */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <div className="flex items-start space-x-2">
-                  <Brain className="w-5 h-5 text-yellow-600 mt-0.5" />
-                  <div className="text-sm text-yellow-800">
-                    <strong>Current Mode:</strong> {
-                      behaviorSettings.kb_mode === 'strict' ? 'Knowledge Base Only (Strict)' :
-                      behaviorSettings.kb_mode === 'flexible' ? 'Mixed Mode (Flexible)' :
-                      'Knowledge Base Priority (Balanced)'
-                    }
-                    <br />
-                    {behaviorSettings.kb_mode === 'strict' && 'Your agent will only answer using information from the knowledge base.'}
-                    {behaviorSettings.kb_mode === 'balanced' && 'Your agent will search the knowledge base first and supplement with general knowledge when needed.'}
-                    {behaviorSettings.kb_mode === 'flexible' && 'Your agent will blend knowledge base and general knowledge naturally.'}
+                  <Brain className="w-5 h-5 text-blue-600 mt-0.5" />
+                  <div className="text-sm text-blue-800">
+                    <strong>Current Configuration:</strong>
+                    <div className="mt-2 space-y-1">
+                      <div>
+                        <strong>Knowledge Base Mode:</strong> {
+                          behaviorSettings.kb_mode === 'strict' ? 'Knowledge Base Only (Strict)' :
+                          behaviorSettings.kb_mode === 'flexible' ? 'Mixed Mode (Flexible)' :
+                          'Knowledge Base Priority (Balanced)'
+                        }
+                      </div>
+                      <div>
+                        <strong>Response Length:</strong> {getResponseLengthLabel(behaviorSettings.response_length)} - {getResponseLengthDescription(behaviorSettings.response_length)}
+                      </div>
+                      <div>
+                        <strong>Follow-up Questions:</strong> {behaviorSettings.ask_followup_questions ? 'Enabled' : 'Disabled'}
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>

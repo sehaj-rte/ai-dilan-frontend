@@ -3,6 +3,8 @@ import { Inter } from 'next/font/google'
 import './globals.css'
 import { ReduxProvider } from '@/components/providers/ReduxProvider'
 import { LogRocketProvider } from '@/components/providers/LogRocketProvider'
+import { LegalProvider } from '@/contexts/LegalContext'
+import { LegalFooter } from '@/components/legal'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -21,7 +23,14 @@ export default function RootLayout({
       <body className={inter.className}>
         <LogRocketProvider>
           <ReduxProvider>
-            {children}
+            <LegalProvider>
+              <div className="min-h-screen flex flex-col">
+                <main className="flex-1">
+                  {children}
+                </main>
+                <LegalFooter />
+              </div>
+            </LegalProvider>
           </ReduxProvider>
         </LogRocketProvider>
       </body>
