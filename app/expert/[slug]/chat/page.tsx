@@ -18,6 +18,7 @@ import { API_URL } from "@/lib/config";
 import { uploadFilesToS3, S3UploadedFile } from "@/lib/s3-upload";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import OptimizedImage from "@/components/ui/OptimizedImage";
 import {
   Send,
   Plus,
@@ -98,12 +99,15 @@ const ClientChatPage = () => {
   const dispatch = useDispatch();
   const slug = params.slug as string;
 
-  const convertS3UrlToProxy = (s3Url: string): string => {
+  const convertS3UrlToProxy = (s3Url: string, thumbnail: boolean = false, size: number = 40): string => {
     if (!s3Url) return s3Url as any;
     const match = s3Url.match(
       /https:\/\/ai-dilan\.s3\.[^/]+\.amazonaws\.com\/(.+)/,
     );
     if (match) {
+      if (thumbnail) {
+        return `${API_URL}/images/avatar/thumbnail/${match[1]}?size=${size}&quality=90`;
+      }
       return `${API_URL}/images/avatar/full/${match[1]}`;
     }
     return s3Url;
@@ -437,7 +441,7 @@ const ClientChatPage = () => {
           setExpert({
             ...data.expert,
             avatar_url: data.expert?.avatar_url
-              ? convertS3UrlToProxy(data.expert.avatar_url)
+              ? convertS3UrlToProxy(data.expert.avatar_url, true, 40)
               : null,
           });
           setPublication(data.publication);
@@ -1616,7 +1620,7 @@ const ClientChatPage = () => {
       className="flex h-screen overflow-hidden relative"
       style={{
         background: publication?.banner_url
-          ? `linear-gradient(135deg, rgba(0,0,0,0.1), rgba(0,0,0,0.05)), url(${convertS3UrlToProxy(publication.banner_url)})`
+          ? `linear-gradient(135deg, rgba(0,0,0,0.1), rgba(0,0,0,0.05)), url(${convertS3UrlToProxy(publication.banner_url, true, 1200)})`
           : `linear-gradient(135deg, ${primaryColor}15, ${secondaryColor}10), linear-gradient(45deg, #f8fafc, #e2e8f0)`,
         backgroundSize: publication?.banner_url ? "cover" : "400% 400%",
         backgroundPosition: "center",

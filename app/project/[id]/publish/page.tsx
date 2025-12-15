@@ -1547,6 +1547,7 @@ const PublishManagerPage = () => {
                       <p className="text-xs text-gray-500 mt-1">
                         Allow users to try your expert for free with usage limits
                       </p>
+
                     </div>
                     <div className="flex items-center gap-2">
                       {isUpdatingTrial && (
@@ -1563,6 +1564,7 @@ const PublishManagerPage = () => {
                           (async () => {
                             try {
                               setIsUpdatingTrial(true);
+                              
                               const response = await fetchWithAuth(
                                 `${API_URL}/experts/${projectId}`,
                                 {
@@ -1580,16 +1582,19 @@ const PublishManagerPage = () => {
                               );
 
                               const data = await response.json();
+                              
                               if (data.success) {
                                 setExpert({ 
                                   ...expert, 
                                   ...data.expert
                                 });
                                 success(enabled ? "Free trial enabled!" : "Free trial disabled!");
+                                // Refresh expert data to ensure consistency
+                                await fetchExpertData();
                               } else {
                                 // Revert UI change on error
                                 setExpert({ ...expert, free_trial_enabled: !enabled });
-                                error("Failed to update trial settings");
+                                error("Failed to update trial settings: " + (data.error || data.detail || "Unknown error"));
                               }
                             } catch (err) {
                               console.error("Error updating trial settings:", err);

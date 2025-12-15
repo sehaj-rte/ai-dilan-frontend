@@ -22,6 +22,7 @@ import PrivateExpertPaymentModal from "@/components/client/PrivateExpertPaymentM
 import BillingButton from "@/components/billing/BillingButton";
 import { RootState } from "@/store/store";
 import { logout } from "@/store/slices/authSlice";
+import OptimizedImage from "@/components/ui/OptimizedImage";
 import {
   MessageCircle,
   Phone,
@@ -184,12 +185,15 @@ const ClientExpertPage = () => {
     }
   };
 
-  const convertS3UrlToProxy = (s3Url: string): string => {
+  const convertS3UrlToProxy = (s3Url: string, thumbnail: boolean = false, size: number = 128): string => {
     if (!s3Url) return s3Url;
     const match = s3Url.match(
       /https:\/\/ai-dilan\.s3\.[^/]+\.amazonaws\.com\/(.+)/,
     );
     if (match) {
+      if (thumbnail) {
+        return `${API_URL}/images/avatar/thumbnail/${match[1]}?size=${size}&quality=90`;
+      }
       return `${API_URL}/images/avatar/full/${match[1]}`;
     }
     return s3Url;
@@ -268,7 +272,7 @@ const ClientExpertPage = () => {
         setExpert({
           ...data.expert,
           avatar_url: data.expert?.avatar_url
-            ? convertS3UrlToProxy(data.expert.avatar_url)
+            ? convertS3UrlToProxy(data.expert.avatar_url, true, 128)
             : null,
         });
         setPublication(data.publication);
@@ -676,7 +680,7 @@ const ClientExpertPage = () => {
       className="min-h-screen bg-white"
       style={{
         backgroundImage: publication?.banner_url
-          ? `url(${convertS3UrlToProxy(publication.banner_url)})`
+          ? `url(${convertS3UrlToProxy(publication.banner_url, true, 1200)})`
           : undefined,
         backgroundSize: "cover",
         backgroundPosition: "center",
@@ -784,31 +788,20 @@ const ClientExpertPage = () => {
           className={`max-w-2xl mx-auto text-center ${publication?.banner_url ? "bg-white/60 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/30 p-8" : ""}`}
         >
           {/* Expert Avatar */}
-          <div className="mb-6">
-            {expert.avatar_url ? (
-              <div className="relative">
-                <img
-                  src={expert.avatar_url}
-                  alt={expert.name}
-                  className="w-32 h-32 rounded-full mx-auto object-cover shadow-lg"
-                  onError={(e) => {
-                    e.currentTarget.style.display = "none";
-                    const fallback =
-                      e.currentTarget.parentElement?.querySelector(
-                        ".avatar-fallback",
-                      ) as HTMLElement;
-                    if (fallback) fallback.style.display = "flex";
-                  }}
-                />
-                <div className="avatar-fallback w-32 h-32 rounded-full mx-auto hidden items-center justify-center bg-gray-200 text-gray-600 text-4xl font-bold shadow-lg">
+          <div className="mb-6 flex justify-center">
+            <OptimizedImage
+              src={expert.avatar_url}
+              alt={expert.name}
+              className="w-32 h-32 rounded-full object-cover shadow-lg"
+              fallbackClassName="w-32 h-32 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 shadow-lg"
+              fallbackIcon={
+                <span className="text-gray-600 text-4xl font-bold">
                   {expert.name.charAt(0)}
-                </div>
-              </div>
-            ) : (
-              <div className="w-32 h-32 rounded-full mx-auto flex items-center justify-center bg-gray-200 text-gray-600 text-4xl font-bold shadow-lg">
-                {expert.name.charAt(0)}
-              </div>
-            )}
+                </span>
+              }
+              priority={true}
+              placeholder="blur"
+            />
           </div>
 
           {/* Expert Name */}

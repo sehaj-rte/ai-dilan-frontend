@@ -29,6 +29,7 @@ import {
   Share2,
   Shield
 } from 'lucide-react'
+import OptimizedImage from '@/components/ui/OptimizedImage'
 
 interface Project {
   id: string
@@ -127,26 +128,44 @@ const ProjectsPage = () => {
     router.push('/auth/login')
   }
 
-  const convertS3UrlToProxy = (s3Url: string): string => {
+  const convertS3UrlToProxy = (s3Url: string, thumbnail: boolean = false, size: number = 80): string => {
     if (!s3Url) return s3Url
     
     // Convert S3 URL to proxy URL
     const match = s3Url.match(/https:\/\/ai-dilan\.s3\.[^/]+\.amazonaws\.com\/(.+)/)
     if (match) {
+      if (thumbnail) {
+        return `${API_URL}/images/avatar/thumbnail/${match[1]}?size=${size}&quality=90`
+      }
       return `${API_URL}/images/avatar/full/${match[1]}`
     }
     return s3Url
   }
 
-  // Preload images for better performance
+  // Optimized image preloading with parallel loading and better error handling
   const preloadImage = useCallback((src: string): Promise<void> => {
     return new Promise((resolve, reject) => {
       const img = new Image()
       img.onload = () => resolve()
       img.onerror = () => reject()
+      // Add loading optimization
+      img.loading = 'eager'
+      img.decoding = 'async'
       img.src = src
     })
   }, [])
+
+  // Batch preload images for better performance
+  const preloadImagesInBatches = useCallback(async (imageUrls: string[], batchSize: number = 3) => {
+    for (let i = 0; i < imageUrls.length; i += batchSize) {
+      const batch = imageUrls.slice(i, i + batchSize)
+      await Promise.allSettled(batch.map(url => preloadImage(url)))
+      // Small delay between batches to prevent overwhelming the server
+      if (i + batchSize < imageUrls.length) {
+        await new Promise(resolve => setTimeout(resolve, 100))
+      }
+    }
+  }, [preloadImage])
 
   // Handle image loading states
   const handleImageLoad = useCallback((imageId: string) => {
@@ -177,25 +196,46 @@ const ProjectsPage = () => {
       const data = await response.json()
       
       if (data.success && data.experts) {
-        // Convert S3 URLs to proxy URLs
+        // Convert S3 URLs to optimized thumbnail URLs for better performance
         const projectsWithProxyUrls = data.experts.map((project: Project) => ({
           ...project,
-          avatar_url: project.avatar_url ? convertS3UrlToProxy(project.avatar_url) : null
+          avatar_url: project.avatar_url ? convertS3UrlToProxy(project.avatar_url, true, 80) : null
         }))
         setProjects(projectsWithProxyUrls)
         
         // Initialize loading states for all project images
         const loadingStates: {[key: string]: boolean} = {}
+        const imageUrls: string[] = []
+        
         projectsWithProxyUrls.forEach((project: Project) => {
           if (project.avatar_url) {
             loadingStates[project.id] = true
-            // Preload images for better performance
-            preloadImage(project.avatar_url)
-              .then(() => handleImageLoad(project.id))
-              .catch(() => handleImageError(project.id))
+            imageUrls.push(project.avatar_url)
           }
         })
         setImageLoadingStates(loadingStates)
+        
+        // Batch preload images for better performance
+        if (imageUrls.length > 0) {
+          preloadImagesInBatches(imageUrls).then(() => {
+            // Mark all images as loaded after batch preloading
+            projectsWithProxyUrls.forEach((project: Project) => {
+              if (project.avatar_url) {
+                handleImageLoad(project.id)
+              }
+            })
+          }).catch(() => {
+            // Handle batch loading errors
+            projectsWithProxyUrls.forEach((project: Project) => {
+              if (project.avatar_url) {
+                // Test individual images on batch failure
+                preloadImage(project.avatar_url)
+                  .then(() => handleImageLoad(project.id))
+                  .catch(() => handleImageError(project.id))
+              }
+            })
+          })
+        }
       } else {
         console.error('Failed to fetch projects:', data.error)
         setProjects([])
@@ -396,41 +436,21 @@ const ProjectsPage = () => {
         <div className="text-center mb-12">
           {/* User Avatar */}
           <div className="mb-6 flex justify-center">
-            {user?.avatar_url ? (
-              <div className="relative w-24 h-24">
-                {/* Loading spinner */}
-                {userImageLoading && (
-                  <div className="absolute inset-0 w-24 h-24 rounded-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center border-4 border-white shadow-lg">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                  </div>
-                )}
-                
-                <img
-                  src={user.avatar_url}
-                  alt={user.full_name || user.username || 'User'}
-                  className={`w-24 h-24 rounded-full object-cover border-4 border-white shadow-lg transition-opacity duration-300 ${
-                    userImageLoading ? 'opacity-0' : 'opacity-100'
-                  } ${userImageError ? 'hidden' : ''}`}
-                  onLoad={handleUserImageLoad}
-                  onError={handleUserImageError}
-                />
-                
-                {/* Fallback avatar */}
-                {userImageError && (
-                  <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center border-4 border-white shadow-lg">
-                    <span className="text-white font-bold text-2xl">
-                      {user.username?.charAt(0).toUpperCase() || user.email?.charAt(0).toUpperCase() || 'U'}
-                    </span>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center border-4 border-white shadow-lg">
+            <OptimizedImage
+              src={user?.avatar_url ? convertS3UrlToProxy(user.avatar_url, true, 96) : null}
+              alt={user?.full_name || user?.username || 'User'}
+              className="w-24 h-24 rounded-full object-cover border-4 border-white shadow-lg"
+              fallbackClassName="w-24 h-24 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 border-4 border-white shadow-lg"
+              fallbackIcon={
                 <span className="text-white font-bold text-2xl">
                   {user?.username?.charAt(0).toUpperCase() || user?.email?.charAt(0).toUpperCase() || 'U'}
                 </span>
-              </div>
-            )}
+              }
+              priority={true}
+              placeholder="blur"
+              onLoad={handleUserImageLoad}
+              onError={handleUserImageError}
+            />
           </div>
           
           <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
@@ -520,38 +540,18 @@ const ProjectsPage = () => {
                 <CardContent className="p-6">
                   <div className="text-center">
                     {/* Avatar */}
-                    <div className="mb-4">
-                      {project.avatar_url ? (
-                        <div className="relative mx-auto w-20 h-20">
-                          {/* Loading spinner */}
-                          {imageLoadingStates[project.id] && (
-                            <div className="absolute inset-0 w-20 h-20 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 flex items-center justify-center border-4 border-gray-200 group-hover:border-blue-300 transition-colors">
-                              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-                            </div>
-                          )}
-                          
-                          <img
-                            src={project.avatar_url}
-                            alt={project.name}
-                            className={`w-20 h-20 rounded-full object-cover border-4 border-gray-200 group-hover:border-blue-300 transition-all duration-300 ${
-                              imageLoadingStates[project.id] ? 'opacity-0' : 'opacity-100'
-                            } ${imageErrors[project.id] ? 'hidden' : ''}`}
-                            onLoad={() => handleImageLoad(project.id)}
-                            onError={() => handleImageError(project.id)}
-                          />
-                          
-                          {/* Fallback avatar */}
-                          {imageErrors[project.id] && (
-                            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center border-4 border-gray-200 group-hover:border-blue-300 transition-colors">
-                              <User className="h-8 w-8 text-blue-600" />
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <div className="w-20 h-20 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center mx-auto border-4 border-gray-200 group-hover:border-blue-300 transition-colors">
-                          <User className="h-8 w-8 text-blue-600" />
-                        </div>
-                      )}
+                    <div className="mb-4 flex justify-center">
+                      <OptimizedImage
+                        src={project.avatar_url}
+                        alt={project.name}
+                        className="w-20 h-20 rounded-full object-cover border-4 border-gray-200 group-hover:border-blue-300 transition-all duration-300"
+                        fallbackClassName="w-20 h-20 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 border-4 border-gray-200 group-hover:border-blue-300 transition-colors"
+                        fallbackIcon={<User className="h-8 w-8 text-blue-600" />}
+                        priority={true}
+                        placeholder="blur"
+                        onLoad={() => handleImageLoad(project.id)}
+                        onError={() => handleImageError(project.id)}
+                      />
                     </div>
                     
                     {/* Project Info */}

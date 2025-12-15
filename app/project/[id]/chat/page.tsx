@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { API_URL } from "@/lib/config";
 import { fetchWithAuth, getAuthHeaders } from "@/lib/api-client";
 import { MessageCircle, Phone, User } from "lucide-react";
+import OptimizedImage from "@/components/ui/OptimizedImage";
 
 interface Expert {
   id: string;
@@ -42,13 +43,16 @@ const ChatPage = () => {
     }
   }, [expertId]);
 
-  const convertS3UrlToProxy = (s3Url: string): string => {
+  const convertS3UrlToProxy = (s3Url: string, thumbnail: boolean = false, size: number = 128): string => {
     if (!s3Url) return s3Url;
 
     const match = s3Url.match(
       /https:\/\/ai-dilan\.s3\.[^/]+\.amazonaws\.com\/(.+)/,
     );
     if (match) {
+      if (thumbnail) {
+        return `${API_URL}/images/avatar/thumbnail/${match[1]}?size=${size}&quality=90`;
+      }
       return `${API_URL}/images/avatar/full/${match[1]}`;
     }
     return s3Url;
@@ -59,52 +63,49 @@ const ChatPage = () => {
       setIsLoading(true);
       setCheckingPublication(true);
 
-      // Fetch expert data
-      const expertResponse = await fetchWithAuth(
-        `${API_URL}/experts/${expertId}`,
-        {
+      // Parallel fetch for better performance
+      const [expertResponse, pubResponse] = await Promise.allSettled([
+        fetchWithAuth(`${API_URL}/experts/${expertId}`, {
           headers: getAuthHeaders(),
-        },
-      );
-      const expertData = await expertResponse.json();
+        }),
+        fetchWithAuth(`${API_URL}/publishing/experts/${expertId}/publication`, {
+          headers: getAuthHeaders(),
+        })
+      ]);
 
-      if (!expertData.success || !expertData.expert) {
-        console.error("Failed to fetch expert:", expertData.error);
+      // Handle expert data
+      if (expertResponse.status === 'fulfilled') {
+        const expertData = await expertResponse.value.json();
+        
+        if (!expertData.success || !expertData.expert) {
+          console.error("Failed to fetch expert:", expertData.error);
+          router.push("/projects");
+          return;
+        }
+
+        const expertWithProxyUrl = {
+          ...expertData.expert,
+          avatar_url: expertData.expert.avatar_url
+            ? convertS3UrlToProxy(expertData.expert.avatar_url, true, 128)
+            : null,
+        };
+        setExpert(expertWithProxyUrl);
+      } else {
+        console.error("Error fetching expert:", expertResponse.reason);
         router.push("/projects");
         return;
       }
 
-      const expertWithProxyUrl = {
-        ...expertData.expert,
-        avatar_url: expertData.expert.avatar_url
-          ? convertS3UrlToProxy(expertData.expert.avatar_url)
-          : null,
-      };
-      setExpert(expertWithProxyUrl);
-
-      // Check if expert has a publication
-      try {
-        console.log("🔍 Checking publication for expert:", expertId);
-        const pubResponse = await fetchWithAuth(
-          `${API_URL}/publishing/experts/${expertId}/publication`,
-          {
-            headers: getAuthHeaders(),
-          },
-        );
-        console.log("📡 Publication response status:", pubResponse.status);
-
-        const pubData = await pubResponse.json();
-        console.log("📦 Publication data:", pubData);
-
-        if (pubData.success && pubData.publication) {
-          console.log("✅ Publication found:", pubData.publication);
-          setPublication(pubData.publication);
-        } else {
-          console.log("⚠️ No publication in response:", pubData);
+      // Handle publication data (optional)
+      if (pubResponse.status === 'fulfilled') {
+        try {
+          const pubData = await pubResponse.value.json();
+          if (pubData.success && pubData.publication) {
+            setPublication(pubData.publication);
+          }
+        } catch (pubError) {
+          console.log("Publication not available or error parsing:", pubError);
         }
-      } catch (pubError) {
-        console.error("❌ Publication check error:", pubError);
-        // Not an error - expert just hasn't published yet
       }
     } catch (error) {
       console.error("Error fetching expert:", error);
@@ -127,12 +128,17 @@ const ChatPage = () => {
     router.push(`/persona/${expertId}/call`);
   };
 
-  if (isLoading || checkingPublication) {
+  if (isLoading) {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center h-full">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <span className="ml-2 text-gray-600">Loading expert...</span>
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <span className="text-gray-600 text-lg">Loading expert...</span>
+            {checkingPublication && (
+              <p className="text-gray-500 text-sm mt-2">Checking publication status...</p>
+            )}
+          </div>
         </div>
       </DashboardLayout>
     );
@@ -160,31 +166,20 @@ const ChatPage = () => {
       <div className="container mx-auto px-4 py-16">
         <div className="max-w-2xl mx-auto text-center">
           {/* Expert Avatar */}
-          <div className="mb-6">
-            {expert.avatar_url ? (
-              <div className="relative">
-                <img
-                  src={expert.avatar_url}
-                  alt={expert.name}
-                  className="w-32 h-32 rounded-full mx-auto object-cover shadow-lg"
-                  onError={(e) => {
-                    e.currentTarget.style.display = "none";
-                    const fallback =
-                      e.currentTarget.parentElement?.querySelector(
-                        ".avatar-fallback",
-                      ) as HTMLElement;
-                    if (fallback) fallback.style.display = "flex";
-                  }}
-                />
-                <div className="avatar-fallback w-32 h-32 rounded-full mx-auto hidden items-center justify-center bg-gray-200 text-gray-600 text-4xl font-bold shadow-lg">
+          <div className="mb-6 flex justify-center">
+            <OptimizedImage
+              src={expert.avatar_url}
+              alt={expert.name}
+              className="w-32 h-32 rounded-full object-cover shadow-lg"
+              fallbackClassName="w-32 h-32 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 shadow-lg"
+              fallbackIcon={
+                <span className="text-gray-600 text-4xl font-bold">
                   {expert.name.charAt(0)}
-                </div>
-              </div>
-            ) : (
-              <div className="w-32 h-32 rounded-full mx-auto flex items-center justify-center bg-gray-200 text-gray-600 text-4xl font-bold shadow-lg">
-                {expert.name.charAt(0)}
-              </div>
-            )}
+                </span>
+              }
+              priority={true}
+              placeholder="blur"
+            />
           </div>
 
           {/* Expert Name */}
