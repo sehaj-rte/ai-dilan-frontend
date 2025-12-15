@@ -827,33 +827,34 @@ const ClientExpertPage = () => {
             </p>
           )}
 
-          {/* CTA Buttons */}
-          <div className="flex justify-center gap-3 mb-8">
-            <Button
-              size="lg"
-              variant="outline"
-              className="px-8 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 border-2"
-              style={{ borderColor: primaryColor, color: primaryColor }}
-              onClick={handleStartChat}
-              disabled={checkingSubscription}
-            >
-              <MessageCircle className="h-5 w-5 mr-2" />
-              Chat
-            </Button>
-            <Button
-              size="lg"
-              className="text-white px-8 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
-              style={{ backgroundColor: primaryColor }}
-              onClick={handleStartCall}
-              disabled={checkingSubscription}
-            >
-              <Phone className="h-5 w-5 mr-2" />
-              Call
-            </Button>
-          </div>
+          {/* CTA Buttons and Browser Notice - Horizontally Aligned */}
+          <div className="flex flex-col items-center gap-4 mb-6">
+            {/* CTA Buttons - Increased gap to align with browser notice width */}
+            <div className="flex justify-center gap-16">
+              <Button
+                size="lg"
+                variant="outline"
+                className="px-8 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 border-2"
+                style={{ borderColor: primaryColor, color: primaryColor }}
+                onClick={handleStartChat}
+                disabled={checkingSubscription}
+              >
+                <MessageCircle className="h-5 w-5 mr-2" />
+                Chat
+              </Button>
+              <Button
+                size="lg"
+                className="text-white px-8 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+                style={{ backgroundColor: primaryColor }}
+                onClick={handleStartCall}
+                disabled={checkingSubscription}
+              >
+                <Phone className="h-5 w-5 mr-2" />
+                Call
+              </Button>
+            </div>
 
-          {/* Browser Compatibility Notice */}
-          <div className="flex justify-center mb-12">
+            {/* Browser Compatibility Notice - Aligned with button spacing */}
             <div
               className="border rounded-full px-4 py-2 shadow-sm"
               style={{
@@ -873,7 +874,7 @@ const ClientExpertPage = () => {
 
           {/* Description Section */}
           <div
-            className={`pt-8 ${publication?.banner_url ? "border-t border-gray-300/50" : "border-t border-gray-200"}`}
+            className={`pt-4 ${publication?.banner_url ? "border-t border-gray-300/50" : "border-t border-gray-200"}`}
           >
             <div className="flex items-center justify-between mb-4">
               <h2

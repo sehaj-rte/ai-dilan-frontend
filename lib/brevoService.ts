@@ -26,7 +26,11 @@ const TEMPLATES = {
     process.env.BREVO_USER_REGISTRATION_TEMPLATE_ID || "1",
   ),
   USER_PAYMENT_SUCCESS: parseInt(
-    process.env.BREVO_USER_PAYMENT_TEMPLATE_ID || "2",
+    process.env.BREVO_USER_PAYMENT_TEMPLATE_ID || "3",
+  ),
+  SUBSCRIPTION_CANCELLED: 2, // HARDCODED to ensure Template ID 2 is used
+  PASSWORD_RESET: parseInt(
+    process.env.BREVO_PASSWORD_RESET_TEMPLATE_ID || "4",
   ),
 };
 
@@ -66,6 +70,28 @@ interface PaymentSuccessData {
   currency: string;
   paymentDate: string;
   sessionType: "chat" | "call";
+}
+
+interface SubscriptionCancelledData {
+  userEmail: string;
+  userName: string;
+  fullName?: string;
+  expertName: string;
+  expertSlug: string;
+  planName: string;
+  subscriptionId: string;
+  cancelDate: string;
+  periodEndDate?: string;
+  cancelReason?: string;
+}
+
+interface PasswordResetData {
+  userEmail: string;
+  userName: string;
+  fullName?: string;
+  resetToken: string;
+  resetLink: string;
+  expiresAt: string;
 }
 
 class BrevoService {
@@ -216,6 +242,139 @@ class BrevoService {
   }
 
   /**
+   * Send subscription cancelled notification
+   */
+  async sendSubscriptionCancelledNotification(
+    cancelData: SubscriptionCancelledData,
+  ): Promise<boolean> {
+    try {
+      // Prepare customer recipient (user gets the email)
+      const customerRecipient = {
+        email: cancelData.userEmail,
+        name: cancelData.fullName || cancelData.userName,
+      };
+
+      // Admin recipients
+      const adminRecipients = [
+        ...ADMIN_EMAILS.EXPERTS.map((email) => ({
+          email,
+          name: "Expert Admin",
+        })),
+        ...ADMIN_EMAILS.SUPER_ADMINS.map((email) => ({
+          email,
+          name: "Super Admin",
+        })),
+      ];
+
+      // Customer + Admins all receive this email
+      const recipients = [customerRecipient, ...adminRecipients];
+
+      const expertName = cancelData.expertName || "AI Expert";
+      const DASHBOARD_URL =
+        process.env.NEXT_PUBLIC_DASHBOARD_URL ||
+        "https://your-domain.com/dashboard";
+
+      const sendSmtpEmail = new SendSmtpEmail();
+      sendSmtpEmail.to = recipients;
+      sendSmtpEmail.templateId = TEMPLATES.SUBSCRIPTION_CANCELLED;
+      
+      // Set dynamic subject
+      const dynamicSubject = `${expertName} | Subscription Cancelled — We're Sorry to See You Go`;
+      sendSmtpEmail.subject = dynamicSubject;
+      
+      const params: any = {
+        CLIENT_NAME: cancelData.fullName || cancelData.userName,
+        USER_EMAIL: cancelData.userEmail,
+        EXPERT_NAME: expertName,
+        PLAN_NAME: cancelData.planName,
+        SUBSCRIPTION_ID: cancelData.subscriptionId,
+        CANCEL_DATE: cancelData.cancelDate,
+        PERIOD_END_DATE: cancelData.periodEndDate || "Immediately",
+        CANCEL_REASON: cancelData.cancelReason || "Not specified",
+        DASHBOARD_URL: DASHBOARD_URL,
+        EMAIL_SUBJECT: dynamicSubject,
+        EXPERT_URL: `${process.env.NEXT_PUBLIC_BASE_URL || "https://your-domain.com"}/expert/${cancelData.expertSlug}`,
+      };
+
+      sendSmtpEmail.params = params;
+
+      const api = getApiInstance();
+      if (!api) {
+        throw new Error("Brevo API not initialized");
+      }
+      const response = await api.sendTransacEmail(sendSmtpEmail);
+      console.log(
+        "✅ Subscription cancelled notification sent successfully:",
+        response,
+      );
+      return true;
+    } catch (error) {
+      console.error("❌ Failed to send subscription cancelled notification:", error);
+      return false;
+    }
+  }
+
+  /**
+   * Send password reset notification
+   */
+  async sendPasswordResetNotification(
+    resetData: PasswordResetData,
+  ): Promise<boolean> {
+    try {
+      // Prepare customer recipient (user gets the email)
+      const customerRecipient = {
+        email: resetData.userEmail,
+        name: resetData.fullName || resetData.userName,
+      };
+
+      // Admin recipients (for security monitoring)
+      const adminRecipients = [
+        ...ADMIN_EMAILS.SUPER_ADMINS.map((email) => ({
+          email,
+          name: "Super Admin",
+        })),
+      ];
+
+      // Customer + Admins all receive this email
+      const recipients = [customerRecipient, ...adminRecipients];
+
+      const sendSmtpEmail = new SendSmtpEmail();
+      sendSmtpEmail.to = recipients;
+      sendSmtpEmail.templateId = TEMPLATES.PASSWORD_RESET;
+      
+      // Set dynamic subject
+      const dynamicSubject = "Password Reset Request — Secure Your Account";
+      sendSmtpEmail.subject = dynamicSubject;
+      
+      const params: any = {
+        CLIENT_NAME: resetData.fullName || resetData.userName,
+        USER_EMAIL: resetData.userEmail,
+        RESET_TOKEN: resetData.resetToken,
+        RESET_LINK: resetData.resetLink,
+        EXPIRES_AT: resetData.expiresAt,
+        EMAIL_SUBJECT: dynamicSubject,
+        DASHBOARD_URL: process.env.NEXT_PUBLIC_DASHBOARD_URL || "https://your-domain.com/dashboard",
+      };
+
+      sendSmtpEmail.params = params;
+
+      const api = getApiInstance();
+      if (!api) {
+        throw new Error("Brevo API not initialized");
+      }
+      const response = await api.sendTransacEmail(sendSmtpEmail);
+      console.log(
+        "✅ Password reset notification sent successfully:",
+        response,
+      );
+      return true;
+    } catch (error) {
+      console.error("❌ Failed to send password reset notification:", error);
+      return false;
+    }
+  }
+
+  /**
    * Test email functionality
    */
   async testEmailService(): Promise<boolean> {
@@ -245,4 +404,4 @@ class BrevoService {
 }
 
 export const brevoService = new BrevoService();
-export type { UserRegistrationData, PaymentSuccessData };
+export type { UserRegistrationData, PaymentSuccessData, SubscriptionCancelledData, PasswordResetData };

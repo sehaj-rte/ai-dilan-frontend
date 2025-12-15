@@ -21,6 +21,27 @@ interface PaymentNotificationData extends NotificationData {
   sessionType: "chat" | "call";
 }
 
+interface SubscriptionCancelledNotificationData {
+  userEmail: string;
+  userName: string;
+  fullName?: string;
+  expertName: string;
+  expertSlug: string;
+  planName: string;
+  subscriptionId: string;
+  cancelReason?: string;
+  periodEndDate?: string;
+}
+
+interface PasswordResetNotificationData {
+  userEmail: string;
+  userName: string;
+  fullName?: string;
+  resetToken: string;
+  resetLink: string;
+  expiresAt: string;
+}
+
 class NotificationService {
   private baseUrl: string;
 
@@ -121,6 +142,78 @@ class NotificationService {
   }
 
   /**
+   * Send subscription cancelled notification
+   */
+  async sendSubscriptionCancelledNotification(
+    data: SubscriptionCancelledNotificationData,
+  ): Promise<boolean> {
+    try {
+      const response = await fetch(
+        `${this.baseUrl}/notifications/subscription-cancelled`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(data),
+        },
+      );
+
+      const result = await response.json();
+
+      if (response.ok) {
+        console.log("✅ Subscription cancelled notification sent:", result.message);
+        return true;
+      } else {
+        console.error(
+          "❌ Failed to send subscription cancelled notification:",
+          result.error,
+        );
+        return false;
+      }
+    } catch (error) {
+      console.error("❌ Error sending subscription cancelled notification:", error);
+      return false;
+    }
+  }
+
+  /**
+   * Send password reset notification
+   */
+  async sendPasswordResetNotification(
+    data: PasswordResetNotificationData,
+  ): Promise<boolean> {
+    try {
+      const response = await fetch(
+        `${this.baseUrl}/notifications/password-reset`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(data),
+        },
+      );
+
+      const result = await response.json();
+
+      if (response.ok) {
+        console.log("✅ Password reset notification sent:", result.message);
+        return true;
+      } else {
+        console.error(
+          "❌ Failed to send password reset notification:",
+          result.error,
+        );
+        return false;
+      }
+    } catch (error) {
+      console.error("❌ Error sending password reset notification:", error);
+      return false;
+    }
+  }
+
+  /**
    * Helper method to extract plan data from payment response
    */
   extractPaymentData(
@@ -142,4 +235,9 @@ class NotificationService {
 }
 
 export const notificationService = new NotificationService();
-export type { NotificationData, PaymentNotificationData };
+export type { 
+  NotificationData, 
+  PaymentNotificationData, 
+  SubscriptionCancelledNotificationData, 
+  PasswordResetNotificationData 
+};
