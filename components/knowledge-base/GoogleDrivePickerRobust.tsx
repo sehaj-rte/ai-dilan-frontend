@@ -237,11 +237,20 @@ const GoogleDrivePickerRobust: React.FC<GoogleDrivePickerRobustProps> = ({
       setUploadStatus('uploading');
       setErrorMessage("");
 
+      // Get current access token for authenticated content extraction
+      const authInstance = window.gapi.auth2.getAuthInstance();
+      const user = authInstance.currentUser.get();
+      const authResponse = user.getAuthResponse();
+      const accessToken = authResponse.access_token;
+
       let successCount = 0;
       let errorCount = 0;
+      const errors: string[] = [];
 
       for (const file of files) {
         try {
+          console.log(`🔄 Uploading ${file.name} with access token for content extraction...`);
+          
           const response = await fetchWithAuth(`${API_URL}/knowledge-base/upload-from-drive`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -252,6 +261,7 @@ const GoogleDrivePickerRobust: React.FC<GoogleDrivePickerRobustProps> = ({
               web_view_link: file.webViewLink,
               folder_id: selectedFolderId,
               agent_id: agentId,
+              access_token: accessToken, // Pass access token for authenticated content extraction
             }),
           });
 
@@ -259,11 +269,16 @@ const GoogleDrivePickerRobust: React.FC<GoogleDrivePickerRobustProps> = ({
           
           if (result.success) {
             successCount++;
+            console.log(`✅ Successfully uploaded ${file.name}`);
           } else {
             errorCount++;
+            errors.push(`${file.name}: ${result.error || 'Unknown error'}`);
+            console.error(`❌ Failed to upload ${file.name}:`, result.error);
           }
-        } catch {
+        } catch (error: any) {
           errorCount++;
+          errors.push(`${file.name}: ${error.message || 'Network error'}`);
+          console.error(`❌ Upload error for ${file.name}:`, error);
         }
       }
 
@@ -272,9 +287,13 @@ const GoogleDrivePickerRobust: React.FC<GoogleDrivePickerRobustProps> = ({
         if (onUploadComplete) {
           onUploadComplete();
         }
+        
+        if (errorCount > 0) {
+          setErrorMessage(`${successCount} files uploaded successfully, ${errorCount} failed`);
+        }
       } else {
         setUploadStatus('error');
-        setErrorMessage('All uploads failed');
+        setErrorMessage(`All uploads failed: ${errors.slice(0, 2).join(', ')}${errors.length > 2 ? '...' : ''}`);
       }
 
       // Reset after delay
@@ -286,7 +305,8 @@ const GoogleDrivePickerRobust: React.FC<GoogleDrivePickerRobustProps> = ({
 
     } catch (error: any) {
       setUploadStatus('error');
-      setErrorMessage('Upload failed');
+      setErrorMessage(`Upload failed: ${error.message || 'Unknown error'}`);
+      console.error('❌ Upload process failed:', error);
     }
   };
 

@@ -102,6 +102,21 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
     }
   }, [plans, selectedPlan]);
 
+  // Check for successful payment return from Stripe
+  useEffect(() => {
+    if (isOpen) {
+      const urlParams = new URLSearchParams(window.location.search);
+      const paymentSuccess = urlParams.get('payment_success');
+      const sessionId = urlParams.get('session_id');
+      
+      if (paymentSuccess === 'true' && sessionId) {
+        setSuccess(true);
+        setIsRedirectingToStripe(false);
+        onPaymentSuccess(sessionId);
+      }
+    }
+  }, [isOpen, onPaymentSuccess]);
+
   useEffect(() => {
     setActiveToken(userToken);
   }, [userToken, isOpen]);
@@ -116,6 +131,8 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
       setCouponCode("");
       setCouponValidation({ isValid: false, isValidating: false, message: "" });
       setShowTrialTerms(false);
+      setSuccess(false);
+      setError(null);
     }
   }, [isOpen]);
 

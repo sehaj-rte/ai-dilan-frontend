@@ -38,13 +38,13 @@ const LegalFooter: React.FC<LegalFooterProps> = ({
 
   return (
     <>
-      <footer className={`bg-gray-50 border-t border-gray-200 ${className}`}>
-        <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8">
+      <footer className={`bg-white/95 backdrop-blur-sm border-t border-gray-200 shadow-lg ${className}`}>
+        <div className="max-w-7xl mx-auto py-3 px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col sm:flex-row justify-between items-center">
-            <p className="text-gray-500 text-sm mb-3 sm:mb-0">
+            <p className="text-gray-500 text-sm mb-2 sm:mb-0">
               © {new Date().getFullYear()} YOORZ.AI LIMITED. All rights reserved.
             </p>
-            <div className="flex flex-wrap justify-center sm:justify-end gap-6">
+            <div className="flex flex-wrap justify-center sm:justify-end gap-4 sm:gap-6">
               {legalLinks.map((link) => (
                 <button
                   key={link.type}

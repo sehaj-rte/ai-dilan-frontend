@@ -25,6 +25,8 @@ import { API_URL } from "@/lib/config";
 import AddPaymentMethodModal from "./AddPaymentMethodModal";
 import CancelSubscriptionModal from "./CancelSubscriptionModal";
 import { useBillingData } from "@/hooks/useBillingData";
+import { TrialDebugPanel } from "@/components/debug/TrialDebugPanel";
+import { UsagePaceWarning } from "@/components/usage/UsagePaceWarning";
 
 // Initialize Stripe
 const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
@@ -127,6 +129,10 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
   const [selectedSubscription, setSelectedSubscription] =
     useState<Subscription | null>(null); // Add selected subscription for upgrade
 
+  // Pace warning state
+  const [paceWarnings, setPaceWarnings] = useState<{[key: string]: any}>({});
+  const [dismissedWarnings, setDismissedWarnings] = useState<Set<string>>(new Set());
+
   // Confirmation modal state
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [confirmAction, setConfirmAction] = useState<{
@@ -143,6 +149,42 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
     error: showError,
     success: showSuccess,
   } = useToast();
+
+  // Function to check pace warnings for a subscription
+  const checkPaceWarning = async (subscriptionId: string) => {
+    try {
+      const response = await fetch(
+        `${API_URL}/payments/subscriptions/${subscriptionId}/usage-pace-warning`,
+        {
+          headers: {
+            Authorization: `Bearer ${userToken}`,
+          },
+        }
+      );
+      const data = await response.json();
+      
+      if (data.success && data.show_warning) {
+        setPaceWarnings(prev => ({
+          ...prev,
+          [subscriptionId]: data
+        }));
+      }
+    } catch (error) {
+      console.error('Error checking pace warning:', error);
+    }
+  };
+
+  // Check pace warnings for all subscriptions when they load
+  useEffect(() => {
+    if (subscriptions.length > 0 && userToken) {
+      subscriptions.forEach(sub => {
+        // Only check for non-trial subscriptions
+        if (!sub.usage_info?.trial_days_remaining || sub.usage_info.trial_days_remaining <= 0) {
+          checkPaceWarning(sub.stripe_subscription_id);
+        }
+      });
+    }
+  }, [subscriptions, userToken]);
 
   // Helper function to show confirmation modal
   const showConfirmation = (
@@ -681,21 +723,57 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
           } else if (data.billing_started) {
             // Payment succeeded immediately
             showSuccess("Trial ended successfully! Your paid plan is now active.");
-            setTimeout(() => {
-              window.location.reload();
-            }, 2000);
+            // Refresh billing data multiple times to ensure we get updated data
+            const refreshData = async () => {
+              console.log("🔄 Refreshing billing data after trial termination...");
+              await refetchBillingData();
+              
+              // Check if data is still showing trial, if so refresh again
+              setTimeout(async () => {
+                console.log("🔄 Second refresh attempt...");
+                await refetchBillingData();
+              }, 2000);
+              
+              // Final refresh attempt
+              setTimeout(async () => {
+                console.log("🔄 Final refresh attempt...");
+                await refetchBillingData();
+              }, 4000);
+            };
+            
+            setTimeout(refreshData, 1500);
           } else if (data.requires_payment_action) {
             // Payment is incomplete but trial was ended
             showSuccess("Trial ended. Please complete payment to activate your plan.");
-            setTimeout(() => {
-              window.location.reload();
+            setTimeout(async () => {
+              await refetchBillingData();
+              // If still showing trial after first refresh, try again
+              setTimeout(async () => {
+                await refetchBillingData();
+              }, 2000);
             }, 2000);
           } else {
             // Generic success
             showSuccess("Trial ended successfully!");
-            setTimeout(() => {
-              window.location.reload();
-            }, 2000);
+            // Refresh billing data multiple times to ensure we get updated data
+            const refreshData = async () => {
+              console.log("🔄 Refreshing billing data after trial termination...");
+              await refetchBillingData();
+              
+              // Check if data is still showing trial, if so refresh again
+              setTimeout(async () => {
+                console.log("🔄 Second refresh attempt...");
+                await refetchBillingData();
+              }, 2000);
+              
+              // Final refresh attempt
+              setTimeout(async () => {
+                console.log("🔄 Final refresh attempt...");
+                await refetchBillingData();
+              }, 4000);
+            };
+            
+            setTimeout(refreshData, 1500);
           }
         } else {
           // Handle specific error cases
@@ -758,6 +836,14 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
           <AlertCircle className="h-5 w-5 flex-shrink-0" />
           <span>{error}</span>
         </div>
+      )}
+
+      {/* Debug Panel - Only show in development */}
+      {false && process.env.NODE_ENV === 'development' && subscriptions.length > 0 && (
+        <TrialDebugPanel 
+          subscriptionId={subscriptions[0].stripe_subscription_id} 
+          userToken={userToken} 
+        />
       )}
 
       {/* Toast Container */}
@@ -875,48 +961,120 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
                             <div className="flex items-center gap-2 mt-2">
                               <DollarSign className="w-4 h-4" />
                               <span className="font-semibold">
-                                {subscription.usage_info ? (
+                                {subscription.usage_info && subscription.usage_info.trial_days_remaining > 0 ? (
                                   <span className="text-green-600">FREE (Trial)</span>
                                 ) : (
                                   `£${subscription.plan_price}/${subscription.plan_interval}`
                                 )}
                               </span>
                             </div>
-                            {/* Trial Usage Information */}
-                            {subscription.usage_info && (
-                              <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                                <div className="text-xs font-semibold text-blue-800 mb-2">
-                                  Trial Usage ({subscription.usage_info.trial_days_remaining} days left)
+                            {/* Usage Information - Both Trial and Paid */}
+                            {subscription.usage_info ? (
+                              <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                                <div className="flex items-center gap-2 mb-3">
+                                  <BarChart3 className="h-4 w-4 text-gray-600" />
+                                  <span className="text-sm font-medium text-gray-700">
+                                    {subscription.usage_info.trial_days_remaining > 0 
+                                      ? `Trial Usage (${subscription.usage_info.trial_days_remaining} days left)`
+                                      : 'Current Usage'
+                                    }
+                                  </span>
+                                  <span className="text-xs text-gray-500 ml-auto">This Month</span>
                                 </div>
-                                <div className="space-y-1">
-                                  <div className="flex justify-between text-xs">
-                                    <span className="text-gray-600">Messages:</span>
-                                    <span className="font-medium">
-                                      {subscription.usage_info.messages_used}/{subscription.usage_info.message_limit}
-                                    </span>
+                                
+                                <div className="space-y-3">
+                                  {/* Messages Usage */}
+                                  <div>
+                                    <div className="flex items-center justify-between mb-1">
+                                      <div className="flex items-center gap-2">
+                                        <MessageCircle className="h-4 w-4 text-blue-600" />
+                                        <span className="text-sm text-gray-700">Messages</span>
+                                      </div>
+                                      <span className="text-sm font-medium text-gray-900">
+                                        {subscription.usage_info.messages_used?.toLocaleString() || 0} / {subscription.usage_info.message_limit?.toLocaleString() || 0}
+                                      </span>
+                                    </div>
+                                    <div className="w-full bg-gray-200 rounded-full h-2">
+                                      <div
+                                        className={`h-2 rounded-full transition-all duration-300 ${
+                                          subscription.usage_info.message_percentage >= 90 
+                                            ? 'bg-red-500' 
+                                            : subscription.usage_info.message_percentage >= 75 
+                                            ? 'bg-orange-500' 
+                                            : 'bg-blue-500'
+                                        }`}
+                                        style={{ width: `${Math.min(subscription.usage_info.message_percentage, 100)}%` }}
+                                      ></div>
+                                    </div>
+                                    <div className="text-xs text-gray-500 mt-1">
+                                      {subscription.usage_info.message_percentage.toFixed(1)}% used
+                                    </div>
                                   </div>
-                                  <div className="w-full bg-gray-200 rounded-full h-1.5">
-                                    <div
-                                      className="bg-blue-600 h-1.5 rounded-full"
-                                      style={{ width: `${subscription.usage_info.message_percentage}%` }}
-                                    ></div>
-                                  </div>
-                                  <div className="flex justify-between text-xs">
-                                    <span className="text-gray-600">Minutes:</span>
-                                    <span className="font-medium">
-                                      {subscription.usage_info.minutes_used}/{subscription.usage_info.minute_limit}
-                                    </span>
-                                  </div>
-                                  <div className="w-full bg-gray-200 rounded-full h-1.5">
-                                    <div
-                                      className="bg-blue-600 h-1.5 rounded-full"
-                                      style={{ width: `${subscription.usage_info.minute_percentage}%` }}
-                                    ></div>
+
+                                  {/* Minutes Usage */}
+                                  <div>
+                                    <div className="flex items-center justify-between mb-1">
+                                      <div className="flex items-center gap-2">
+                                        <Phone className="h-4 w-4 text-green-600" />
+                                        <span className="text-sm text-gray-700">Voice Minutes</span>
+                                      </div>
+                                      <span className="text-sm font-medium text-gray-900">
+                                        {subscription.usage_info.minutes_used?.toLocaleString() || 0} / {subscription.usage_info.minute_limit?.toLocaleString() || 0}
+                                      </span>
+                                    </div>
+                                    <div className="w-full bg-gray-200 rounded-full h-2">
+                                      <div
+                                        className={`h-2 rounded-full transition-all duration-300 ${
+                                          subscription.usage_info.minute_percentage >= 90 
+                                            ? 'bg-red-500' 
+                                            : subscription.usage_info.minute_percentage >= 75 
+                                            ? 'bg-orange-500' 
+                                            : 'bg-green-500'
+                                        }`}
+                                        style={{ width: `${Math.min(subscription.usage_info.minute_percentage, 100)}%` }}
+                                      ></div>
+                                    </div>
+                                    <div className="text-xs text-gray-500 mt-1">
+                                      {subscription.usage_info.minute_percentage.toFixed(1)}% used
+                                    </div>
                                   </div>
                                 </div>
 
-                                {/* Show Start Paid Plan button if trial is exhausted */}
-                                {(subscription.usage_info.message_percentage >= 100 ||
+                                {/* Pace Warning Display */}
+                                {paceWarnings[subscription.stripe_subscription_id] && 
+                                 !dismissedWarnings.has(subscription.stripe_subscription_id) && (
+                                  <div className="mt-3 p-2 bg-orange-50 border border-orange-200 rounded">
+                                    <div className="flex items-start justify-between">
+                                      <div className="flex-1">
+                                        <div className="flex items-center gap-1 mb-1">
+                                          <AlertCircle className="h-3 w-3 text-orange-600" />
+                                          <span className="text-xs font-semibold text-orange-800">
+                                            Usage Pace Alert
+                                          </span>
+                                        </div>
+                                        <div className="text-xs text-orange-700">
+                                          You're using resources faster than expected for your billing period.
+                                        </div>
+                                        {paceWarnings[subscription.stripe_subscription_id].warnings?.map((warning: any, idx: number) => (
+                                          <div key={idx} className="text-xs text-orange-600 mt-1">
+                                            • {warning.type}: {warning.projected_monthly} per month 
+                                            (limit: {warning.monthly_limit})
+                                          </div>
+                                        ))}
+                                      </div>
+                                      <button
+                                        onClick={() => setDismissedWarnings(prev => new Set([...Array.from(prev), subscription.stripe_subscription_id]))}
+                                        className="text-orange-400 hover:text-orange-600 ml-2"
+                                      >
+                                        ×
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
+
+                                {/* Show Start Paid Plan button ONLY if this is an actual trial that is exhausted */}
+                                {subscription.usage_info.trial_days_remaining > 0 && 
+                                 (subscription.usage_info.message_percentage >= 100 ||
                                   subscription.usage_info.minute_percentage >= 100 ||
                                   subscription.usage_info.trial_days_remaining <= 0) && (
                                     <div className="mt-3 pt-3 border-t border-blue-200">
@@ -966,6 +1124,19 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
                                     </div>
                                   )}
                               </div>
+                            ) : (
+                              /* Show placeholder when usage_info is not available */
+                              <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                                <div className="flex items-center justify-between mb-2">
+                                  <div className="text-xs font-semibold text-gray-700">
+                                    Usage Tracking
+                                  </div>
+                                  <BarChart3 className="h-3 w-3 text-gray-500" />
+                                </div>
+                                <div className="text-xs text-gray-600">
+                                  Usage tracking will be available once your subscription is fully activated.
+                                </div>
+                              </div>
                             )}
                           </div>
                         </div>
@@ -1008,6 +1179,7 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
                           )}
 
                           {subscription.usage_info &&
+                            subscription.usage_info.trial_days_remaining > 0 &&
                             (subscription.usage_info.message_percentage >= 100 ||
                               subscription.usage_info.minute_percentage >= 100 ||
                               subscription.usage_info.trial_days_remaining <= 0) && (
@@ -1058,8 +1230,9 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
                               </Button>
                             )}
 
-                            {/* Start Paid Plan Button */}
+                            {/* Start Paid Plan Button - Only for actual trials */}
                             {subscription.usage_info &&
+                              subscription.usage_info.trial_days_remaining > 0 &&
                               (subscription.usage_info.message_percentage >= 100 ||
                                 subscription.usage_info.minute_percentage >= 100 ||
                                 subscription.usage_info.trial_days_remaining <= 0) && (

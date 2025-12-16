@@ -206,6 +206,8 @@ const ClientExpertPage = () => {
     setShowPaymentSuccess(false);
     setPaymentSuccessMessage('');
     fetchExpertData();
+
+
   }, [slug]);
 
   useEffect(() => {
@@ -220,44 +222,33 @@ const ClientExpertPage = () => {
     const paymentSuccess = searchParams.get("payment_success");
     const sessionId = searchParams.get("session_id");
 
-    if (paymentSuccess === "true" && sessionId && !paymentSuccessShown) {
+    if (paymentSuccess === "true" && sessionId) {
       // Check if we've already shown this payment success for this session
       const sessionKey = `payment_success_shown_${sessionId}`;
       const alreadyShown = sessionStorage.getItem(sessionKey);
 
       if (!alreadyShown) {
-        console.log("💳 Payment success detected from URL");
-
-        // Mark as shown in both state and sessionStorage
-        setPaymentSuccessShown(true);
-        sessionStorage.setItem(sessionKey, 'true');
-
-        // Show success modal immediately for better UX
+        // Show success modal
         setPaymentSuccessMessage(`Payment successful! A detailed invoice has been sent to your email address.`);
         setShowPaymentSuccess(true);
+        setPaymentSuccessShown(true);
 
-        // Clear URL parameters to prevent re-triggering
-        const newUrl = window.location.pathname;
-        window.history.replaceState({}, '', newUrl);
+        // Mark in sessionStorage to prevent future shows
+        sessionStorage.setItem(sessionKey, 'true');
+
+        // Clear URL parameters after showing modal
+        setTimeout(() => {
+          const newUrl = window.location.pathname;
+          window.history.replaceState({}, '', newUrl);
+        }, 2000);
 
         // Validate session in background if authenticated
         if (isAuthenticated) {
-          console.log("💳 Validating session:", sessionId);
           validatePaymentSession(sessionId);
         }
-      } else {
-        console.log("💳 Payment success already shown for this session, skipping");
-        // Still clear URL parameters even if we don't show the modal
-        const newUrl = window.location.pathname;
-        window.history.replaceState({}, '', newUrl);
       }
     }
-  }, [
-    searchParams.get("payment_success"),
-    searchParams.get("session_id"),
-    isAuthenticated,
-    paymentSuccessShown,
-  ]);
+  }, [searchParams, isAuthenticated]);
 
   const fetchExpertData = async () => {
     try {
@@ -677,7 +668,7 @@ const ClientExpertPage = () => {
 
   return (
     <div
-      className="min-h-screen bg-white"
+      className="min-h-screen bg-white pb-16"
       style={{
         backgroundImage: publication?.banner_url
           ? `url(${convertS3UrlToProxy(publication.banner_url, true, 1200)})`
@@ -717,6 +708,8 @@ const ClientExpertPage = () => {
                       {user.email}
                     </p>
                   </div>
+
+
 
                   {/* Billing Button - Hide for super_admins */}
                   {user.role !== "super_admin" && (
@@ -917,12 +910,43 @@ const ClientExpertPage = () => {
       </div>
 
       {/* Payment Success Modal */}
+      {showPaymentSuccess && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white rounded-lg p-8 max-w-md mx-4 shadow-xl">
+            <div className="text-center">
+              <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
+              <h2 className="text-2xl font-bold text-green-600 mb-2">
+                Payment Successful!
+              </h2>
+              <p className="text-gray-600 mb-4">
+                {paymentSuccessMessage || "Payment successful! A detailed invoice has been sent to your email address."}
+              </p>
+              <div className="flex items-center justify-center gap-2 text-sm text-gray-500 mt-4 mb-4">
+                <Shield className="w-4 h-4" />
+                <span>Secure and encrypted</span>
+              </div>
+              <Button
+                onClick={() => {
+                  console.log("🔍 Continue button clicked");
+                  setShowPaymentSuccess(false);
+                  setPaymentSuccessMessage('');
+                }}
+                className="text-white"
+                style={{ backgroundColor: primaryColor }}
+              >
+                Continue
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Backup Dialog Modal */}
       <Dialog 
         open={showPaymentSuccess} 
         onOpenChange={(open) => {
           setShowPaymentSuccess(open);
           if (!open) {
-            // Reset the message when modal is closed
             setPaymentSuccessMessage('');
           }
         }}
@@ -931,15 +955,25 @@ const ClientExpertPage = () => {
           <div className="text-center py-8">
             <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
             <h2 className="text-2xl font-bold text-green-600 mb-2">
-              Payment Successful!
+              Payment Successful! 
             </h2>
             <p className="text-gray-600 mb-4">
-              {paymentSuccessMessage}
+              {paymentSuccessMessage || "Payment successful! A detailed invoice has been sent to your email address."}
             </p>
             <div className="flex items-center justify-center gap-2 text-sm text-gray-500 mt-4">
               <Shield className="w-4 h-4" />
               <span>Secure and encrypted</span>
             </div>
+            <Button
+              onClick={() => {
+                setShowPaymentSuccess(false);
+                setPaymentSuccessMessage('');
+              }}
+              className="mt-4 text-white"
+              style={{ backgroundColor: primaryColor }}
+            >
+              Continue
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

@@ -171,7 +171,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
           publication_id: publication.id,
           session_type: sessionType,
           pricing_plan: selectedPlan,
-          success_url: `${window.location.origin}/expert/${publication.slug}/${sessionType}?session_id={CHECKOUT_SESSION_ID}`,
+          success_url: `${window.location.origin}/expert/${publication.slug}?payment_success=true&session_id={CHECKOUT_SESSION_ID}`,
           cancel_url: `${window.location.origin}/expert/${publication.slug}`
         })
       })

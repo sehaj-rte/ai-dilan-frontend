@@ -229,3 +229,12 @@ a {
 .prose-invert a {
   @apply text-blue-200 hover:text-blue-100;
 }
+
+/* Sticky footer utilities */
+.sticky-footer-padding {
+  @apply pb-16;
+}
+
+.sticky-footer-safe {
+  @apply min-h-screen pb-16;
+}
