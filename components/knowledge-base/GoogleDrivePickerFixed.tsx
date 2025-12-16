@@ -292,12 +292,21 @@ const GoogleDrivePickerFixed: React.FC<GoogleDrivePickerFixedProps> = ({
         return;
       }
 
+      // Get Google Drive access token for authenticated content extraction
+      const googleAccessToken = accessTokenRef.current;
+      if (!googleAccessToken) {
+        console.warn('⚠️ No Google Drive access token available - will use fallback methods');
+      } else {
+        console.log(`🔑 Using Google Drive access token: ${googleAccessToken.substring(0, 20)}...`);
+      }
+
       let successCount = 0;
       let errorCount = 0;
+      const errors: string[] = [];
 
       for (const file of files) {
         try {
-          console.log(`Uploading ${file.name} to backend...`);
+          console.log(`🔄 Uploading ${file.name} to backend with access token for content extraction...`);
           
           const response = await fetchWithAuth(`${API_URL}/knowledge-base/upload-from-drive`, {
             method: 'POST',
@@ -309,27 +318,31 @@ const GoogleDrivePickerFixed: React.FC<GoogleDrivePickerFixedProps> = ({
               web_view_link: file.webViewLink,
               folder_id: selectedFolderId,
               agent_id: agentId,
+              access_token: googleAccessToken, // Pass Google Drive access token for authenticated content extraction
             }),
           });
 
-          console.log(`Upload response for ${file.name}:`, response.status);
+          console.log(`📡 Upload response for ${file.name}:`, response.status);
 
           if (response.ok) {
             const result = await response.json();
             if (result.success) {
               successCount++;
-              console.log(`✅ Successfully uploaded ${file.name}`);
+              console.log(`✅ Successfully uploaded ${file.name} with real content extraction`);
             } else {
               errorCount++;
+              errors.push(`${file.name}: ${result.error || 'Unknown error'}`);
               console.error(`❌ Backend error for ${file.name}:`, result.error);
             }
           } else {
             errorCount++;
             const errorText = await response.text();
+            errors.push(`${file.name}: HTTP ${response.status}`);
             console.error(`❌ HTTP error ${response.status} for ${file.name}:`, errorText);
           }
-        } catch (error) {
+        } catch (error: any) {
           errorCount++;
+          errors.push(`${file.name}: ${error.message || 'Network error'}`);
           console.error(`❌ Network error uploading ${file.name}:`, error);
         }
       }
@@ -339,13 +352,13 @@ const GoogleDrivePickerFixed: React.FC<GoogleDrivePickerFixedProps> = ({
         if (onUploadComplete) {
           onUploadComplete();
         }
+        
+        if (errorCount > 0) {
+          setErrorMessage(`${successCount} files uploaded successfully, ${errorCount} failed`);
+        }
       } else {
         setUploadStatus('error');
-        setErrorMessage(`Failed to upload ${errorCount} file(s)`);
-      }
-
-      if (errorCount > 0 && successCount > 0) {
-        setErrorMessage(`${successCount} file(s) uploaded successfully, ${errorCount} failed`);
+        setErrorMessage(`All uploads failed: ${errors.slice(0, 2).join(', ')}${errors.length > 2 ? '...' : ''}`);
       }
 
       // Reset after delay
@@ -357,7 +370,8 @@ const GoogleDrivePickerFixed: React.FC<GoogleDrivePickerFixedProps> = ({
 
     } catch (error: any) {
       setUploadStatus('error');
-      setErrorMessage('Upload failed');
+      setErrorMessage(`Upload failed: ${error.message || 'Unknown error'}`);
+      console.error('❌ Upload process failed:', error);
     }
   };
 
