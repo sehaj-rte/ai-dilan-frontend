@@ -1,4 +1,5 @@
 "use client";
+"use client";
 
 import React, { useState, useEffect } from "react";
 import {
@@ -102,21 +103,6 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
     }
   }, [plans, selectedPlan]);
 
-  // Check for successful payment return from Stripe
-  useEffect(() => {
-    if (isOpen) {
-      const urlParams = new URLSearchParams(window.location.search);
-      const paymentSuccess = urlParams.get('payment_success');
-      const sessionId = urlParams.get('session_id');
-      
-      if (paymentSuccess === 'true' && sessionId) {
-        setSuccess(true);
-        setIsRedirectingToStripe(false);
-        onPaymentSuccess(sessionId);
-      }
-    }
-  }, [isOpen, onPaymentSuccess]);
-
   useEffect(() => {
     setActiveToken(userToken);
   }, [userToken, isOpen]);
@@ -131,8 +117,6 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
       setCouponCode("");
       setCouponValidation({ isValid: false, isValidating: false, message: "" });
       setShowTrialTerms(false);
-      setSuccess(false);
-      setError(null);
     }
   }, [isOpen]);
 
@@ -328,8 +312,8 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
         // Redirect immediately without additional delay since we're already showing loading
         window.location.href = data.checkout_url;
       } else if (data.subscription_id) {
+alert("✅ PAYMENT DEBUG: Payment successful, subscription_id: " + data.subscription_id);
 
-        console.log("✅ PAYMENT DEBUG: Payment successful, subscription_id:", data.subscription_id);
         // Send combined registration/payment/voice setup notification with invoice
         try {
           const userToken = localStorage.getItem("dilan_ai_token");
@@ -337,7 +321,7 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
 
 
 
-          console.log("🔍 PAYMENT DEBUG: Starting notification process");
+          alert("🔍 PAYMENT DEBUG: Starting notification process");
           console.log("🔍 PAYMENT DEBUG: subscription_id:", data.subscription_id);
           console.log("🔍 PAYMENT DEBUG: userData:", userData);
 
