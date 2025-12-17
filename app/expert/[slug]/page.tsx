@@ -815,8 +815,8 @@ const ClientExpertPage = () => {
 
           {/* CTA Buttons and Browser Notice - Horizontally Aligned */}
           <div className="flex flex-col items-center gap-4 mb-6">
-            {/* CTA Buttons - Increased gap to align with browser notice width */}
-            <div className="flex justify-center gap-16">
+            {/* CTA Buttons - Reduced gap for closer alignment */}
+            <div className="flex justify-center gap-4">
               <Button
                 size="lg"
                 variant="outline"
@@ -840,7 +840,7 @@ const ClientExpertPage = () => {
               </Button>
             </div>
 
-            {/* Browser Compatibility Notice - Aligned with button spacing */}
+            {/* Browser Compatibility Notice - Smaller font size */}
             <div
               className="border rounded-full px-4 py-2 shadow-sm"
               style={{
@@ -850,8 +850,8 @@ const ClientExpertPage = () => {
               }}
             >
               <div className="flex items-center space-x-2">
-                <Globe className="h-4 w-4 flex-shrink-0" />
-                <p className="text-sm font-medium">
+                <Globe className="h-3 w-3 flex-shrink-0" />
+                <p className="text-xs font-medium">
                   Best experience with Chrome or Safari
                 </p>
               </div>
