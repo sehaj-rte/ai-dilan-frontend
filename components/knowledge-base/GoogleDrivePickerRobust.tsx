@@ -407,7 +407,7 @@ const GoogleDrivePickerRobust: React.FC<GoogleDrivePickerRobustProps> = ({
               <div key={index} className="flex items-center space-x-3 p-2 bg-gray-50 rounded">
                 <FileText className="h-4 w-4 text-blue-500 flex-shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">
+                  <p className="text-sm font-medium text-gray-900 truncate" title={file.name}>
                     {file.name}
                   </p>
                   <p className="text-xs text-gray-500">

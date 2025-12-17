@@ -309,7 +309,7 @@ const YouTubeTranscriber: React.FC<YouTubeTranscriberProps> = ({ onTranscription
               <div className="flex items-start space-x-2">
                 <Youtube className="h-5 w-5 text-red-600 mt-0.5 flex-shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <h5 className="font-medium text-gray-900 truncate">
+                  <h5 className="font-medium text-gray-900 truncate" title={transcriptionResult.video.title}>
                     {transcriptionResult.video.title}
                   </h5>
                   <div className="flex items-center space-x-3 text-sm text-gray-600 mt-1">
@@ -357,7 +357,7 @@ const YouTubeTranscriber: React.FC<YouTubeTranscriberProps> = ({ onTranscription
             {/* Saved File Info */}
             <div className="flex items-center justify-between text-sm pt-2 border-t border-gray-200">
               <span className="text-gray-600">Saved as:</span>
-              <span className="font-medium text-blue-600 truncate ml-2">
+              <span className="font-medium text-blue-600 truncate ml-2" title={transcriptionResult.file.name}>
                 {transcriptionResult.file.name}
               </span>
             </div>

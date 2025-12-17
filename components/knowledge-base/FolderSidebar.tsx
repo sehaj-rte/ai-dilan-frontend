@@ -413,7 +413,7 @@ const FolderSidebar: React.FC<FolderSidebarProps> = ({
                   ) : (
                     <Folder className="h-4 w-4 flex-shrink-0" />
                   )}
-                  <span className="text-sm font-medium truncate">{folder.name}</span>
+                  <span className="text-sm font-medium truncate" title={folder.name}>{folder.name}</span>
                 </button>
                 
                 <div className="flex items-center space-x-1">

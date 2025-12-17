@@ -1249,7 +1249,7 @@ const EnhancedKnowledgeBase = ({
                         <FileIcon className="h-4 w-4 text-gray-600" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <h4 className="text-sm font-medium text-gray-900 truncate">
+                        <h4 className="text-sm font-medium text-gray-900 truncate" title={file.name || file.original_name}>
                           {file.name || file.original_name}
                         </h4>
                         <div className="flex items-center space-x-2 text-xs text-gray-500 mt-1">
@@ -1270,7 +1270,10 @@ const EnhancedKnowledgeBase = ({
 
                     {/* Document Type Column */}
                     <div className="col-span-1 flex items-center min-w-0">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-blue-100 text-blue-800 uppercase truncate max-w-full">
+                      <span 
+                        className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-blue-100 text-blue-800 uppercase truncate max-w-full"
+                        title={file.document_type || file.type.split("/")[1] || "doc"}
+                      >
                         {(() => {
                           const docType =
                             file.document_type ||

@@ -439,7 +439,7 @@ const GoogleDrivePickerModern: React.FC<GoogleDrivePickerModernProps> = ({
                 )}
                 
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">
+                  <p className="text-sm font-medium text-gray-900 truncate" title={file.name}>
                     {file.name}
                   </p>
                   <p className="text-xs text-gray-500">

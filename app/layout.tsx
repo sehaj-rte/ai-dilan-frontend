@@ -24,11 +24,11 @@ export default function RootLayout({
         <LogRocketProvider>
           <ReduxProvider>
             <LegalProvider>
-              <div className="min-h-screen flex flex-col">
-                <main className="flex-1 pb-16">
+              <div className="h-screen flex flex-col">
+                <main className="flex-1">
                   {children}
                 </main>
-                <LegalFooter className="fixed bottom-0 left-0 right-0 z-40" />
+                <LegalFooter className="z-40" />
               </div>
             </LegalProvider>
           </ReduxProvider>

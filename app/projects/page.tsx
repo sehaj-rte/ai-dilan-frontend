@@ -394,7 +394,7 @@ const ProjectsPage = () => {
   )
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+    <div className="h-full bg-gradient-to-br from-blue-50 via-white to-purple-50">
       <div className="container mx-auto px-4 py-8">
         {/* Top Bar with Browser Notice, Super Admin and Logout */}
         <div className="flex justify-between items-center mb-6">
