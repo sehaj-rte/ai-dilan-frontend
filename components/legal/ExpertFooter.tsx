@@ -55,15 +55,7 @@ const ExpertFooter: React.FC<ExpertFooterProps> = ({
         <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col sm:flex-row justify-between items-center">
             <div className="text-center sm:text-left mb-3 sm:mb-0">
-              {showExpertBranding && (
-                <p 
-                  className="text-sm font-semibold mb-1 flex items-center justify-center sm:justify-start gap-2"
-                  style={{ color: primaryColor }}
-                >
-                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: primaryColor }}></span>
-                  Powered by {expertName}
-                </p>
-              )}
+             
               <p className="text-gray-500 text-xs">
                 © {new Date().getFullYear()} YOORZ.AI LIMITED. All rights reserved.
               </p>

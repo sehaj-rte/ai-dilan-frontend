@@ -126,7 +126,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, customHeade
   }, [projectId])
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-full bg-gray-50">
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div 

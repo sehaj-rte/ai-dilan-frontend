@@ -976,8 +976,10 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
                     bestValueLabel = 'Best Value';
                   } else if (monthCount === 3) {
                     planLabel = `${expertName} - 3 Months Plan`;
+                     bestValueLabel = 'Most Popular';
                   } else if (monthCount > 1) {
                     planLabel = `${expertName} - ${monthCount} Months Plan (${planName})`;
+                     bestValueLabel = '';
                   } else {
                     planLabel = `${expertName} - 1 Month Plan (${planName})`;
                   }
@@ -1021,9 +1023,21 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
                           {/* Pricing Display */}
                           <div className="mb-2">
                             {subscription.usage_info && subscription.usage_info.trial_days_remaining > 0 ? (
-                              <div className="flex items-center gap-2">
-                                <span className="text-2xl font-bold text-green-600">FREE</span>
-                                <span className="text-sm text-gray-600">(Trial)</span>
+                              <div>
+                                <div className="flex items-baseline gap-2 mb-1">
+                                  <span className="text-2xl font-bold text-gray-900">
+                                    £{planInfo.monthlyPrice}
+                                  </span>
+                                  <span className="text-gray-600">/month</span>
+                                </div>
+                                {planInfo.monthCount > 1 && (
+                                  <p className="text-sm text-gray-600">
+                                    billed £{planInfo.totalPrice} upfront -- starts{' '}
+                                    <span className="font-semibold text-blue-600 bg-blue-50 px-2 py-1 rounded">
+                                      {formatDate(subscription.current_period_end)}
+                                    </span>
+                                  </p>
+                                )}
                               </div>
                             ) : (
                               <div className="flex items-baseline gap-2">
@@ -1054,11 +1068,16 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
                         </div>
                       </div>
 
-                      {/* Subscription Period Section */}
+                      {/* Period Section - Trial or Subscription */}
                       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
                         <div className="flex items-center gap-2 mb-2">
                           <Calendar className="h-4 w-4 text-blue-600" />
-                          <span className="font-medium text-blue-900">Subscription Period</span>
+                          <span className="font-medium text-blue-900">
+                            {subscription.usage_info && subscription.usage_info.trial_days_remaining > 0 
+                              ? 'Trial Period' 
+                              : 'Subscription Period'
+                            }
+                          </span>
                         </div>
                         <div className="text-blue-800">
                           <p className="font-medium">
@@ -1087,18 +1106,27 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
                           <span className="font-medium text-purple-900">Plan Allowances</span>
                         </div>
                         
-                        {subscription.usage_info ? (
-                          <p className="text-purple-800 text-sm">
-                            You get <span className="font-semibold">{subscription.usage_info.message_limit} messages</span> and{' '}
-                            <span className="font-semibold">{subscription.usage_info.minute_limit} voice minutes</span> for the entire{' '}
-                            {planInfo.monthCount === 1 ? 'monthly' : `${planInfo.monthCount}-month`} period
-                          </p>
-                        ) : (
-                          <p className="text-purple-800 text-sm">
-                            Unlimited messages and voice minutes for the entire{' '}
-                            {planInfo.monthCount === 1 ? 'monthly' : `${planInfo.monthCount}-month`} period
-                          </p>
-                        )}
+                        {(() => {
+                          const isTrialActive = subscription.usage_info && subscription.usage_info.trial_days_remaining > 0;
+                          const periodText = isTrialActive 
+                            ? 'trial period' 
+                            : planInfo.monthCount === 1 ? 'monthly period' : `${planInfo.monthCount}-month period`;
+                          
+                          if (subscription.usage_info) {
+                            return (
+                              <p className="text-purple-800 text-sm">
+                                You get <span className="font-semibold">{subscription.usage_info.message_limit} messages</span> and{' '}
+                                <span className="font-semibold">{subscription.usage_info.minute_limit} voice minutes</span> for the entire {periodText}
+                              </p>
+                            );
+                          } else {
+                            return (
+                              <p className="text-purple-800 text-sm">
+                                Unlimited messages and voice minutes for the entire {periodText}
+                              </p>
+                            );
+                          }
+                        })()}
                       </div>
 
                       {/* Usage Tracking */}

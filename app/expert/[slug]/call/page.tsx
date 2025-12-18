@@ -523,7 +523,7 @@ const ClientCallPage = () => {
 
   return (
     <div
-      className="min-h-screen bg-white"
+      className="h-full bg-white"
       style={{
         backgroundImage: publication?.banner_url
           ? `url(${convertS3UrlToProxy(publication.banner_url)})`

@@ -122,7 +122,7 @@ const ExpertTestPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="h-full bg-white">
       {/* Header */}
       <div className="border-b border-gray-200">
         <div className="container mx-auto px-4 py-4">

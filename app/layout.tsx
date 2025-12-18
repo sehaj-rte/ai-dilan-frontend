@@ -26,7 +26,7 @@ export default function RootLayout({
           <ReduxProvider>
             <LegalProvider>
               <div className="h-screen flex flex-col">
-                <main className="flex-1">
+                <main className="flex-1 overflow-y-scroll" >
                   {children}
                 </main>
                 <ConditionalFooter className="z-40" />

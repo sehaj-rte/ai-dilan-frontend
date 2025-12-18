@@ -13,10 +13,12 @@ export default function ExpertLayout({
     <ClientAuthFlowProvider>
       <ExpertProvider>
         <div className="h-screen flex flex-col">
-          <main className="flex-1">
-            {children}
+          <main className="min-h-screen flex flex-col">
+            <div className='flex-1'>
+              {children}
+            </div>
+            <ExpertFooter className="z-40" />
           </main>
-          <ExpertFooter className="z-40" />
         </div>
       </ExpertProvider>
     </ClientAuthFlowProvider>
