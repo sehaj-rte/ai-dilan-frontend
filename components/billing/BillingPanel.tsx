@@ -42,8 +42,11 @@ interface Subscription {
   cancel_at_period_end: boolean;
   plan_name: string;
   plan_price: number;
+  plan_total_price?: number;
   plan_currency: string;
   plan_interval: string;
+  plan_billing_period?: string;
+  plan_display_text?: string;
   expert_id: string;
   expert_name?: string;
   expert_description?: string;
@@ -381,9 +384,10 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
     setShowAddPaymentModal(true);
   };
 
-  const handlePaymentMethodAdded = async () => {
+  const handlePaymentMethodAdded = async (newPaymentMethodId?: string) => {
     setShowAddPaymentModal(false);
-    showSuccess("Payment method added successfully");
+    showSuccess("Payment method added successfully and set as default");
+    
     // Refresh billing data to show new payment method
     await refetchBillingData();
   };
@@ -924,7 +928,7 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
 
         {/* Active Subscriptions */}
         <div>
-          <h2 className="text-xl font-semibold mb-4">Active Subscriptions</h2>
+          <h2 className="text-2xl font-bold mb-6">Active Subscriptions</h2>
           {subscriptions.length === 0 ? (
             <Card>
               <CardContent className="p-6 text-center text-gray-500">
@@ -942,480 +946,318 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
               </CardContent>
             </Card>
           ) : (
-            <div className="space-y-4">
-              {subscriptions.map((subscription) => (
-                <Card key={subscription.id}>
-                  <CardContent className="p-6">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className="md:col-span-1">
-                        <div className="flex items-center justify-between md:justify-start gap-2">
-                          <div>
-                            <CardTitle className="text-lg">
-                              {subscription.plan_name}
-                            </CardTitle>
-                            {subscription.expert_name && (
-                              <p className="text-sm text-gray-600 mt-1">
-                                Expert: {subscription.expert_name}
-                              </p>
+            <div className="space-y-6">
+              {subscriptions.map((subscription) => {
+                // Calculate plan duration and pricing display
+                const getPlanDurationInfo = () => {
+                  // Use backend-provided billing period info
+                  const billingPeriod = subscription.plan_billing_period || 'month';
+                  const totalPrice = subscription.plan_total_price || subscription.plan_price;
+                  const monthlyPrice = subscription.plan_price;
+                  
+                  // Parse month count from billing period
+                  let monthCount = 1;
+                  let planLabel = '';
+                  let bestValueLabel = '';
+                  
+                  if (billingPeriod.includes('month')) {
+                    const match = billingPeriod.match(/(\d+)\s*month/);
+                    if (match) {
+                      monthCount = parseInt(match[1]);
+                    }
+                  }
+                  
+                  // Format: {expert_name} - {duration} Plan ({plan_name})
+                  const expertName = subscription.expert_name || 'AI Expert';
+                  const planName = subscription.plan_name;
+                  
+                  if (monthCount === 6) {
+                    planLabel = `${expertName} - 6 Months Plan`;
+                    bestValueLabel = 'Best Value';
+                  } else if (monthCount === 3) {
+                    planLabel = `${expertName} - 3 Months Plan`;
+                  } else if (monthCount > 1) {
+                    planLabel = `${expertName} - ${monthCount} Months Plan (${planName})`;
+                  } else {
+                    planLabel = `${expertName} - 1 Month Plan (${planName})`;
+                  }
+                  
+                  return {
+                    planLabel,
+                    bestValueLabel,
+                    monthlyPrice,
+                    totalPrice,
+                    billingPeriod,
+                    monthCount
+                  };
+                };
+
+                const planInfo = getPlanDurationInfo();
+                
+                return (
+                  <Card key={subscription.id} className="border border-gray-200 shadow-sm">
+                    <CardContent className="p-6">
+                      {/* Header Section */}
+                      <div className="flex items-start justify-between mb-6">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <h3 className="text-xl font-semibold text-gray-900">
+                              {planInfo.planLabel}
+                            </h3>
+                            {planInfo.bestValueLabel && (
+                              <Badge className="bg-green-100 text-green-800 text-sm font-medium px-2 py-1">
+                                {planInfo.bestValueLabel}
+                              </Badge>
                             )}
-                            <div className="flex items-center gap-2 mt-2">
-                              <DollarSign className="w-4 h-4" />
-                              <span className="font-semibold">
-                                {subscription.usage_info && subscription.usage_info.trial_days_remaining > 0 ? (
-                                  <span className="text-green-600">FREE (Trial)</span>
-                                ) : (
-                                  `£${subscription.plan_price}/${subscription.plan_interval}`
-                                )}
-                              </span>
-                            </div>
-                            {/* Usage Information - Both Trial and Paid */}
-                            {subscription.usage_info ? (
-                              <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                                <div className="flex items-center gap-2 mb-3">
-                                  <BarChart3 className="h-4 w-4 text-gray-600" />
-                                  <span className="text-sm font-medium text-gray-700">
-                                    {subscription.usage_info.trial_days_remaining > 0 
-                                      ? `Trial Usage (${subscription.usage_info.trial_days_remaining} days left)`
-                                      : 'Current Usage'
-                                    }
-                                  </span>
-                                  <span className="text-xs text-gray-500 ml-auto">This Month</span>
-                                </div>
-                                
-                                <div className="space-y-3">
-                                  {/* Messages Usage */}
-                                  <div>
-                                    <div className="flex items-center justify-between mb-1">
-                                      <div className="flex items-center gap-2">
-                                        <MessageCircle className="h-4 w-4 text-blue-600" />
-                                        <span className="text-sm text-gray-700">Messages</span>
-                                      </div>
-                                      <span className="text-sm font-medium text-gray-900">
-                                        {subscription.usage_info.messages_used?.toLocaleString() || 0} / {subscription.usage_info.message_limit?.toLocaleString() || 0}
-                                      </span>
-                                    </div>
-                                    <div className="w-full bg-gray-200 rounded-full h-2">
-                                      <div
-                                        className={`h-2 rounded-full transition-all duration-300 ${
-                                          subscription.usage_info.message_percentage >= 90 
-                                            ? 'bg-red-500' 
-                                            : subscription.usage_info.message_percentage >= 75 
-                                            ? 'bg-orange-500' 
-                                            : 'bg-blue-500'
-                                        }`}
-                                        style={{ width: `${Math.min(subscription.usage_info.message_percentage, 100)}%` }}
-                                      ></div>
-                                    </div>
-                                    <div className="text-xs text-gray-500 mt-1">
-                                      {subscription.usage_info.message_percentage.toFixed(1)}% used
-                                    </div>
-                                  </div>
-
-                                  {/* Minutes Usage */}
-                                  <div>
-                                    <div className="flex items-center justify-between mb-1">
-                                      <div className="flex items-center gap-2">
-                                        <Phone className="h-4 w-4 text-green-600" />
-                                        <span className="text-sm text-gray-700">Voice Minutes</span>
-                                      </div>
-                                      <span className="text-sm font-medium text-gray-900">
-                                        {subscription.usage_info.minutes_used?.toLocaleString() || 0} / {subscription.usage_info.minute_limit?.toLocaleString() || 0}
-                                      </span>
-                                    </div>
-                                    <div className="w-full bg-gray-200 rounded-full h-2">
-                                      <div
-                                        className={`h-2 rounded-full transition-all duration-300 ${
-                                          subscription.usage_info.minute_percentage >= 90 
-                                            ? 'bg-red-500' 
-                                            : subscription.usage_info.minute_percentage >= 75 
-                                            ? 'bg-orange-500' 
-                                            : 'bg-green-500'
-                                        }`}
-                                        style={{ width: `${Math.min(subscription.usage_info.minute_percentage, 100)}%` }}
-                                      ></div>
-                                    </div>
-                                    <div className="text-xs text-gray-500 mt-1">
-                                      {subscription.usage_info.minute_percentage.toFixed(1)}% used
-                                    </div>
-                                  </div>
-                                </div>
-
-                                {/* Pace Warning Display */}
-                                {paceWarnings[subscription.stripe_subscription_id] && 
-                                 !dismissedWarnings.has(subscription.stripe_subscription_id) && (
-                                  <div className="mt-3 p-2 bg-orange-50 border border-orange-200 rounded">
-                                    <div className="flex items-start justify-between">
-                                      <div className="flex-1">
-                                        <div className="flex items-center gap-1 mb-1">
-                                          <AlertCircle className="h-3 w-3 text-orange-600" />
-                                          <span className="text-xs font-semibold text-orange-800">
-                                            Usage Pace Alert
-                                          </span>
-                                        </div>
-                                        <div className="text-xs text-orange-700">
-                                          You're using resources faster than expected for your billing period.
-                                        </div>
-                                        {paceWarnings[subscription.stripe_subscription_id].warnings?.map((warning: any, idx: number) => (
-                                          <div key={idx} className="text-xs text-orange-600 mt-1">
-                                            • {warning.type}: {warning.projected_monthly} per month 
-                                            (limit: {warning.monthly_limit})
-                                          </div>
-                                        ))}
-                                      </div>
-                                      <button
-                                        onClick={() => setDismissedWarnings(prev => new Set([...Array.from(prev), subscription.stripe_subscription_id]))}
-                                        className="text-orange-400 hover:text-orange-600 ml-2"
-                                      >
-                                        ×
-                                      </button>
-                                    </div>
-                                  </div>
-                                )}
-
-                                {/* Show Start Paid Plan button ONLY if this is an actual trial that is exhausted */}
-                                {subscription.usage_info.trial_days_remaining > 0 && 
-                                 (subscription.usage_info.message_percentage >= 100 ||
-                                  subscription.usage_info.minute_percentage >= 100 ||
-                                  subscription.usage_info.trial_days_remaining <= 0) && (
-                                    <div className="mt-3 pt-3 border-t border-blue-200">
-                                      <div className="flex items-center gap-2 mb-2">
-                                        <AlertCircle className="h-4 w-4 text-orange-500" />
-                                        <span className="text-xs font-semibold text-orange-700">
-                                          Trial Limit Reached
-                                        </span>
-                                      </div>
-                                      {paymentMethods.length === 0 ? (
-                                        <>
-                                          <p className="text-xs text-red-600 mb-3">
-                                            Add a payment method to start your paid plan and continue using all features.
-                                          </p>
-                                          <Button
-                                            onClick={() => setShowAddPaymentModal(true)}
-                                            className="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs py-2"
-                                          >
-                                            <Plus className="h-3 w-3 mr-2" />
-                                            Add Payment Method
-                                          </Button>
-                                        </>
-                                      ) : (
-                                        <>
-                                          <p className="text-xs text-gray-600 mb-3">
-                                            Start your paid plan now to continue using all features without limits.
-                                          </p>
-                                          <Button
-                                            onClick={() => handleStartPaidPlan(subscription.stripe_subscription_id)}
-                                            className="w-full bg-orange-600 hover:bg-orange-700 text-white text-xs py-2"
-                                            disabled={upgrading}
-                                          >
-                                            {upgrading ? (
-                                              <>
-                                                <Loader2 className="h-3 w-3 mr-2 animate-spin" />
-                                                Starting Paid Plan...
-                                              </>
-                                            ) : (
-                                              <>
-                                                <Zap className="h-3 w-3 mr-2" />
-                                                Start Paid Plan Now
-                                              </>
-                                            )}
-                                          </Button>
-                                        </>
-                                      )}
-                                    </div>
-                                  )}
+                            {getStatusBadge(subscription.status)}
+                          </div>
+                          
+                          {subscription.expert_name && (
+                            <p className="text-sm text-gray-600 mb-3">
+                              Expert: {subscription.expert_name}
+                            </p>
+                          )}
+                          
+                          {/* Pricing Display */}
+                          <div className="mb-2">
+                            {subscription.usage_info && subscription.usage_info.trial_days_remaining > 0 ? (
+                              <div className="flex items-center gap-2">
+                                <span className="text-2xl font-bold text-green-600">FREE</span>
+                                <span className="text-sm text-gray-600">(Trial)</span>
                               </div>
                             ) : (
-                              /* Show placeholder when usage_info is not available */
-                              <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
-                                <div className="flex items-center justify-between mb-2">
-                                  <div className="text-xs font-semibold text-gray-700">
-                                    Usage Tracking
-                                  </div>
-                                  <BarChart3 className="h-3 w-3 text-gray-500" />
-                                </div>
-                                <div className="text-xs text-gray-600">
-                                  Usage tracking will be available once your subscription is fully activated.
-                                </div>
+                              <div className="flex items-baseline gap-2">
+                                <span className="text-2xl font-bold text-gray-900">
+                                  £{planInfo.monthlyPrice}
+                                </span>
+                                <span className="text-gray-600">/month</span>
                               </div>
+                            )}
+                            
+                            {planInfo.monthCount > 1 && !subscription.usage_info?.trial_days_remaining && (
+                              <p className="text-sm text-gray-600 mt-1">
+                                Total: £{planInfo.totalPrice} for {planInfo.monthCount} months
+                              </p>
                             )}
                           </div>
                         </div>
+                        
+                        <div className="text-right">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleShowCancelModal(subscription)}
+                            className="text-red-600 hover:text-red-700 border-red-200 hover:border-red-300"
+                          >
+                            Cancel Subscription
+                          </Button>
+                        </div>
                       </div>
 
-                      <div className="md:col-span-1 flex flex-col items-center justify-center">
-                        <p className="text-sm text-gray-600">Current Period</p>
-                        <p className="font-semibold text-center">
-                          {formatDate(subscription.current_period_start)} -{" "}
-                          {formatDate(subscription.current_period_end)}
-                        </p>
+                      {/* Subscription Period Section */}
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Calendar className="h-4 w-4 text-blue-600" />
+                          <span className="font-medium text-blue-900">Subscription Period</span>
+                        </div>
+                        <div className="text-blue-800">
+                          <p className="font-medium">
+                            {formatDate(subscription.current_period_start)} - {formatDate(subscription.current_period_end)}
+                          </p>
+                          {(() => {
+                            const endDate = new Date(subscription.current_period_end);
+                            const today = new Date();
+                            const diffTime = endDate.getTime() - today.getTime();
+                            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                            return (
+                              <p className="text-sm text-blue-700 mt-1">
+                                {diffDays > 0 ? `${diffDays} days remaining` : 'Expired'}
+                              </p>
+                            );
+                          })()}
+                        </div>
                       </div>
 
-                      <div className="md:col-span-1 flex flex-col items-end justify-start gap-3">
-                        {/* Trial Days Badge - Prominent at top right */}
-                        {subscription.usage_info && subscription.usage_info.trial_days_remaining > 0 && (
-                          <div className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-semibold">
-                            {subscription.usage_info.trial_days_remaining} days left
+                      {/* Plan Allowances Section */}
+                      <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-4">
+                        <div className="flex items-center gap-2 mb-3">
+                          <div className="bg-purple-100 p-1 rounded-full">
+                            <BarChart3 className="h-4 w-4 text-purple-600" />
+                          </div>
+                          <span className="font-medium text-purple-900">Plan Allowances</span>
+                        </div>
+                        
+                        {subscription.usage_info ? (
+                          <p className="text-purple-800 text-sm">
+                            You get <span className="font-semibold">{subscription.usage_info.message_limit} messages</span> and{' '}
+                            <span className="font-semibold">{subscription.usage_info.minute_limit} voice minutes</span> for the entire{' '}
+                            {planInfo.monthCount === 1 ? 'monthly' : `${planInfo.monthCount}-month`} period
+                          </p>
+                        ) : (
+                          <p className="text-purple-800 text-sm">
+                            Unlimited messages and voice minutes for the entire{' '}
+                            {planInfo.monthCount === 1 ? 'monthly' : `${planInfo.monthCount}-month`} period
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Usage Tracking */}
+                      {subscription.usage_info && (
+                        <div className="space-y-4">
+                          {/* Messages Usage */}
+                          <div>
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                <MessageCircle className="h-4 w-4 text-blue-600" />
+                                <span className="font-medium text-gray-900">Messages</span>
+                              </div>
+                              <span className="text-sm font-medium text-gray-900">
+                                {subscription.usage_info.messages_used} / {subscription.usage_info.message_limit}
+                              </span>
+                            </div>
+                            <div className="w-full bg-gray-200 rounded-full h-2 mb-1">
+                              <div
+                                className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                                style={{ width: `${Math.min(subscription.usage_info.message_percentage, 100)}%` }}
+                              ></div>
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {subscription.usage_info.message_percentage.toFixed(1)}% used
+                            </div>
+                          </div>
+
+                          {/* Voice Minutes Usage */}
+                          <div>
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center gap-2">
+                                <Phone className="h-4 w-4 text-green-600" />
+                                <span className="font-medium text-gray-900">Voice Minutes</span>
+                              </div>
+                              <span className="text-sm font-medium text-gray-900">
+                                {subscription.usage_info.minutes_used} / {subscription.usage_info.minute_limit}
+                              </span>
+                            </div>
+                            <div className="w-full bg-gray-200 rounded-full h-2 mb-1">
+                              <div
+                                className="bg-green-600 h-2 rounded-full transition-all duration-300"
+                                style={{ width: `${Math.min(subscription.usage_info.minute_percentage, 100)}%` }}
+                              ></div>
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {subscription.usage_info.minute_percentage.toFixed(1)}% used
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Subscription Validity Notice */}
+                      <div className="mt-4 pt-4 border-t border-gray-200">
+                        <div className="flex items-center gap-2 text-sm text-gray-600">
+                          <AlertCircle className="h-4 w-4 text-yellow-500" />
+                          <span>
+                            Your subscription is valid until {formatDate(subscription.current_period_end)}
+                          </span>
+                        </div>
+                      </div>
+                      {/* Trial-specific actions */}
+                      {subscription.usage_info && subscription.usage_info.trial_days_remaining > 0 && 
+                       (subscription.usage_info.message_percentage >= 100 ||
+                        subscription.usage_info.minute_percentage >= 100 ||
+                        subscription.usage_info.trial_days_remaining <= 0) && (
+                          <div className="mt-4 p-4 bg-orange-50 border border-orange-200 rounded-lg">
+                            <div className="flex items-center gap-2 mb-2">
+                              <AlertCircle className="h-4 w-4 text-orange-500" />
+                              <span className="font-semibold text-orange-700">Trial Limit Reached</span>
+                            </div>
+                            {paymentMethods.length === 0 ? (
+                              <>
+                                <p className="text-sm text-orange-700 mb-3">
+                                  Add a payment method to start your paid plan and continue using all features.
+                                </p>
+                                <Button
+                                  onClick={() => setShowAddPaymentModal(true)}
+                                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                                >
+                                  <Plus className="h-4 w-4 mr-2" />
+                                  Add Payment Method
+                                </Button>
+                              </>
+                            ) : (
+                              <>
+                                <p className="text-sm text-orange-700 mb-3">
+                                  Start your paid plan now to continue using all features without limits.
+                                </p>
+                                <Button
+                                  onClick={() => handleStartPaidPlan(subscription.stripe_subscription_id)}
+                                  className="bg-orange-600 hover:bg-orange-700 text-white"
+                                  disabled={upgrading}
+                                >
+                                  {upgrading ? (
+                                    <>
+                                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                      Starting Paid Plan...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Zap className="h-4 w-4 mr-2" />
+                                      Start Paid Plan Now
+                                    </>
+                                  )}
+                                </Button>
+                              </>
+                            )}
                           </div>
                         )}
 
-                        {/* Status Badge */}
-                        <div className="flex flex-col items-end gap-1">
-                          {getStatusBadge(subscription.status)}
-                        </div>
-
-                        {/* Action Buttons */}
-                        <div className="flex flex-col gap-2 items-end">
-                          {/* Status Messages */}
-                          {subscription.status === "incomplete" && (
-                            <span className="text-sm text-orange-600 font-medium">
-                              Payment Required
-                            </span>
-                          )}
-
-                          {subscription.cancel_at_period_end && (
-                            <span className="text-sm text-orange-600 font-medium">
-                              Cancels at Period End
-                            </span>
-                          )}
-
-                          {subscription.usage_info &&
-                            subscription.usage_info.trial_days_remaining > 0 &&
-                            (subscription.usage_info.message_percentage >= 100 ||
-                              subscription.usage_info.minute_percentage >= 100 ||
-                              subscription.usage_info.trial_days_remaining <= 0) && (
-                              <span className="text-sm text-orange-600 font-medium">
-                                Trial Exhausted
-                              </span>
-                            )}
-
-                          {/* Action Buttons */}
-                          <div className="flex gap-2">
-                            {/* Complete Payment Button */}
-                            {subscription.status === "incomplete" && (
-                              <Button
-                                variant="default"
-                                size="sm"
-                                onClick={() =>
-                                  handleCompletePayment(
-                                    subscription.stripe_subscription_id,
-                                  )
-                                }
-                                className="bg-blue-600 hover:bg-blue-700 text-white"
-                                disabled={paymentLoading}
-                              >
-                                {paymentLoading ? (
-                                  <>
-                                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    Confirming...
-                                  </>
-                                ) : (
-                                  "Complete Payment"
-                                )}
-                              </Button>
-                            )}
-
-                            {/* Reactivate Button */}
-                            {subscription.cancel_at_period_end && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() =>
-                                  handleReactivateSubscription(
-                                    subscription.stripe_subscription_id,
-                                  )
-                                }
-                                className="text-green-600 hover:text-green-700 border-green-200 hover:border-green-300"
-                              >
-                                Reactivate
-                              </Button>
-                            )}
-
-                            {/* Start Paid Plan Button - Only for actual trials */}
-                            {subscription.usage_info &&
-                              subscription.usage_info.trial_days_remaining > 0 &&
-                              (subscription.usage_info.message_percentage >= 100 ||
-                                subscription.usage_info.minute_percentage >= 100 ||
-                                subscription.usage_info.trial_days_remaining <= 0) && (
-                                paymentMethods.length === 0 ? (
-                                  <Button
-                                    variant="default"
-                                    size="sm"
-                                    onClick={() => setShowAddPaymentModal(true)}
-                                    className="bg-blue-600 hover:bg-blue-700 text-white"
-                                  >
-                                    <Plus className="mr-2 h-4 w-4" />
-                                    Add Payment Method
-                                  </Button>
-                                ) : (
-                                  <Button
-                                    variant="default"
-                                    size="sm"
-                                    onClick={() =>
-                                      handleStartPaidPlan(
-                                        subscription.stripe_subscription_id,
-                                      )
-                                    }
-                                    className="bg-orange-600 hover:bg-orange-700 text-white"
-                                    disabled={upgrading}
-                                  >
-                                    {upgrading ? (
-                                      <>
-                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                        Starting...
-                                      </>
-                                    ) : (
-                                      <>
-                                        <Zap className="mr-2 h-4 w-4" />
-                                        Start Paid Plan
-                                      </>
-                                    )}
-                                  </Button>
-                                )
-                              )}
-
-                            {/* Cancel Subscription Button - Always show unless already canceled */}
-                            {!subscription.cancel_at_period_end && subscription.status !== "canceled" && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => handleShowCancelModal(subscription)}
-                                className="text-red-600 hover:text-red-700 border-red-200 hover:border-red-300"
-                              >
-                                Cancel Subscription
-                              </Button>
-                            )}
+                      {/* Incomplete payment actions */}
+                      {subscription.status === "incomplete" && (
+                        <div className="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                          <div className="flex items-center gap-2 mb-2">
+                            <AlertCircle className="h-4 w-4 text-yellow-500" />
+                            <span className="font-semibold text-yellow-700">Payment Required</span>
                           </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Usage Information - Show when usage context is available AND NOT a trial */}
-                    {usageContext &&
-                      usageContext.currentPlan &&
-                      subscription.status === "active" &&
-                      !subscription.usage_info && (
-                        <div className="mt-4 pt-4 border-t border-gray-200">
-                          <div className="flex items-center gap-2 mb-3">
-                            <BarChart3 className="h-4 w-4 text-blue-500" />
-                            <span className="font-medium text-gray-900">
-                              Usage This Period
-                            </span>
-                            {(!usageContext.limitStatus.canSendMessage ||
-                              !usageContext.limitStatus.canMakeCall) && (
-                                <Badge className="bg-red-100 text-red-800 text-xs">
-                                  Limit Reached
-                                </Badge>
-                              )}
-                          </div>
-
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {/* Messages Usage */}
-                            {usageContext.currentPlan.message_limit && (
-                              <div className="space-y-2">
-                                <div className="flex items-center justify-between text-sm">
-                                  <div className="flex items-center gap-2">
-                                    <MessageCircle className="h-4 w-4 text-gray-500" />
-                                    <span>Messages</span>
-                                  </div>
-                                  <span
-                                    className={`${!usageContext.limitStatus.canSendMessage ? "text-red-600 font-medium" : "text-gray-600"}`}
-                                  >
-                                    {usageContext.currentPlan.message_limit -
-                                      (usageContext.limitStatus
-                                        .messagesRemaining || 0)}{" "}
-                                    / {usageContext.currentPlan.message_limit}
-                                  </span>
-                                </div>
-                                <div className="w-full bg-gray-200 rounded-full h-2">
-                                  <div
-                                    className={`h-2 rounded-full ${((usageContext.currentPlan.message_limit -
-                                        (usageContext.limitStatus
-                                          .messagesRemaining || 0)) /
-                                        usageContext.currentPlan
-                                          .message_limit) *
-                                        100 >=
-                                        90
-                                        ? "bg-red-500"
-                                        : ((usageContext.currentPlan
-                                          .message_limit -
-                                          (usageContext.limitStatus
-                                            .messagesRemaining || 0)) /
-                                          usageContext.currentPlan
-                                            .message_limit) *
-                                          100 >=
-                                          75
-                                          ? "bg-yellow-500"
-                                          : "bg-blue-500"
-                                      }`}
-                                    style={{
-                                      width: `${Math.min(((usageContext.currentPlan.message_limit - (usageContext.limitStatus.messagesRemaining || 0)) / usageContext.currentPlan.message_limit) * 100, 100)}%`,
-                                    }}
-                                  ></div>
-                                </div>
-                              </div>
+                          <p className="text-sm text-yellow-700 mb-3">
+                            Complete your payment to activate your subscription.
+                          </p>
+                          <Button
+                            onClick={() => handleCompletePayment(subscription.stripe_subscription_id)}
+                            className="bg-blue-600 hover:bg-blue-700 text-white"
+                            disabled={paymentLoading}
+                          >
+                            {paymentLoading ? (
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Confirming...
+                              </>
+                            ) : (
+                              "Complete Payment"
                             )}
-
-                            {/* Minutes Usage */}
-                            {usageContext.currentPlan.minute_limit && (
-                              <div className="space-y-2">
-                                <div className="flex items-center justify-between text-sm">
-                                  <div className="flex items-center gap-2">
-                                    <Phone className="h-4 w-4 text-gray-500" />
-                                    <span>Call Minutes</span>
-                                  </div>
-                                  <span
-                                    className={`${!usageContext.limitStatus.canMakeCall ? "text-red-600 font-medium" : "text-gray-600"}`}
-                                  >
-                                    {usageContext.currentPlan.minute_limit -
-                                      (usageContext.limitStatus
-                                        .minutesRemaining || 0)}{" "}
-                                    / {usageContext.currentPlan.minute_limit}
-                                  </span>
-                                </div>
-                                <div className="w-full bg-gray-200 rounded-full h-2">
-                                  <div
-                                    className={`h-2 rounded-full ${((usageContext.currentPlan.minute_limit -
-                                        (usageContext.limitStatus
-                                          .minutesRemaining || 0)) /
-                                        usageContext.currentPlan.minute_limit) *
-                                        100 >=
-                                        90
-                                        ? "bg-red-500"
-                                        : ((usageContext.currentPlan
-                                          .minute_limit -
-                                          (usageContext.limitStatus
-                                            .minutesRemaining || 0)) /
-                                          usageContext.currentPlan
-                                            .minute_limit) *
-                                          100 >=
-                                          75
-                                          ? "bg-yellow-500"
-                                          : "bg-blue-500"
-                                      }`}
-                                    style={{
-                                      width: `${Math.min(((usageContext.currentPlan.minute_limit - (usageContext.limitStatus.minutesRemaining || 0)) / usageContext.currentPlan.minute_limit) * 100, 100)}%`,
-                                    }}
-                                  ></div>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-
-                          {/* Unlimited plan message */}
-                          {!usageContext.currentPlan.message_limit &&
-                            !usageContext.currentPlan.minute_limit && (
-                              <div className="text-center py-2 text-green-600">
-                                <span className="flex items-center justify-center gap-2">
-                                  <CheckCircle2 className="h-4 w-4" />
-                                  Unlimited usage plan
-                                </span>
-                              </div>
-                            )}
+                          </Button>
                         </div>
                       )}
-                  </CardContent>
-                </Card>
-              ))}
+
+                      {/* Reactivation option */}
+                      {subscription.cancel_at_period_end && (
+                        <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                          <div className="flex items-center gap-2 mb-2">
+                            <CheckCircle2 className="h-4 w-4 text-green-500" />
+                            <span className="font-semibold text-green-700">Subscription Scheduled for Cancellation</span>
+                          </div>
+                          <p className="text-sm text-green-700 mb-3">
+                            Your subscription will end on {formatDate(subscription.current_period_end)}. You can reactivate it anytime before then.
+                          </p>
+                          <Button
+                            onClick={() => handleReactivateSubscription(subscription.stripe_subscription_id)}
+                            className="bg-green-600 hover:bg-green-700 text-white"
+                          >
+                            Reactivate Subscription
+                          </Button>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                );
+              })}
             </div>
           )}
         </div>
@@ -1442,34 +1284,41 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
               </CardContent>
             </Card>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {paymentMethods.map((method) => (
-                <Card key={method.id}>
+            (() => {
+              // Find the default payment method, or use the first one if no default is set
+              const defaultMethod = paymentMethods.find(method => method.is_default) || paymentMethods[0];
+              
+              return (
+                <Card>
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <CreditCard className="w-8 h-8 text-gray-400" />
                         <div>
                           <p className="font-semibold">
-                            •••• •••• •••• {method.card.last4}
+                            •••• •••• •••• {defaultMethod.card.last4}
                           </p>
                           <p className="text-sm text-gray-600">
-                            {method.card.brand.toUpperCase()} • Expires{" "}
-                            {method.card.exp_month}/{method.card.exp_year}
+                            {defaultMethod.card.brand.toUpperCase()} • Expires{" "}
+                            {defaultMethod.card.exp_month}/{defaultMethod.card.exp_year}
                           </p>
-                          {method.is_default && (
-                            <Badge className="mt-1 bg-blue-100 text-blue-800 text-xs">
-                              Default
-                            </Badge>
-                          )}
+                          <Badge className="mt-1 bg-blue-100 text-blue-800 text-xs">
+                            Default
+                          </Badge>
                         </div>
                       </div>
-
+                      <div className="flex items-center gap-2">
+                        {paymentMethods.length > 1 && (
+                          <span className="text-xs text-gray-500">
+                            +{paymentMethods.length - 1} more
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
-              ))}
-            </div>
+              );
+            })()
           )}
         </div>
       </div>

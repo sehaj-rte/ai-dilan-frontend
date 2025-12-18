@@ -48,6 +48,7 @@ import { RootState } from "@/store/store";
 import { logout, loadUserFromStorage } from "@/store/slices/authSlice";
 import { usePlanLimitations } from "@/hooks/usePlanLimitations";
 import { UsageStatusBar } from "@/components/usage/UsageStatusBar";
+import { useExpert } from "@/contexts/ExpertContext";
 import { LimitReachedModal } from "@/components/usage/LimitReachedModal";
 
 interface FileAttachment {
@@ -98,6 +99,9 @@ const ClientChatPage = () => {
   const router = useRouter();
   const dispatch = useDispatch();
   const slug = params.slug as string;
+
+  // Use Expert context
+  const { setExpertData } = useExpert();
 
   const convertS3UrlToProxy = (s3Url: string, thumbnail: boolean = false, size: number = 40): string => {
     if (!s3Url) return s3Url as any;
@@ -445,6 +449,14 @@ const ClientChatPage = () => {
               : null,
           });
           setPublication(data.publication);
+
+          // Update expert context for footer
+          setExpertData({
+            name: data.expert.name,
+            displayName: data.publication?.display_name,
+            primaryColor: data.publication?.primary_color,
+            secondaryColor: data.publication?.secondary_color,
+          });
 
           console.log("🔍 Publication data:", {
             is_private: data.publication?.is_private,

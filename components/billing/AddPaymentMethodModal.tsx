@@ -24,11 +24,11 @@ const stripePromise = stripeKey ? loadStripe(stripeKey) : null;
 interface AddPaymentMethodModalProps {
   isOpen: boolean
   onClose: () => void
-  onSuccess: () => void
+  onSuccess: (paymentMethodId?: string) => void
 }
 
 const PaymentMethodForm: React.FC<{
-  onSuccess: () => void
+  onSuccess: (paymentMethodId?: string) => void
   onError: (error: string) => void
 }> = ({ onSuccess, onError }) => {
   const stripe = useStripe()
@@ -109,7 +109,8 @@ const PaymentMethodForm: React.FC<{
         return
       }
 
-      onSuccess()
+      // Call onSuccess with the payment method ID for setting as default
+      onSuccess(paymentMethod.id)
 
     } catch (error) {
       console.error('Payment method error:', error)

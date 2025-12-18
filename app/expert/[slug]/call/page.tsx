@@ -20,6 +20,7 @@ import { logout, loadUserFromStorage } from "@/store/slices/authSlice";
 import { usePlanLimitations } from "@/hooks/usePlanLimitations";
 import { UsageStatusBar } from "@/components/usage/UsageStatusBar";
 import { LimitReachedModal } from "@/components/usage/LimitReachedModal";
+import { useExpert } from "@/contexts/ExpertContext";
 
 interface Expert {
   id: string;
@@ -47,6 +48,9 @@ const ClientCallPage = () => {
   const router = useRouter();
   const dispatch = useDispatch();
   const slug = params.slug as string;
+
+  // Use Expert context
+  const { setExpertData } = useExpert();
 
   // Auth state from Redux
   const { user, isAuthenticated } = useSelector(
@@ -302,6 +306,14 @@ const ClientCallPage = () => {
             : null,
         });
         setPublication(data.publication);
+
+        // Update expert context for footer
+        setExpertData({
+          name: data.expert.name,
+          displayName: data.publication?.display_name,
+          primaryColor: data.publication?.primary_color,
+          secondaryColor: data.publication?.secondary_color,
+        });
       } else {
         setError("Expert not found or not published");
       }

@@ -15,6 +15,7 @@ import { Badge } from "@/components/ui/badge";
 import { API_URL } from "@/lib/config";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useClientAuthFlow } from "@/contexts/ClientAuthFlowContext";
+import { useExpert } from "@/contexts/ExpertContext";
 import { notificationService } from "@/lib/notifications";
 import AuthModal from "@/components/client/AuthModal";
 import PaymentModal from "@/components/client/PaymentModal";
@@ -119,6 +120,9 @@ const ClientExpertPage = () => {
     setCurrentUser,
   } = useClientAuthFlow();
 
+  // Use Expert context
+  const { setExpertData } = useExpert();
+
   // Derived auth state
 
   const isAuthenticated = !!currentUser;
@@ -206,9 +210,19 @@ const ClientExpertPage = () => {
     setShowPaymentSuccess(false);
     setPaymentSuccessMessage('');
     fetchExpertData();
-
-
   }, [slug]);
+
+  // Update expert context when expert data changes
+  useEffect(() => {
+    if (expert && publication) {
+      setExpertData({
+        name: expert.name,
+        displayName: publication.display_name,
+        primaryColor: publication.primary_color,
+        secondaryColor: publication.secondary_color,
+      });
+    }
+  }, [expert, publication, setExpertData]);
 
   useEffect(() => {
     if (isAuthenticated && publication?.is_private && expert?.id) {
@@ -840,16 +854,16 @@ const ClientExpertPage = () => {
               </Button>
             </div>
 
-            {/* Browser Compatibility Notice - Smaller font size */}
+            {/* Browser Compatibility Notice - Smaller font size and compact padding */}
             <div
-              className="border rounded-full px-4 py-2 shadow-sm"
+              className="border rounded-full px-3.5 py-2 shadow-sm"
               style={{
                 borderColor: primaryColor + '40',
                 backgroundColor: primaryColor + '10',
                 color: primaryColor
               }}
             >
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-1.5">
                 <Globe className="h-3 w-3 flex-shrink-0" />
                 <p className="text-xs font-medium">
                   Best experience with Chrome or Safari

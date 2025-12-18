@@ -10,8 +10,11 @@ interface Subscription {
   cancel_at_period_end: boolean;
   plan_name: string;
   plan_price: number;
+  plan_total_price?: number;
   plan_currency: string;
   plan_interval: string;
+  plan_billing_period?: string;
+  plan_display_text?: string;
   expert_id: string;
   expert_name?: string;
   expert_description?: string;
