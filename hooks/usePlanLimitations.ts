@@ -177,13 +177,20 @@ export const usePlanLimitations = ({
             const usageInfo = expertSubscription.usage_info;
             if (usageInfo) {
               setUsage({
+                user_id: expertSubscription.user_id || '',
+                expert_id: expertId,
+                plan_id: expertSubscription.plan_id,
+                current_period_start: expertSubscription.current_period_start || '',
+                current_period_end: expertSubscription.current_period_end || '',
                 messages_used: usageInfo.messages_used,
                 minutes_used: usageInfo.minutes_used,
                 message_limit: usageInfo.message_limit,
                 minute_limit: usageInfo.minute_limit,
                 is_trial: usageInfo.trial_days_remaining > 0,
                 trial_days_remaining: usageInfo.trial_days_remaining,
-                subscription_id: expertSubscription.stripe_subscription_id
+                subscription_id: expertSubscription.stripe_subscription_id,
+                last_reset_date: expertSubscription.current_period_start || '',
+                updated_at: new Date().toISOString()
               });
             }
 
@@ -205,10 +212,17 @@ export const usePlanLimitations = ({
             // Set current plan
             setCurrentPlan({
               id: expertSubscription.plan_id,
+              expert_id: expertId,
               name: expertSubscription.plan_name,
               price: expertSubscription.plan_price,
               currency: expertSubscription.plan_currency,
               billing_interval: expertSubscription.plan_interval,
+              billing_interval_count: 1,
+              stripe_product_id: expertSubscription.stripe_product_id || null,
+              stripe_price_id: expertSubscription.stripe_price_id || null,
+              is_active: true,
+              created_at: expertSubscription.created_at || new Date().toISOString(),
+              updated_at: expertSubscription.updated_at || new Date().toISOString(),
               message_limit: usageInfo?.message_limit || null,
               minute_limit: usageInfo?.minute_limit || null,
             });

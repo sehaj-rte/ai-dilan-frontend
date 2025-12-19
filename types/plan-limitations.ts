@@ -13,6 +13,11 @@ export interface UserUsage {
   current_period_end: string;
   messages_used: number;
   minutes_used: number;
+  message_limit?: number;
+  minute_limit?: number;
+  is_trial?: boolean;
+  trial_days_remaining?: number;
+  subscription_id?: string;
   last_reset_date: string;
   updated_at: string;
 }

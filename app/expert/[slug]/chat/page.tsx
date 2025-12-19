@@ -1024,9 +1024,13 @@ const ClientChatPage = () => {
         // Cache the audio URL (limit cache size to prevent memory issues)
         if (audioCache.size > 10) {
           const firstKey = audioCache.keys().next().value;
-          const oldUrl = audioCache.get(firstKey);
-          if (oldUrl) URL.revokeObjectURL(oldUrl);
-          audioCache.delete(firstKey);
+          if (firstKey) {
+            const oldUrl = audioCache.get(firstKey);
+            if (oldUrl) {
+              URL.revokeObjectURL(oldUrl);
+            }
+            audioCache.delete(firstKey);
+          }
         }
         audioCache.set(cacheKey, audioUrl);
         setAudioCache(new Map(audioCache));
