@@ -2843,12 +2843,17 @@ const ClientChatPage = () => {
         <div 
           className="px-3 sm:px-6 py-3 sm:py-5"
           style={{
-            background: publication?.banner_url
-              ? "rgba(255, 255, 255, 0.98)"
-              : `linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.98) 100%)`,
-            backdropFilter: "blur(20px)",
-            borderTop: `1px solid ${primaryColor}20`,
-            boxShadow: "0 -4px 20px rgba(0, 0, 0, 0.1)",
+            // background: publication?.banner_url
+            //   ? "rgba(255, 255, 255, 0.98)"
+            //   : `linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.98) 100%)`,
+            // backdropFilter: "blur(20px)",
+            // borderTop: `1px solid ${primaryColor}20`,
+            // boxShadow: "0 -4px 20px rgba(0, 0, 0, 0.1)",
+
+                        background: publication?.banner_url
+              ? "rgba(255, 255, 255, 0.85)"
+              : `linear-gradient(180deg, rgba(255, 255, 255, 0.9) 0%, rgba(248, 250, 252, 0.95) 100%)`,
+            backdropFilter: "blur(15px)",
           }}
         >
           <div className="max-w-3xl mx-auto">
