@@ -347,32 +347,14 @@ const ClientCallPage = () => {
 
       await startConversation();
 
-      // Start timer and track usage
+      // Start timer (no usage tracking during call - only at the end)
       setCallDuration(0);
       const interval = setInterval(() => {
-        setCallDuration((prev) => {
-          const newDuration = prev + 1;
-
-          // Track usage every minute (60 seconds)
-          if (
-            isAuthenticated &&
-            expert?.id &&
-            newDuration > 0 &&
-            newDuration % 60 === 0
-          ) {
-            trackUsage({
-              expert_id: expert.id,
-              event_type: "minutes_used",
-              quantity: 1,
-            }).catch((err) =>
-              console.error("Failed to track minute usage:", err),
-            );
-          }
-
-          return newDuration;
-        });
+        setCallDuration((prev) => prev + 1);
       }, 1000);
       setTimerInterval(interval);
+
+      console.log(`📞 Call started - timer running`);
     } catch (error) {
       console.error("Failed to start voice conversation:", error);
       if (error instanceof Error) {
@@ -395,25 +377,34 @@ const ClientCallPage = () => {
     try {
       await endConversation();
 
-      // Track final usage for partial minute
-      if (isAuthenticated && expert?.id && callDuration > 0) {
-        const remainingSeconds = callDuration % 60;
-        if (remainingSeconds > 0) {
-          // Round up partial minute to full minute for billing
-          trackUsage({
-            expert_id: expert.id,
-            event_type: "minutes_used",
-            quantity: 1,
-          }).catch((err) =>
-            console.error("Failed to track final minute usage:", err),
-          );
-        }
-      }
-
-      // Stop timer
+      // Stop timer first
       if (timerInterval) {
         clearInterval(timerInterval);
         setTimerInterval(null);
+      }
+
+      // Calculate total minutes used (round up partial minutes for billing)
+      const totalMinutes = Math.ceil(callDuration / 60);
+      
+      console.log(`📞 Call ended: ${formatCallDurationWithText(callDuration)} (${callDuration} seconds) -> billing ${totalMinutes} minute${totalMinutes !== 1 ? 's' : ''}`);
+
+      // Track ONLY the total minutes used - single tracking event
+      if (isAuthenticated && expert?.id && totalMinutes > 0) {
+        console.log(`📞 Tracking ${totalMinutes} minutes for call`);
+        trackUsage({
+          expert_id: expert.id,
+          event_type: "minutes_used",
+          quantity: totalMinutes,
+        }).catch((err) =>
+          console.error("Failed to track call minutes:", err),
+        );
+
+        // Refresh usage data after tracking
+        setTimeout(() => {
+          refreshUsage().catch((err) =>
+            console.error("Failed to refresh usage after call:", err),
+          );
+        }, 1000); // Small delay to ensure backend processing completes
       }
     } catch (error) {
       console.error("Failed to end voice conversation:", error);
@@ -441,6 +432,20 @@ const ClientCallPage = () => {
       return `${hrs.toString().padStart(2, "0")}:${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
     }
     return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+  };
+
+  const formatCallDurationWithText = (seconds: number): string => {
+    const hrs = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+
+    if (hrs > 0) {
+      return `${hrs}h ${mins}m ${secs}s`;
+    } else if (mins > 0) {
+      return `${mins}m ${secs}s`;
+    } else {
+      return `${secs}s`;
+    }
   };
 
   // Cleanup timer on unmount
@@ -652,6 +657,30 @@ const ClientCallPage = () => {
           </div>
         </div>
 
+        {/* Usage Status Bar - only show for authenticated users with plan limitations */}
+        {isAuthenticated && currentPlan && !limitStatus.isUnlimited && (
+          <div 
+            className="px-4 py-2"
+            style={{
+              background: publication?.banner_url
+                ? "rgba(249, 250, 251, 0.8)"
+                : `linear-gradient(135deg, rgba(249, 250, 251, 0.9) 0%, rgba(243, 244, 246, 0.9) 100%)`,
+              backdropFilter: "blur(10px)",
+              borderBottom: `1px solid ${primaryColor}15`,
+            }}
+          >
+            <div className="container mx-auto">
+              <UsageStatusBar
+                limitStatus={limitStatus}
+                currentPlan={currentPlan}
+                loading={planLoading}
+                compact={true}
+                expertSlug={slug}
+              />
+            </div>
+          </div>
+        )}
+
         {/* Main Content */}
         <div className="container mx-auto px-4 py-8">
           <div
@@ -660,23 +689,28 @@ const ClientCallPage = () => {
             {/* Call Timer at Top */}
             {state.isConnected && (
               <div className="mb-12">
-                <div className="inline-flex items-center space-x-2">
-                  <svg
-                    className="w-5 h-5 text-gray-600"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
-                    />
-                  </svg>
-                  <span className="text-lg font-mono font-medium text-gray-700">
-                    {formatCallDuration(callDuration)}
-                  </span>
+                <div className="inline-flex flex-col items-center space-y-2">
+                  <div className="inline-flex items-center space-x-2">
+                    <svg
+                      className="w-5 h-5 text-gray-600"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"
+                      />
+                    </svg>
+                    <span className="text-2xl font-mono font-bold text-gray-800">
+                      {formatCallDuration(callDuration)}
+                    </span>
+                  </div>
+                  <div className="text-sm text-gray-500 font-medium">
+                    {formatCallDurationWithText(callDuration)} • Will bill {Math.ceil(callDuration / 60)} minute{Math.ceil(callDuration / 60) !== 1 ? 's' : ''}
+                  </div>
                 </div>
               </div>
             )}

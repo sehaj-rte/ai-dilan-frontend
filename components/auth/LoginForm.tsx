@@ -71,7 +71,10 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSuccess }) => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email: formData.email }),
+        body: JSON.stringify({ 
+          email: formData.email,
+          reset_url_type: "admin"  // Use admin reset URL for regular login
+        }),
       })
 
       const data = await response.json()

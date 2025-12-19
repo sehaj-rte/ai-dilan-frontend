@@ -58,6 +58,7 @@ interface ClientAuthFlowContextType {
   ) => Promise<{ success: boolean; error?: string }>;
   handleForgotPassword: (
     email: string,
+    expertSlug?: string,
   ) => Promise<{ success: boolean; error?: string }>;
 
   // Payment Success Handler
@@ -264,6 +265,7 @@ export function ClientAuthFlowProvider({
    */
   const handleForgotPassword = async (
     email: string,
+    expertSlug?: string,
   ): Promise<{ success: boolean; error?: string }> => {
     try {
       const response = await fetch(`${API_URL}/password-reset/forgot-password`, {
@@ -271,7 +273,11 @@ export function ClientAuthFlowProvider({
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ 
+          email,
+          reset_url_type: expertSlug ? "expert" : "admin",
+          expert_slug: expertSlug
+        }),
       });
 
       const data = await response.json();

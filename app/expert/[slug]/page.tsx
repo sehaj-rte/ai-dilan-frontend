@@ -114,11 +114,16 @@ const ClientExpertPage = () => {
     handleChatOrCall,
     handleLogin,
     handleSignup,
-    handleForgotPassword,
+    handleForgotPassword: contextHandleForgotPassword,
     handlePaymentSuccess: contextHandlePaymentSuccess,
     currentUser,
     setCurrentUser,
   } = useClientAuthFlow();
+
+  // Create expert-specific forgot password handler
+  const handleForgotPassword = async (email: string) => {
+    return await contextHandleForgotPassword(email, slug);
+  };
 
   // Use Expert context
   const { setExpertData } = useExpert();
@@ -830,44 +835,46 @@ const ClientExpertPage = () => {
           {/* CTA Buttons and Browser Notice - Horizontally Aligned */}
           <div className="flex flex-col items-center gap-4 mb-6">
             {/* CTA Buttons - Reduced gap for closer alignment */}
-            <div className="flex justify-center gap-4">
-              <Button
-                size="lg"
-                variant="outline"
-                className="px-8 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 border-2"
-                style={{ borderColor: primaryColor, color: primaryColor }}
-                onClick={handleStartChat}
-                disabled={checkingSubscription}
-              >
-                <MessageCircle className="h-5 w-5 mr-2" />
-                Chat
-              </Button>
-              <Button
-                size="lg"
-                className="text-white px-8 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
-                style={{ backgroundColor: primaryColor }}
-                onClick={handleStartCall}
-                disabled={checkingSubscription}
-              >
-                <Phone className="h-5 w-5 mr-2" />
-                Call
-              </Button>
-            </div>
+            <div className="w-[100%] md:w-[45%] flex flex-col gap-3">
+              <div className="w-full flex justify-between">
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="px-8 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 border-2"
+                  style={{ borderColor: primaryColor, color: primaryColor }}
+                  onClick={handleStartChat}
+                  disabled={checkingSubscription}
+                >
+                  <MessageCircle className="h-5 w-5 mr-2" />
+                  Chat
+                </Button>
+                <Button
+                  size="lg"
+                  className="text-white px-8 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+                  style={{ backgroundColor: primaryColor }}
+                  onClick={handleStartCall}
+                  disabled={checkingSubscription}
+                >
+                  <Phone className="h-5 w-5 mr-2" />
+                  Call
+                </Button>
+              </div>
 
-            {/* Browser Compatibility Notice - Smaller font size and compact padding */}
-            <div
-              className="border rounded-full px-3.5 py-2 shadow-sm"
-              style={{
-                borderColor: primaryColor + '40',
-                backgroundColor: primaryColor + '10',
-                color: primaryColor
-              }}
-            >
-              <div className="flex items-center space-x-1.5">
-                <Globe className="h-3 w-3 flex-shrink-0" />
-                <p className="text-xs font-medium">
-                  Best experience with Chrome or Safari
-                </p>
+              {/* Browser Compatibility Notice - Smaller font size and compact padding */}
+              <div
+                className="w-full border rounded-full px-3.5 py-2 shadow-sm"
+                style={{
+                  borderColor: primaryColor + '40',
+                  backgroundColor: primaryColor + '10',
+                  color: primaryColor
+                }}
+              >
+                <div className="flex items-center space-x-1.5">
+                  <Globe className="h-3 w-3 flex-shrink-0" />
+                  <p className="text-xs font-medium">
+                    Best experience with Chrome or Safari
+                  </p>
+                </div>
               </div>
             </div>
           </div>
@@ -908,8 +915,8 @@ const ClientExpertPage = () => {
                           setShowFullDescription(!showFullDescription)
                         }
                         className={`text-sm font-medium transition-colors ${publication?.banner_url
-                            ? "text-gray-600 hover:text-gray-900 bg-gray-100/50 hover:bg-gray-200/50 px-3 py-1 rounded-full"
-                            : "text-gray-500 hover:text-gray-700"
+                          ? "text-gray-600 hover:text-gray-900 bg-gray-100/50 hover:bg-gray-200/50 px-3 py-1 rounded-full"
+                          : "text-gray-500 hover:text-gray-700"
                           }`}
                       >
                         {showFullDescription ? "View less ~" : "View more ~"}
@@ -954,10 +961,10 @@ const ClientExpertPage = () => {
           </div>
         </div>
       )}
-      
+
       {/* Backup Dialog Modal */}
-      <Dialog 
-        open={showPaymentSuccess} 
+      <Dialog
+        open={showPaymentSuccess}
         onOpenChange={(open) => {
           setShowPaymentSuccess(open);
           if (!open) {
@@ -969,7 +976,7 @@ const ClientExpertPage = () => {
           <div className="text-center py-8">
             <CheckCircle2 className="w-16 h-16 text-green-500 mx-auto mb-4" />
             <h2 className="text-2xl font-bold text-green-600 mb-2">
-              Payment Successful! 
+              Payment Successful!
             </h2>
             <p className="text-gray-600 mb-4">
               {paymentSuccessMessage || "Payment successful! A detailed invoice has been sent to your email address."}

@@ -91,13 +91,16 @@ export const usePlanLimitations = ({
       let effectiveMessagesUsed = usage.messages_used;
       let effectiveMinutesUsed = usage.minutes_used;
 
-      // For trial subscriptions, use trial usage info if available
-      // Check for usage_info presence instead of status (Stripe may mark as 'active' during trial)
+      // For subscriptions with usage_info, use that data (works for both trial and paid)
       if (subscription?.usage_info) {
         effectiveMessageLimit = subscription.usage_info.message_limit;
         effectiveMinuteLimit = subscription.usage_info.minute_limit;
         effectiveMessagesUsed = subscription.usage_info.messages_used;
         effectiveMinutesUsed = subscription.usage_info.minutes_used;
+      } else if (usage) {
+        // Fallback to usage data if no usage_info in subscription
+        effectiveMessagesUsed = usage.messages_used;
+        effectiveMinutesUsed = usage.minutes_used;
       }
 
       const isUnlimited = !effectiveMessageLimit && !effectiveMinuteLimit;
@@ -151,9 +154,9 @@ export const usePlanLimitations = ({
     setError(null);
 
     try {
-      // Fetch usage data
-      const usageResponse = await fetch(
-        `${API_URL}/usage/user/${user.id}/expert/${expertId}`,
+      // Use the same endpoint as billing page for accurate usage data
+      const response = await fetch(
+        `${API_URL}/payments/subscriptions/database`,
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("dilan_ai_token")}`,
@@ -161,28 +164,60 @@ export const usePlanLimitations = ({
         },
       );
 
-      if (usageResponse.ok) {
-        const usageData = await usageResponse.json();
-        if (usageData.success) {
-          setUsage(usageData.usage);
-        }
-      }
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.subscriptions) {
+          // Find subscription for this expert
+          const expertSubscription = data.subscriptions.find(
+            (sub: any) => sub.expert_id === expertId
+          );
 
-      // Fetch subscription and plan data
-      const subscriptionResponse = await fetch(
-        `${API_URL}/subscriptions/user/${user.id}/expert/${expertId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${localStorage.getItem("dilan_ai_token")}`,
-          },
-        },
-      );
+          if (expertSubscription) {
+            // Extract usage data from subscription
+            const usageInfo = expertSubscription.usage_info;
+            if (usageInfo) {
+              setUsage({
+                messages_used: usageInfo.messages_used,
+                minutes_used: usageInfo.minutes_used,
+                message_limit: usageInfo.message_limit,
+                minute_limit: usageInfo.minute_limit,
+                is_trial: usageInfo.trial_days_remaining > 0,
+                trial_days_remaining: usageInfo.trial_days_remaining,
+                subscription_id: expertSubscription.stripe_subscription_id
+              });
+            }
 
-      if (subscriptionResponse.ok) {
-        const subscriptionData = await subscriptionResponse.json();
-        if (subscriptionData.success && subscriptionData.subscription) {
-          setSubscription(subscriptionData.subscription);
-          setCurrentPlan(subscriptionData.subscription.plan);
+            // Set subscription data
+            setSubscription({
+              ...expertSubscription,
+              plan: {
+                id: expertSubscription.plan_id,
+                name: expertSubscription.plan_name,
+                price: expertSubscription.plan_price,
+                currency: expertSubscription.plan_currency,
+                billing_interval: expertSubscription.plan_interval,
+                message_limit: usageInfo?.message_limit || null,
+                minute_limit: usageInfo?.minute_limit || null,
+              },
+              usage_info: usageInfo
+            });
+
+            // Set current plan
+            setCurrentPlan({
+              id: expertSubscription.plan_id,
+              name: expertSubscription.plan_name,
+              price: expertSubscription.plan_price,
+              currency: expertSubscription.plan_currency,
+              billing_interval: expertSubscription.plan_interval,
+              message_limit: usageInfo?.message_limit || null,
+              minute_limit: usageInfo?.minute_limit || null,
+            });
+          } else {
+            // No subscription found for this expert
+            setUsage(null);
+            setSubscription(null);
+            setCurrentPlan(null);
+          }
         }
       }
     } catch (err) {

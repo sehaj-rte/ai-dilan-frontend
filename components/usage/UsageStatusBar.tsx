@@ -75,33 +75,33 @@ export const UsageStatusBar: React.FC<UsageStatusBarProps> = ({
 
   if (compact) {
     return (
-      <div className="flex items-center gap-2 text-xs text-gray-600 bg-gray-50 px-3 py-1 rounded">
+      <div className="flex items-center gap-2 text-xs text-gray-700 bg-gray-50 px-3 py-1 rounded">
         {/* Show trial indicator in compact mode */}
         {(currentPlan as any)?.status === "trialing" && (
           <div className="flex items-center gap-1">
             <Clock className="h-3 w-3 text-blue-500" />
-            <span className="text-blue-600 font-medium">Trial</span>
+            <span className="text-blue-600 font-bold">Trial</span>
           </div>
         )}
         {(limitStatus.messagesRemaining !== null || currentPlan.message_limit) && (
           <div className="flex items-center gap-1">
             <MessageCircle className="h-3 w-3" />
-            <span>
+            <span className="font-bold">
               {limitStatus.messagesRemaining === null
                 ? "∞"
                 : limitStatus.messagesRemaining}{" "}
-              left
+              <span className="font-medium">left</span>
             </span>
           </div>
         )}
         {(limitStatus.minutesRemaining !== null || currentPlan.minute_limit) && (
           <div className="flex items-center gap-1">
             <Phone className="h-3 w-3" />
-            <span>
+            <span className="font-bold">
               {limitStatus.minutesRemaining === null
                 ? "∞"
                 : `${limitStatus.minutesRemaining}min`}{" "}
-              left
+              <span className="font-medium">left</span>
             </span>
           </div>
         )}
@@ -110,7 +110,7 @@ export const UsageStatusBar: React.FC<UsageStatusBarProps> = ({
             size="sm"
             variant="outline"
             onClick={handleUpgradeClick}
-            className="h-6 px-2 text-xs"
+            className="h-6 px-2 text-xs font-bold"
           >
             <Crown className="h-3 w-3 mr-1" />
             Upgrade
@@ -126,11 +126,11 @@ export const UsageStatusBar: React.FC<UsageStatusBarProps> = ({
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <Zap className="h-4 w-4 text-blue-500" />
-            <h3 className="font-medium text-sm">
+            <h3 className="font-bold text-sm">
               {currentPlan.name} Usage
               {/* Show trial indicator if this is a trial */}
               {(currentPlan as any)?.status === "trialing" && (
-                <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full font-bold">
                   Trial
                 </span>
               )}
@@ -139,7 +139,7 @@ export const UsageStatusBar: React.FC<UsageStatusBarProps> = ({
           {(!limitStatus.canSendMessage || !limitStatus.canMakeCall) && (
             <div className="flex items-center gap-2">
               <AlertTriangle className="h-4 w-4 text-amber-500" />
-              <span className="text-xs text-amber-600">Limit Reached</span>
+              <span className="text-xs text-amber-600 font-bold">Limit Reached</span>
             </div>
           )}
         </div>
@@ -151,10 +151,10 @@ export const UsageStatusBar: React.FC<UsageStatusBarProps> = ({
               <div className="flex items-center justify-between text-xs">
                 <div className="flex items-center gap-1">
                   <MessageCircle className="h-3 w-3 text-gray-500" />
-                  <span>Messages</span>
+                  <span className="font-bold">Messages</span>
                 </div>
                 <span
-                  className={`${!limitStatus.canSendMessage ? "text-red-600 font-medium" : "text-gray-600"}`}
+                  className={`${!limitStatus.canSendMessage ? "text-red-600 font-bold" : "text-gray-600 font-bold"}`}
                 >
                   {formatUsageText(
                     currentPlan.message_limit -
@@ -181,10 +181,10 @@ export const UsageStatusBar: React.FC<UsageStatusBarProps> = ({
               <div className="flex items-center justify-between text-xs">
                 <div className="flex items-center gap-1">
                   <Phone className="h-3 w-3 text-gray-500" />
-                  <span>Call Minutes</span>
+                  <span className="font-bold">Call Minutes</span>
                 </div>
                 <span
-                  className={`${!limitStatus.canMakeCall ? "text-red-600 font-medium" : "text-gray-600"}`}
+                  className={`${!limitStatus.canMakeCall ? "text-red-600 font-bold" : "text-gray-600 font-bold"}`}
                 >
                   {formatUsageText(
                     currentPlan.minute_limit -
