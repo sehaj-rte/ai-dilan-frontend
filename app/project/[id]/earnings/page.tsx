@@ -92,7 +92,11 @@ export default function SubscriptionHistoryPage() {
       const data = await response.json()
 
       if (data.success) {
-        setSubscriptions(data.subscriptions || [])
+        // Sort subscriptions by started_at date (latest first)
+        const sortedSubscriptions = (data.subscriptions || []).sort((a: SubscriptionRecord, b: SubscriptionRecord) => {
+          return new Date(b.started_at).getTime() - new Date(a.started_at).getTime()
+        })
+        setSubscriptions(sortedSubscriptions)
         setSummary(data.summary || null)
       } else {
         error(data.detail || "Failed to fetch subscription history")

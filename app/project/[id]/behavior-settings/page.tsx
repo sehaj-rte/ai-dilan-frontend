@@ -7,7 +7,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Slider } from '@/components/ui/slider'
 import { Switch } from '@/components/ui/switch'
 import { 
   Brain,
@@ -253,7 +252,7 @@ const BehaviorSettingsPage = () => {
                 </label>
               </div>
 
-              {/* Response Length Slider */}
+              {/* Response Length Radio Buttons */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <div>
@@ -273,42 +272,87 @@ const BehaviorSettingsPage = () => {
                   </button>
                 </div>
                 
-                <div className="space-y-4">
-                  <div className="px-4 py-3 bg-gray-50 rounded-lg">
-                    <div className="flex justify-between items-center mb-3">
-                      <span className="text-sm font-medium text-gray-700">
-                        Current: {getResponseLengthLabel(behaviorSettings.response_length)}
-                      </span>
-                      <span className="text-xs text-gray-500">
-                        {getResponseLengthDescription(behaviorSettings.response_length)}
-                      </span>
-                    </div>
-                    
-                    <div className="relative">
-                      <Slider
-                        value={[behaviorSettings.response_length]}
-                        onValueChange={(value) => setBehaviorSettings({ 
-                          ...behaviorSettings, 
-                          response_length: value[0] 
-                        })}
-                        max={2}
-                        min={0}
-                        step={1}
-                        className="w-full"
-                      />
-                      <div className="flex justify-between text-xs text-gray-500 mt-2">
-                        <span className={behaviorSettings.response_length === 0 ? 'font-semibold text-blue-600' : ''}>
-                          Short
-                        </span>
-                        <span className={behaviorSettings.response_length === 1 ? 'font-semibold text-blue-600' : ''}>
-                          Medium
-                        </span>
-                        <span className={behaviorSettings.response_length === 2 ? 'font-semibold text-blue-600' : ''}>
-                          Long
-                        </span>
+                <div className="space-y-3">
+                  {/* Short Response */}
+                  <label 
+                    className={`flex items-start space-x-3 p-4 border-2 rounded-lg cursor-pointer transition-colors ${
+                      behaviorSettings.response_length === 0 
+                        ? 'border-blue-400 bg-blue-50' 
+                        : 'border-gray-200 hover:bg-gray-50'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="response_length"
+                      value={0}
+                      checked={behaviorSettings.response_length === 0}
+                      onChange={(e) => setBehaviorSettings({ 
+                        ...behaviorSettings, 
+                        response_length: parseInt(e.target.value) 
+                      })}
+                      className="mt-1"
+                    />
+                    <div className="flex-1">
+                      <div className="font-semibold text-sm">Short</div>
+                      <div className="text-xs text-gray-600 mt-1">
+                        Concise answers with minimal explanation
                       </div>
                     </div>
-                  </div>
+                  </label>
+
+                  {/* Medium Response */}
+                  <label 
+                    className={`flex items-start space-x-3 p-4 border-2 rounded-lg cursor-pointer transition-colors ${
+                      behaviorSettings.response_length === 1 
+                        ? 'border-blue-400 bg-blue-50' 
+                        : 'border-gray-200 hover:bg-gray-50'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="response_length"
+                      value={1}
+                      checked={behaviorSettings.response_length === 1}
+                      onChange={(e) => setBehaviorSettings({ 
+                        ...behaviorSettings, 
+                        response_length: parseInt(e.target.value) 
+                      })}
+                      className="mt-1"
+                    />
+                    <div className="flex-1">
+                      <div className="font-semibold text-sm">Medium</div>
+                      <div className="text-xs text-gray-600 mt-1">
+                        Balanced detail and clarity
+                      </div>
+                    </div>
+                  </label>
+
+                  {/* Long Response */}
+                  <label 
+                    className={`flex items-start space-x-3 p-4 border-2 rounded-lg cursor-pointer transition-colors ${
+                      behaviorSettings.response_length === 2 
+                        ? 'border-blue-400 bg-blue-50' 
+                        : 'border-gray-200 hover:bg-gray-50'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="response_length"
+                      value={2}
+                      checked={behaviorSettings.response_length === 2}
+                      onChange={(e) => setBehaviorSettings({ 
+                        ...behaviorSettings, 
+                        response_length: parseInt(e.target.value) 
+                      })}
+                      className="mt-1"
+                    />
+                    <div className="flex-1">
+                      <div className="font-semibold text-sm">Long</div>
+                      <div className="text-xs text-gray-600 mt-1">
+                        In-depth, structured responses
+                      </div>
+                    </div>
+                  </label>
                 </div>
               </div>
 

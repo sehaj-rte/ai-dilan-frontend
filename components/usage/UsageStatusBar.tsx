@@ -68,8 +68,8 @@ export const UsageStatusBar: React.FC<UsageStatusBarProps> = ({
 
   const handleUpgradeClick = () => {
     const billingUrl = expertSlug
-      ? `/billing?expert=${expertSlug}`
-      : "/billing";
+      ? `/expert/billing?expert=${expertSlug}`
+      : "/expert/billing";
     router.push(billingUrl);
   };
 

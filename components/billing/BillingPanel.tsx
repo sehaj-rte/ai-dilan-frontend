@@ -1057,14 +1057,20 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
                         </div>
                         
                         <div className="text-right">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleShowCancelModal(subscription)}
-                            className="text-red-600 hover:text-red-700 border-red-200 hover:border-red-300"
-                          >
-                            Cancel Subscription
-                          </Button>
+                          {subscription.cancel_at_period_end ? (
+                            <Badge variant="secondary" className="text-orange-700 bg-orange-100 border-orange-200">
+                              Cancels {formatDate(subscription.current_period_end)}
+                            </Badge>
+                          ) : (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleShowCancelModal(subscription)}
+                              className="text-red-600 hover:text-red-700 border-red-200 hover:border-red-300"
+                            >
+                              Cancel Subscription
+                            </Button>
+                          )}
                         </div>
                       </div>
 

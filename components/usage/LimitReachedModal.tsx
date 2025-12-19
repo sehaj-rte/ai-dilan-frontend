@@ -223,9 +223,9 @@ export const LimitReachedModal: React.FC<LimitReachedModalProps> = ({
           if (data.requires_payment_method) {
             setUpgradeError("No payment method found. Please add a payment method first.");
             setUpgradeMessage(null);
-            // Redirect to billing page to add payment method
+            // Redirect to expert billing page to add payment method
             setTimeout(() => {
-              const billingUrl = expertSlug ? `/billing?expert=${expertSlug}` : "/billing";
+              const billingUrl = expertSlug ? `/expert/billing?expert=${expertSlug}` : "/expert/billing";
               router.push(billingUrl);
             }, 2000);
           } else {
@@ -246,8 +246,8 @@ export const LimitReachedModal: React.FC<LimitReachedModalProps> = ({
     // Fallback to billing page
     onClose();
     const billingUrl = expertSlug
-      ? `/billing?expert=${expertSlug}`
-      : "/billing";
+      ? `/expert/billing?expert=${expertSlug}`
+      : "/expert/billing";
     router.push(billingUrl);
   };
 

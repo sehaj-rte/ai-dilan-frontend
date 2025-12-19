@@ -55,8 +55,21 @@ export const LegalProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [contact, setContact] = useState<ContactInfo | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [currentRoute, setCurrentRoute] = useState<string>('');
 
   const loadDocument = async (type: 'terms' | 'privacy' | 'dpa'): Promise<string> => {
+    const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
+    const isExpertRoute = currentPath.startsWith('/expert');
+    const routeKey = isExpertRoute ? 'expert' : 'main';
+    
+    // Clear cache if route changed
+    if (currentRoute !== routeKey) {
+      setTerms(null);
+      setPrivacy(null);
+      setDpa(null);
+      setCurrentRoute(routeKey);
+    }
+    
     // Return cached version if available
     if (type === 'terms' && terms) return terms;
     if (type === 'privacy' && privacy) return privacy;
@@ -66,7 +79,9 @@ export const LegalProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     setError(null);
 
     try {
-      const response = await fetch(`/legal/${type}.html`);
+      const legalPath = isExpertRoute ? `/legal/expert/${type}.html` : `/legal/${type}.html`;
+      
+      const response = await fetch(legalPath);
       if (!response.ok) {
         throw new Error(`Failed to load ${type} document`);
       }
@@ -88,11 +103,15 @@ export const LegalProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }
   };
 
-  // Load contact info on mount
+  // Load contact info on mount and route changes
   useEffect(() => {
     const loadContact = async () => {
       try {
-        const response = await fetch('/legal/contact.json');
+        // Check if we're on an expert route
+        const isExpertRoute = typeof window !== 'undefined' && window.location.pathname.startsWith('/expert');
+        const contactPath = isExpertRoute ? '/legal/expert/contact.json' : '/legal/contact.json';
+        
+        const response = await fetch(contactPath);
         if (response.ok) {
           const contactData = await response.json();
           setContact(contactData);
@@ -103,6 +122,16 @@ export const LegalProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
 
     loadContact();
+    
+    // Listen for route changes
+    const handleRouteChange = () => {
+      loadContact();
+    };
+    
+    if (typeof window !== 'undefined') {
+      window.addEventListener('popstate', handleRouteChange);
+      return () => window.removeEventListener('popstate', handleRouteChange);
+    }
   }, []);
 
   const value: LegalContextType = {

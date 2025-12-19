@@ -31,9 +31,13 @@ import {
   ImageIcon,
   Upload,
   Trash2,
+  MessageCircle,
+  Phone,
+  User,
 } from "lucide-react";
 import { API_URL } from "@/lib/config";
 import { fetchWithAuth, getAuthHeaders } from "@/lib/api-client";
+import OptimizedImage from "@/components/ui/OptimizedImage";
 import {
   Dialog,
   DialogContent,
@@ -107,6 +111,9 @@ const PublishManagerPage = () => {
     planId: "",
     planName: "",
   });
+
+  // Preview state
+  const [showExpandedPreview, setShowExpandedPreview] = useState(false);
 
   function ConfirmDeleteDialog({
     open,
@@ -190,6 +197,261 @@ const PublishManagerPage = () => {
       return `${API_URL}/images/avatar/full/${match[1]}`;
     }
     return s3Url;
+  };
+
+  // Compact Preview Component
+  const CompactPreview = () => {
+    const displayName = expert?.name || publishForm.slug
+      .replace(/-/g, " ")
+      .replace(/\b\w/g, (l) => l.toUpperCase()) || "Your Expert";
+    const tagline = expert?.headline || "AI Expert Assistant";
+    const avatarUrl = expert?.avatar_url ? convertS3UrlToProxy(expert.avatar_url) : null;
+    const bannerUrl = publishForm.banner_url ? convertS3UrlToProxy(publishForm.banner_url) : null;
+    const primaryColor = publishForm.primary_color || "#3B82F6";
+
+    return (
+      <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg bg-white hover:bg-gray-50 transition-colors">
+        <div className="flex items-center space-x-3">
+          {/* Avatar */}
+          <OptimizedImage
+            src={avatarUrl}
+            alt={displayName}
+            className="w-12 h-12 rounded-full object-cover shadow-sm"
+            fallbackClassName="w-12 h-12 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 shadow-sm"
+            fallbackIcon={<User className="w-6 h-6 text-gray-600" />}
+          />
+          
+          {/* Info */}
+          <div className="flex-1 min-w-0">
+            <h3 className="text-sm font-semibold text-gray-900 truncate">
+              {displayName}
+            </h3>
+            <p className="text-xs text-gray-500 truncate">
+              {tagline}
+            </p>
+            <div className="flex items-center space-x-2 mt-1">
+              {/* Mini buttons */}
+              <div 
+                className="px-2 py-1 rounded-full text-xs font-medium border"
+                style={{ borderColor: primaryColor + '60', color: primaryColor }}
+              >
+                Chat
+              </div>
+              <div 
+                className="px-2 py-1 rounded-full text-xs font-medium text-white"
+                style={{ backgroundColor: primaryColor }}
+              >
+                Call
+              </div>
+              {bannerUrl && (
+                <div className="w-4 h-4 rounded border border-gray-300 overflow-hidden">
+                  <img src={bannerUrl} alt="Background" className="w-full h-full object-cover" />
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Expand Button */}
+        <div className="flex flex-col items-center text-center">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowExpandedPreview(true)}
+            className="flex items-center gap-2 text-xs mb-1"
+          >
+            <Eye className="h-3 w-3" />
+            Expert Preview
+          </Button>
+          <p className="text-xs text-gray-500">
+            How your expert will appear to end users
+          </p>
+        </div>
+      </div>
+    );
+  };
+
+  // Full Preview Component (Modal)
+  const ExpandedPreview = () => {
+    const displayName = expert?.name || publishForm.slug
+      .replace(/-/g, " ")
+      .replace(/\b\w/g, (l) => l.toUpperCase()) || "Your Expert";
+    const tagline = expert?.headline || "AI Expert Assistant";
+    const description = expert?.description || "Professional AI assistant ready to help you.";
+    const avatarUrl = expert?.avatar_url ? convertS3UrlToProxy(expert.avatar_url) : null;
+    const bannerUrl = publishForm.banner_url ? convertS3UrlToProxy(publishForm.banner_url) : null;
+    const primaryColor = publishForm.primary_color || "#3B82F6";
+
+    return (
+      <Dialog open={showExpandedPreview} onOpenChange={setShowExpandedPreview}>
+        <DialogContent className="max-w-4xl h-[85vh] overflow-hidden p-0">
+          <DialogHeader className="p-4 pb-2">
+            <DialogTitle className="flex items-center gap-2 text-lg">
+              <Eye className="h-4 w-4" />
+              Expert Preview
+            </DialogTitle>
+            <DialogDescription className="text-sm">
+              Full page preview - exactly how your expert will appear to end users
+            </DialogDescription>
+          </DialogHeader>
+          
+          {/* Compact Full Page Preview - No scrollbar */}
+          <div className="h-full">
+            <div 
+              className="h-full bg-white relative"
+              style={{
+                backgroundImage: bannerUrl ? `url(${bannerUrl})` : undefined,
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+                backgroundRepeat: "no-repeat",
+                height: "calc(85vh - 80px)",
+              }}
+            >
+              {/* Overlay for better text readability */}
+              {bannerUrl && (
+                <div className="absolute inset-0 pointer-events-none"></div>
+              )}
+              
+              <div className="relative h-full flex flex-col">
+                {/* Compact Header */}
+                <div
+                  className={`${bannerUrl ? "bg-white/60 backdrop-blur-xl border-b border-white/30 shadow-lg" : "border-b border-gray-200"} flex-shrink-0`}
+                >
+                  <div className="px-4 py-2">
+                    <div className="flex items-center justify-between">
+                      <h1
+                        className={`text-lg font-bold ${bannerUrl ? "text-gray-900" : "text-gray-900"}`}
+                      >
+                        {displayName}
+                      </h1>
+                      
+                      {/* Compact user info */}
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-600">user@example.com</span>
+                        <button
+                          className="px-2 py-1 text-xs border rounded"
+                          style={{
+                            borderColor: primaryColor,
+                            color: primaryColor,
+                          }}
+                        >
+                          Logout
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Main Content - Flex grow to fill space */}
+                <div className="flex-1 flex items-center justify-center px-4 py-6">
+                  <div
+                    className={`w-full max-w-lg text-center ${bannerUrl ? "bg-white/60 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/30 p-6" : "p-6"}`}
+                  >
+                    {/* Expert Avatar - Optimized size */}
+                    <div className="mb-4 flex justify-center">
+                      <OptimizedImage
+                        src={avatarUrl}
+                        alt={displayName}
+                        className="w-24 h-24 rounded-full object-cover shadow-lg"
+                        fallbackClassName="w-24 h-24 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 shadow-lg"
+                        fallbackIcon={
+                          <span className="text-gray-600 text-2xl font-bold">
+                            {displayName.charAt(0)}
+                          </span>
+                        }
+                      />
+                    </div>
+
+                    {/* Expert Name - Optimized size */}
+                    <h1
+                      className={`text-2xl font-bold mb-1 ${bannerUrl ? "text-gray-900" : "text-gray-900"}`}
+                    >
+                      {displayName}
+                    </h1>
+
+                    {/* Tagline - Compact */}
+                    <p
+                      className={`text-sm mb-6 ${bannerUrl ? "text-gray-600" : "text-gray-500"}`}
+                    >
+                      {tagline}
+                    </p>
+
+                    {/* CTA Buttons - Compact but full-featured */}
+                    <div className="flex flex-col items-center gap-3 mb-4">
+                      {/* CTA Buttons - Optimized size */}
+                      <div className="flex justify-center gap-3">
+                        <button
+                          className="px-6 py-2.5 rounded-full font-semibold shadow-lg border-2 transition-all duration-200 transform hover:scale-105"
+                          style={{ borderColor: primaryColor, color: primaryColor }}
+                        >
+                          <MessageCircle className="h-4 w-4 mr-2 inline" />
+                          Chat
+                        </button>
+                        <button
+                          className="text-white px-6 py-2.5 rounded-full font-semibold shadow-lg transition-all duration-200 transform hover:scale-105"
+                          style={{ backgroundColor: primaryColor }}
+                        >
+                          <Phone className="h-4 w-4 mr-2 inline" />
+                          Call
+                        </button>
+                      </div>
+
+                      {/* Browser Notice - Compact */}
+                      <div
+                        className="border rounded-full px-3 py-1.5 shadow-sm"
+                        style={{
+                          borderColor: primaryColor + '40',
+                          backgroundColor: primaryColor + '10',
+                          color: primaryColor
+                        }}
+                      >
+                        <div className="flex items-center space-x-1.5">
+                          <Globe className="h-3 w-3 flex-shrink-0" />
+                          <p className="text-xs font-medium">
+                            Best experience with Chrome or Safari
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Description Section - Compact */}
+                    <div
+                      className={`pt-3 ${bannerUrl ? "border-t border-gray-300/50" : "border-t border-gray-200"}`}
+                    >
+                      <div className="flex items-center mb-2">
+                        <h2
+                          className={`text-sm font-semibold flex items-center ${bannerUrl ? "text-gray-900" : "text-gray-900"}`}
+                        >
+                          <span className="mr-2">≡</span>
+                          Description
+                        </h2>
+                      </div>
+                      <div
+                        className={`text-left leading-relaxed ${bannerUrl ? "text-gray-800" : "text-gray-700"}`}
+                      >
+                        <p className="text-sm">
+                          {description.length > 150 ? `${description.substring(0, 150)}...` : description}
+                        </p>
+                        {description.length > 150 && (
+                          <button
+                            className={`text-sm font-medium transition-colors mt-1 ${bannerUrl
+                                ? "text-gray-600 hover:text-gray-900"
+                                : "text-gray-500 hover:text-gray-700"
+                              }`}
+                          >
+                            View more ~
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
   };
 
   // Helper function to generate trial coupon code
@@ -867,6 +1129,18 @@ const PublishManagerPage = () => {
           </p>
         </div>
 
+        {/* Compact Preview Section */}
+        <div className="mb-6">
+          <div className="mb-3">
+            <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+              <Eye className="h-5 w-5 text-blue-600" />
+              Expert Preview
+            </h3>
+            <p className="text-sm text-gray-600">Click Expert preview to see how your expert will appear</p>
+          </div>
+          <CompactPreview />
+        </div>
+
         <Card className="shadow-lg">
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -898,7 +1172,7 @@ const PublishManagerPage = () => {
                 ) : (
                   <>
                     <Globe className="h-4 w-4 mr-2" />
-                    {publication ? "Republish" : "Create & Publish"}
+                    {publication ? "Save Settings" : "Create & Monetise"}
                   </>
                 )}
               </Button>
@@ -2147,6 +2421,9 @@ const PublishManagerPage = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Expanded Preview Modal */}
+      <ExpandedPreview />
     </DashboardLayout>
   );
 };

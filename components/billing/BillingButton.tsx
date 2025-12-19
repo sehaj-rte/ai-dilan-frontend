@@ -35,11 +35,11 @@ const BillingButton: React.FC<BillingButtonProps> = ({
       return
     }
 
-    // Redirect to the new billing page, passing expertSlug as a query parameter if available
+    // Redirect to the new expert billing page, passing expertSlug as a query parameter if available
     if (expertSlug) {
-      router.push(`/billing?expert=${expertSlug}`)
+      router.push(`/expert/billing?expert=${expertSlug}`)
     } else {
-      router.push('/billing')
+      router.push('/expert/billing')
     }
   }
 
