@@ -41,6 +41,8 @@ import {
   Menu,
   UserCircle,
   Phone,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 import FilePreviewModal from "@/components/chat/FilePreviewModal";
 import { RootState } from "@/store/store";
@@ -146,6 +148,10 @@ const ExpertChatPage = () => {
   const [loadError, setLoadError] = useState(false);
   const [isWaitingForResponse, setIsWaitingForResponse] = useState(false);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
+  const [playingMessageId, setPlayingMessageId] = useState<string | null>(null);
+  const [loadingMessageId, setLoadingMessageId] = useState<string | null>(null);
+  const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null);
+  const [audioCache, setAudioCache] = useState<Map<string, string>>(new Map());
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [expandedCitations, setExpandedCitations] = useState<Set<string>>(
     new Set(),
@@ -195,6 +201,10 @@ const ExpertChatPage = () => {
       }
       if (recognitionRef.current) {
         recognitionRef.current.stop();
+      }
+      if (currentAudio) {
+        currentAudio.pause();
+        currentAudio.currentTime = 0;
       }
     };
   }, []);
@@ -734,6 +744,119 @@ const ExpertChatPage = () => {
     // Clear saved conversation
     if (expert) {
       sessionStorage.removeItem(`last_conversation_${expert.id}`);
+    }
+  };
+
+  const handleReadAloud = async (messageId: string, text: string) => {
+    try {
+      // Stop any currently playing audio
+      if (currentAudio) {
+        currentAudio.pause();
+        currentAudio.currentTime = 0;
+        setCurrentAudio(null);
+        setPlayingMessageId(null);
+      }
+
+      // If clicking the same message that's playing, just stop
+      if (playingMessageId === messageId) {
+        return;
+      }
+
+      // Check if expert has a voice_id
+      if (!expert?.voice_id) {
+        alert("This expert doesn't have a voice configured for read-aloud.");
+        return;
+      }
+
+      // For long text, use only first part for faster initial response
+      let textToSpeak = text;
+      if (text.length > 500) {
+        // Find a good breaking point (sentence end) within first 500 chars
+        const truncatePoint = text.substring(0, 500).lastIndexOf('. ');
+        if (truncatePoint > 200) {
+          textToSpeak = text.substring(0, truncatePoint + 1);
+        } else {
+          textToSpeak = text.substring(0, 500) + "...";
+        }
+      }
+
+      // Check cache first
+      const cacheKey = `${expert.voice_id}-${textToSpeak}`;
+      let audioUrl = audioCache.get(cacheKey);
+
+      if (!audioUrl) {
+        setLoadingMessageId(messageId);
+
+        // Call TTS API with optimized settings for speed
+        const response = await fetch(`${API_URL}/tts/synthesize`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            text: textToSpeak,
+            voice_id: expert.voice_id,
+            settings: {
+              stability: 0.3,        // Lower for faster generation
+              similarity_boost: 0.5, // Lower for faster generation
+              style: 0.0,
+              use_speaker_boost: false // Disable for faster generation
+            }
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error(`TTS API error: ${response.status}`);
+        }
+
+        // Create audio from response
+        const audioBlob = await response.blob();
+        audioUrl = URL.createObjectURL(audioBlob);
+        
+        // Cache the audio URL (limit cache size to prevent memory issues)
+        if (audioCache.size > 10) {
+          const firstKey = audioCache.keys().next().value;
+          if (firstKey) {
+            const oldUrl = audioCache.get(firstKey);
+            if (oldUrl) {
+              URL.revokeObjectURL(oldUrl);
+            }
+            audioCache.delete(firstKey);
+          }
+        }
+        audioCache.set(cacheKey, audioUrl);
+        setAudioCache(new Map(audioCache));
+      }
+      const audio = new Audio(audioUrl);
+
+      // Set up audio event listeners
+      audio.onended = () => {
+        setPlayingMessageId(null);
+        setLoadingMessageId(null);
+        setCurrentAudio(null);
+        URL.revokeObjectURL(audioUrl);
+      };
+
+      audio.onerror = () => {
+        setPlayingMessageId(null);
+        setLoadingMessageId(null);
+        setCurrentAudio(null);
+        URL.revokeObjectURL(audioUrl);
+        alert("Failed to play audio. Please try again.");
+      };
+
+      // Play audio
+      setCurrentAudio(audio);
+      setLoadingMessageId(null);
+      setPlayingMessageId(messageId);
+      await audio.play();
+
+    } catch (error) {
+      console.error("Read-aloud error:", error);
+      setPlayingMessageId(null);
+      setLoadingMessageId(null);
+      setCurrentAudio(null);
+      alert("Failed to generate speech. Please try again.");
     }
   };
 
@@ -2194,9 +2317,10 @@ const ExpertChatPage = () => {
                       )}
                     </div>
 
-                    {/* Copy Button - Below message like ChatGPT */}
+                    {/* Action Buttons - Below message like ChatGPT */}
                     {m.type === "agent" && (
                       <div className="flex items-center gap-2 mt-2 ml-1">
+                        {/* Copy Button */}
                         <button
                           onClick={() => {
                             navigator.clipboard.writeText(m.text);
@@ -2210,6 +2334,40 @@ const ExpertChatPage = () => {
                             <Check className="h-4 w-4 text-gray-600" />
                           ) : (
                             <Copy className="h-4 w-4 text-gray-500 group-hover:text-gray-700" />
+                          )}
+                        </button>
+
+                        {/* Read Aloud Button */}
+                        <button
+                          onClick={() => handleReadAloud(m.id, m.text)}
+                          className={`p-1.5 rounded-lg transition-all duration-200 group ${
+                            playingMessageId === m.id 
+                              ? "bg-blue-50 hover:bg-blue-100" 
+                              : loadingMessageId === m.id
+                                ? "bg-orange-50"
+                                : "hover:bg-gray-200"
+                          } ${!expert?.voice_id || loadingMessageId === m.id ? "opacity-50 cursor-not-allowed" : ""}`}
+                          title={
+                            !expert?.voice_id 
+                              ? "Voice not available for this expert"
+                              : loadingMessageId === m.id
+                                ? "Generating speech..."
+                                : playingMessageId === m.id 
+                                  ? "Stop reading" 
+                                  : "Read aloud"
+                          }
+                          disabled={!expert?.voice_id || loadingMessageId === m.id}
+                        >
+                          {loadingMessageId === m.id ? (
+                            <div className="h-4 w-4 border-2 border-orange-500 border-t-transparent rounded-full animate-spin" />
+                          ) : playingMessageId === m.id ? (
+                            <VolumeX className="h-4 w-4 text-blue-600 animate-pulse" />
+                          ) : (
+                            <Volume2 className={`h-4 w-4 transition-colors ${
+                              expert?.voice_id 
+                                ? "text-gray-500 group-hover:text-blue-600" 
+                                : "text-gray-300"
+                            }`} />
                           )}
                         </button>
                       </div>
