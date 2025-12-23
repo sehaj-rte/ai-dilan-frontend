@@ -52,6 +52,7 @@ import { usePlanLimitations } from "@/hooks/usePlanLimitations";
 import { UsageStatusBar } from "@/components/usage/UsageStatusBar";
 import { useExpert } from "@/contexts/ExpertContext";
 import { LimitReachedModal } from "@/components/usage/LimitReachedModal";
+import { MonthlyWarningModal } from "@/components/usage/MonthlyWarningModal";
 
 interface FileAttachment {
   name: string;
@@ -199,7 +200,26 @@ const ClientChatPage = () => {
   const userMenuRef = useRef<HTMLDivElement>(null);
   const [authLoaded, setAuthLoaded] = useState(false);
 
-  // Plan limitations state
+  // Monthly warning modal state
+  const [monthlyWarningModal, setMonthlyWarningModal] = useState<{
+    isOpen: boolean;
+    warningMessage: string;
+    currentUsage: number;
+    monthlyThreshold: number;
+    usageType: string;
+    planName: string;
+    subscriptionMonths: number;
+  }>({
+    isOpen: false,
+    warningMessage: "",
+    currentUsage: 0,
+    monthlyThreshold: 0,
+    usageType: "",
+    planName: "",
+    subscriptionMonths: 0,
+  });
+
+  // Limit reached modal state
   const [showLimitReachedModal, setShowLimitReachedModal] = useState(false);
 
   // Plan limitations hook
@@ -1297,6 +1317,7 @@ const ClientChatPage = () => {
               message: messageText,
               model: "gpt-4o-mini",
               files: s3FileData, // Send S3 URLs, not files
+              subscription_id: subscription?.stripe_subscription_id || null,
             }),
           },
         );
@@ -1312,6 +1333,7 @@ const ClientChatPage = () => {
             session_id: sessionId,
             message: messageText,
             model: "gpt-4o-mini",
+            subscription_id: subscription?.stripe_subscription_id || null,
           }),
         });
       }
@@ -1443,6 +1465,25 @@ const ClientChatPage = () => {
                     ),
                   );
                   setStreamingMessageId(null);
+                } else if (data.type === "usage_info") {
+                  console.log("📊 Received usage info event:", data.data);
+                  
+                  // Check for monthly warning
+                  if (data.data.monthly_warning_exceeded) {
+                    const warningInfo = data.data.monthly_warning_info;
+                    console.log("⚠️ Monthly warning triggered:", warningInfo);
+                    
+                    // Show monthly warning modal
+                    setMonthlyWarningModal({
+                      isOpen: true,
+                      warningMessage: warningInfo.warning_message,
+                      currentUsage: warningInfo.current_monthly_usage,
+                      monthlyThreshold: warningInfo.monthly_threshold,
+                      usageType: warningInfo.usage_type,
+                      planName: warningInfo.plan_name,
+                      subscriptionMonths: warningInfo.subscription_months,
+                    });
+                  }
                 } else if (data.type === "error") {
                   console.error("❌ Received error event:", data.data);
                   throw new Error(data.data.message || "Streaming error");
@@ -3174,6 +3215,18 @@ const ClientChatPage = () => {
         featureType="chat"
         expertSlug={slug}
         subscription={subscription}
+      />
+
+      {/* Monthly Warning Modal */}
+      <MonthlyWarningModal
+        isOpen={monthlyWarningModal.isOpen}
+        onClose={() => setMonthlyWarningModal(prev => ({ ...prev, isOpen: false }))}
+        warningMessage={monthlyWarningModal.warningMessage}
+        currentUsage={monthlyWarningModal.currentUsage}
+        monthlyThreshold={monthlyWarningModal.monthlyThreshold}
+        usageType={monthlyWarningModal.usageType}
+        planName={monthlyWarningModal.planName}
+        subscriptionMonths={monthlyWarningModal.subscriptionMonths}
       />
     </div>
   );
