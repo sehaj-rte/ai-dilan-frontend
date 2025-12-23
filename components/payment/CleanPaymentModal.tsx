@@ -611,7 +611,7 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
                                   {showDiscountedPricing[plan.id] !== false ? (
                                     <>
                                       {/* All pricing info on one line */}
-                                      <div className="flex items-center gap-2">
+                                      <div className="flex items-baseline gap-2">
                                         <div className="text-3xl font-bold text-gray-900">
                                           £{(plan.price / plan.billing_interval_count).toFixed(0)}
                                           <span className="text-base text-gray-500 font-medium">/month</span>
@@ -661,7 +661,7 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
                     </CardHeader>
                     <CardContent className="pt-0 flex-grow flex flex-col px-4 pb-3">
                       {/* Usage Limits Section - Ultra Compact */}
-                      <div className="mb-1 p-0.5 bg-blue-50 rounded border border-blue-100">
+                      <div className="mb-1 p-0.5 pl-2 bg-blue-50 rounded border border-blue-100">
                         <h4 className="font-semibold text-blue-900 mb-0.5 text-xs flex items-center gap-1">
                           <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
                           Usage Allowance
