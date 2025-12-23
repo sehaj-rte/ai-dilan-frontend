@@ -46,18 +46,20 @@ export const UsageStatusBar: React.FC<UsageStatusBarProps> = ({
     type: string,
   ) => {
     if (limit === null) return `${used} ${type} (unlimited)`;
+    
+    // Calculate monthly breakdown for multi-month plans
+    const billingMonths = currentPlan?.billing_interval_count || 1;
+    if (billingMonths > 1 && limit) {
+      const monthlyLimit = Math.floor(limit / billingMonths);
+      return `${used} / ${limit} ${type} (${monthlyLimit} per month)`;
+    }
+    
     return `${used} / ${limit} ${type}`;
   };
 
   const calculateProgress = (used: number, limit: number | null) => {
     if (limit === null) return 0;
     return Math.min((used / limit) * 100, 100);
-  };
-
-  const getProgressColor = (percentage: number) => {
-    if (percentage >= 90) return "bg-red-500";
-    if (percentage >= 75) return "bg-yellow-500";
-    return "bg-blue-500";
   };
 
   const hasUsageLimits = currentPlan.message_limit || currentPlan.minute_limit;
@@ -75,34 +77,52 @@ export const UsageStatusBar: React.FC<UsageStatusBarProps> = ({
 
   if (compact) {
     return (
-      <div className="flex items-center gap-2 text-xs text-gray-700 bg-gray-50 px-3 py-1 rounded">
+      <div className="flex items-center gap-3 text-sm bg-gradient-to-r from-gray-50 to-blue-50/30 px-4 py-2 rounded-xl border border-gray-200/50 shadow-sm">
         {/* Show trial indicator in compact mode */}
         {(currentPlan as any)?.status === "trialing" && (
-          <div className="flex items-center gap-1">
-            <Clock className="h-3 w-3 text-blue-500" />
-            <span className="text-blue-600 font-bold">Trial</span>
+          <div className="flex items-center gap-1.5 px-2 py-1 bg-blue-100 rounded-full">
+            <Clock className="h-3 w-3 text-blue-600" />
+            <span className="text-blue-700 font-bold text-xs">Trial</span>
           </div>
         )}
         {(limitStatus.messagesRemaining !== null || currentPlan.message_limit) && (
-          <div className="flex items-center gap-1">
-            <MessageCircle className="h-3 w-3" />
-            <span className="font-bold">
-              {limitStatus.messagesRemaining === null
-                ? "∞"
-                : limitStatus.messagesRemaining}{" "}
-              <span className="font-medium">left</span>
-            </span>
+          <div className="flex items-center gap-2">
+            <div className="p-1 bg-blue-100 rounded-full">
+              <MessageCircle className="h-3 w-3 text-blue-600" />
+            </div>
+            <div>
+              <span className="font-bold text-gray-900">
+                {limitStatus.messagesRemaining === null ? "∞" : limitStatus.messagesRemaining}
+              </span>
+              <span className="text-gray-600 font-medium ml-1">left</span>
+              {/* Show monthly breakdown for multi-month plans */}
+              {currentPlan.billing_interval_count && currentPlan.billing_interval_count > 1 && 
+               currentPlan.message_limit && limitStatus.messagesRemaining !== null && (
+                <div className="text-xs text-blue-600 font-medium">
+                  {Math.floor(currentPlan.message_limit / currentPlan.billing_interval_count)}/mo
+                </div>
+              )}
+            </div>
           </div>
         )}
         {(limitStatus.minutesRemaining !== null || currentPlan.minute_limit) && (
-          <div className="flex items-center gap-1">
-            <Phone className="h-3 w-3" />
-            <span className="font-bold">
-              {limitStatus.minutesRemaining === null
-                ? "∞"
-                : `${limitStatus.minutesRemaining}min`}{" "}
-              <span className="font-medium">left</span>
-            </span>
+          <div className="flex items-center gap-2">
+            <div className="p-1 bg-purple-100 rounded-full">
+              <Phone className="h-3 w-3 text-purple-600" />
+            </div>
+            <div>
+              <span className="font-bold text-gray-900">
+                {limitStatus.minutesRemaining === null ? "∞" : `${limitStatus.minutesRemaining} voice`}
+              </span>
+              <span className="text-gray-600 font-medium ml-1">left</span>
+              {/* Show monthly breakdown for multi-month plans */}
+              {currentPlan.billing_interval_count && currentPlan.billing_interval_count > 1 && 
+               currentPlan.minute_limit && limitStatus.minutesRemaining !== null && (
+                <div className="text-xs text-purple-600 font-medium">
+                  {Math.floor(currentPlan.minute_limit / currentPlan.billing_interval_count)}/mo
+                </div>
+              )}
+            </div>
           </div>
         )}
         {(!limitStatus.canSendMessage || !limitStatus.canMakeCall) && (
@@ -110,7 +130,7 @@ export const UsageStatusBar: React.FC<UsageStatusBarProps> = ({
             size="sm"
             variant="outline"
             onClick={handleUpgradeClick}
-            className="h-6 px-2 text-xs font-bold"
+            className="h-8 px-3 text-xs font-bold bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 hover:from-blue-100 hover:to-indigo-100"
           >
             <Crown className="h-3 w-3 mr-1" />
             Upgrade
@@ -121,86 +141,129 @@ export const UsageStatusBar: React.FC<UsageStatusBarProps> = ({
   }
 
   return (
-    <Card className="w-full">
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <Zap className="h-4 w-4 text-blue-500" />
-            <h3 className="font-bold text-sm">
-              {currentPlan.name} Usage
+    <Card className="w-full bg-gradient-to-br from-white to-gray-50/50 border-gray-200/50 shadow-lg">
+      <CardContent className="p-5">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg shadow-sm">
+              <Zap className="h-4 w-4 text-white" />
+            </div>
+            <div>
+              <h3 className="font-bold text-base text-gray-900">
+                {currentPlan.name}
+                {/* Show plan duration for multi-month plans */}
+                {currentPlan.billing_interval_count && currentPlan.billing_interval_count > 1 && (
+                  <span className="ml-2 text-sm text-gray-500 font-medium">
+                    ({currentPlan.billing_interval_count}-month plan)
+                  </span>
+                )}
+              </h3>
               {/* Show trial indicator if this is a trial */}
               {(currentPlan as any)?.status === "trialing" && (
-                <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full font-bold">
-                  Trial
+                <span className="inline-flex items-center gap-1 mt-1 px-2 py-1 bg-gradient-to-r from-blue-100 to-indigo-100 text-blue-800 text-xs rounded-full font-bold border border-blue-200">
+                  <Clock className="h-3 w-3" />
+                  Trial Active
                 </span>
               )}
-            </h3>
+            </div>
           </div>
           {(!limitStatus.canSendMessage || !limitStatus.canMakeCall) && (
-            <div className="flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4 text-amber-500" />
-              <span className="text-xs text-amber-600 font-bold">Limit Reached</span>
+            <div className="flex items-center gap-2 px-3 py-1.5 bg-gradient-to-r from-amber-50 to-orange-50 rounded-full border border-amber-200">
+              <AlertTriangle className="h-4 w-4 text-amber-600" />
+              <span className="text-xs text-amber-700 font-bold">Limit Reached</span>
             </div>
           )}
         </div>
 
-        <div className="space-y-3">
+        <div className="grid gap-4">
           {/* Messages Usage */}
           {currentPlan.message_limit && (
-            <div className="space-y-1">
-              <div className="flex items-center justify-between text-xs">
-                <div className="flex items-center gap-1">
-                  <MessageCircle className="h-3 w-3 text-gray-500" />
-                  <span className="font-bold">Messages</span>
+            <div className="bg-gradient-to-r from-blue-50/50 to-indigo-50/50 rounded-xl p-4 border border-blue-100/50">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 bg-blue-100 rounded-lg">
+                    <MessageCircle className="h-4 w-4 text-blue-600" />
+                  </div>
+                  <div>
+                    <span className="font-bold text-sm text-gray-900">Messages</span>
+                    {/* Show plan breakdown for multi-month plans */}
+                    {currentPlan.billing_interval_count && currentPlan.billing_interval_count > 1 && 
+                     currentPlan.message_limit && (
+                      <div className="text-xs text-blue-600 font-medium">
+                        Monthly usage allowance
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <span
-                  className={`${!limitStatus.canSendMessage ? "text-red-600 font-bold" : "text-gray-600 font-bold"}`}
-                >
-                  {formatUsageText(
-                    currentPlan.message_limit -
-                      (limitStatus.messagesRemaining || 0),
-                    currentPlan.message_limit,
-                    "used",
+                <div className="text-right">
+                  {currentPlan.billing_interval_count && currentPlan.billing_interval_count > 1 ? (
+                    <div>
+                      <div className={`text-xs font-bold ${!limitStatus.canSendMessage ? "text-red-600" : "text-gray-900"}`}>
+                        {Math.floor((currentPlan.message_limit - (limitStatus.messagesRemaining || 0)) / currentPlan.billing_interval_count)} / {Math.floor(currentPlan.message_limit / currentPlan.billing_interval_count)} messages / month
+                      </div>
+                      <div className="text-xs text-blue-600 font-medium">
+                        ({currentPlan.message_limit - (limitStatus.messagesRemaining || 0)} / {currentPlan.message_limit} total)
+                      </div>
+                    </div>
+                  ) : (
+                    <div className={`text-xs font-bold ${!limitStatus.canSendMessage ? "text-red-600" : "text-gray-900"}`}>
+                      {currentPlan.message_limit - (limitStatus.messagesRemaining || 0)} / {currentPlan.message_limit} messages
+                    </div>
                   )}
-                </span>
+                </div>
               </div>
               <Progress
                 value={calculateProgress(
-                  currentPlan.message_limit -
-                    (limitStatus.messagesRemaining || 0),
+                  currentPlan.message_limit - (limitStatus.messagesRemaining || 0),
                   currentPlan.message_limit,
                 )}
-                className="h-2"
+                className="h-2.5 bg-blue-100"
               />
             </div>
           )}
 
-          {/* Minutes Usage */}
+          {/* Voice Usage */}
           {currentPlan.minute_limit && (
-            <div className="space-y-1">
-              <div className="flex items-center justify-between text-xs">
-                <div className="flex items-center gap-1">
-                  <Phone className="h-3 w-3 text-gray-500" />
-                  <span className="font-bold">Call Minutes</span>
+            <div className="bg-gradient-to-r from-purple-50/50 to-pink-50/50 rounded-xl p-4 border border-purple-100/50">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 bg-purple-100 rounded-lg">
+                    <Phone className="h-4 w-4 text-purple-600" />
+                  </div>
+                  <div>
+                    <span className="font-bold text-sm text-gray-900">Voice</span>
+                    {/* Show plan breakdown for multi-month plans */}
+                    {currentPlan.billing_interval_count && currentPlan.billing_interval_count > 1 && 
+                     currentPlan.minute_limit && (
+                      <div className="text-xs text-purple-600 font-medium">
+                        Monthly usage allowance
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <span
-                  className={`${!limitStatus.canMakeCall ? "text-red-600 font-bold" : "text-gray-600 font-bold"}`}
-                >
-                  {formatUsageText(
-                    currentPlan.minute_limit -
-                      (limitStatus.minutesRemaining || 0),
-                    currentPlan.minute_limit,
-                    "mins",
+                <div className="text-right">
+                  {currentPlan.billing_interval_count && currentPlan.billing_interval_count > 1 ? (
+                    <div>
+                      <div className={`text-sm font-bold ${!limitStatus.canMakeCall ? "text-red-600" : "text-gray-900"}`}>
+                        {Math.floor((currentPlan.minute_limit - (limitStatus.minutesRemaining || 0)) / currentPlan.billing_interval_count)} / {Math.floor(currentPlan.minute_limit / currentPlan.billing_interval_count)} min/mo
+                      </div>
+                      <div className="text-xs text-purple-600 font-medium">
+                        ({currentPlan.minute_limit - (limitStatus.minutesRemaining || 0)} / {currentPlan.minute_limit} total)
+                      </div>
+                    </div>
+                  ) : (
+                    <div className={`text-sm font-bold ${!limitStatus.canMakeCall ? "text-red-600" : "text-gray-900"}`}>
+                      {currentPlan.minute_limit - (limitStatus.minutesRemaining || 0)} / {currentPlan.minute_limit} min
+                    </div>
                   )}
-                </span>
+                </div>
               </div>
               <Progress
                 value={calculateProgress(
-                  currentPlan.minute_limit -
-                    (limitStatus.minutesRemaining || 0),
+                  currentPlan.minute_limit - (limitStatus.minutesRemaining || 0),
                   currentPlan.minute_limit,
                 )}
-                className="h-2"
+                className="h-2.5 bg-purple-100"
               />
             </div>
           )}
@@ -208,8 +271,12 @@ export const UsageStatusBar: React.FC<UsageStatusBarProps> = ({
 
         {/* Upgrade Button */}
         {(!limitStatus.canSendMessage || !limitStatus.canMakeCall) && (
-          <div className="mt-4 pt-3 border-t">
-            <Button onClick={handleUpgradeClick} className="w-full" size="sm">
+          <div className="mt-5 pt-4 border-t border-gray-100">
+            <Button 
+              onClick={handleUpgradeClick} 
+              className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-lg hover:shadow-xl transition-all duration-200" 
+              size="sm"
+            >
               <Crown className="h-4 w-4 mr-2" />
               Upgrade Plan
             </Button>
@@ -217,8 +284,8 @@ export const UsageStatusBar: React.FC<UsageStatusBarProps> = ({
         )}
 
         {loading && (
-          <div className="absolute inset-0 bg-white/80 flex items-center justify-center">
-            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-500"></div>
+          <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center rounded-lg">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
           </div>
         )}
       </CardContent>

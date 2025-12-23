@@ -653,19 +653,66 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
                       </div>
                     </CardHeader>
                     <CardContent className="pt-0 flex-grow flex flex-col px-4 pb-4">
-                      {/* Usage Limits Section - Ultra Compact */}
-                      <div className="mb-1 p-1.5 bg-blue-50 rounded border border-blue-100">
-                        <h4 className="font-semibold text-blue-900 mb-0.5 text-xs flex items-center gap-1">
-                          <MessageCircle className="w-2.5 h-2.5" />
-                          Monthly Usage:
+                      {/* Usage Limits Section - Modern & Fancy */}
+                      <div className="mb-3 p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200/50 shadow-sm">
+                        <h4 className="font-bold text-blue-900 mb-2 text-sm flex items-center gap-2">
+                          <div className="p-1 bg-blue-100 rounded-full">
+                            <MessageCircle className="w-3 h-3 text-blue-600" />
+                          </div>
+                          {plan.billing_interval_count && plan.billing_interval_count > 1 ? 'Plan Usage Allowance' : 'Monthly Usage Allowance'}
                         </h4>
-                        <div className="flex gap-4 text-xs">
-                          <span className="text-blue-700">
-                            Messages: <span className="font-semibold text-blue-900">{plan.message_limit || 'Unlimited'}</span>
-                          </span>
-                          <span className="text-blue-700">
-                            Minutes: <span className="font-semibold text-blue-900">{plan.minute_limit || 'Unlimited'}</span>
-                          </span>
+                        <div className="grid grid-cols-2 gap-3">
+                          {/* Messages */}
+                          <div className="bg-white/70 backdrop-blur-sm rounded-lg p-2 border border-white/50">
+                            <div className="flex items-center gap-1.5 mb-1">
+                              <MessageCircle className="w-3.5 h-3.5 text-blue-600" />
+                              <span className="text-xs font-medium text-gray-700">Messages</span>
+                            </div>
+                            <div className="text-sm font-bold text-gray-900">
+                              {plan.message_limit ? (
+                                plan.billing_interval_count && plan.billing_interval_count > 1 ? (
+                                  <div>
+                                    <div className="text-sm font-bold text-blue-900">
+                                      {Math.floor(plan.message_limit / plan.billing_interval_count)} messages / month
+                                    </div>
+                                    <div className="text-xs text-blue-600 font-medium">
+                                      ({plan.message_limit} total)
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="text-sm font-bold text-blue-900">{plan.message_limit} messages / month</div>
+                                )
+                              ) : (
+                                <div className="text-sm font-bold text-emerald-600">Unlimited</div>
+                              )}
+                            </div>
+                          </div>
+                          
+                          {/* Voice */}
+                          <div className="bg-white/70 backdrop-blur-sm rounded-lg p-2 border border-white/50">
+                            <div className="flex items-center gap-1.5 mb-1">
+                              <Phone className="w-3.5 h-3.5 text-purple-600" />
+                              <span className="text-xs font-medium text-gray-700">Voice</span>
+                            </div>
+                            <div className="text-sm font-bold text-gray-900">
+                              {plan.minute_limit ? (
+                                plan.billing_interval_count && plan.billing_interval_count > 1 ? (
+                                  <div>
+                                    <div className="text-sm font-bold text-purple-900">
+                                      {Math.floor(plan.minute_limit / plan.billing_interval_count)} voice minutes / month
+                                    </div>
+                                    <div className="text-xs text-purple-600 font-medium">
+                                      ({plan.minute_limit} total)
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="text-sm font-bold text-purple-900">{plan.minute_limit} voice minutes / month</div>
+                                )
+                              ) : (
+                                <div className="text-sm font-bold text-emerald-600">Unlimited</div>
+                              )}
+                            </div>
+                          </div>
                         </div>
                       </div>
 

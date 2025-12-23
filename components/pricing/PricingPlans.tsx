@@ -15,8 +15,8 @@ interface Plan {
   monthlyPrice: number;
   upfrontPrice?: number;
   billingPeriod: number; // in months
-  messages: string;
-  callMinutes: string;
+  messagesPerMonth: number;
+  minutesPerMonth: number;
   popular?: boolean;
   bestValue?: boolean;
   badge?: string;
@@ -103,11 +103,11 @@ const PricingPlans: React.FC = () => {
             <div className="flex items-center justify-center space-x-8">
               <div className="flex items-center">
                 <MessageCircle className="h-5 w-5 text-blue-600 mr-2" />
-                <span className="text-gray-700">1000 text messages/month</span>
+                <span className="text-gray-700">Plan usage varies by duration</span>
               </div>
               <div className="flex items-center">
                 <Clock className="h-5 w-5 text-blue-600 mr-2" />
-                <span className="text-gray-700">240 minutes of voice calls/month</span>
+                <span className="text-gray-700">See individual plan details</span>
               </div>
             </div>
           </div>
