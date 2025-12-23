@@ -13,10 +13,10 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { API_URL } from "@/lib/config";
+import { convertS3UrlToProxy } from '@/utils/imageUtils';
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useClientAuthFlow } from "@/contexts/ClientAuthFlowContext";
 import { useExpert } from "@/contexts/ExpertContext";
-import { notificationService } from "@/lib/notifications";
 import AuthModal from "@/components/client/AuthModal";
 import PaymentModal from "@/components/client/PaymentModal";
 import PrivateExpertPaymentModal from "@/components/client/PrivateExpertPaymentModal";
@@ -192,20 +192,6 @@ const ClientExpertPage = () => {
     if (expert?.id) {
       checkUserSubscription();
     }
-  };
-
-  const convertS3UrlToProxy = (s3Url: string, thumbnail: boolean = false, size: number = 128): string => {
-    if (!s3Url) return s3Url;
-    const match = s3Url.match(
-      /https:\/\/ai-dilan\.s3\.[^/]+\.amazonaws\.com\/(.+)/,
-    );
-    if (match) {
-      if (thumbnail) {
-        return `${API_URL}/images/avatar/thumbnail/${match[1]}?size=${size}&quality=90`;
-      }
-      return `${API_URL}/images/avatar/full/${match[1]}`;
-    }
-    return s3Url;
   };
 
   useEffect(() => {

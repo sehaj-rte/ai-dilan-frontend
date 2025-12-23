@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import { useAppSelector, useAppDispatch } from '@/store/hooks'
 import { logout, fetchCurrentUser } from '@/store/slices/authSlice'
 import { API_URL } from '@/lib/config'
+import { convertS3UrlToProxy } from '@/utils/imageUtils'
 import { fetchWithAuth, getAuthHeaders } from '@/lib/api-client'
 import { 
   Brain, 
@@ -126,20 +127,6 @@ const ProjectsPage = () => {
   const handleLogout = () => {
     dispatch(logout())
     router.push('/auth/login')
-  }
-
-  const convertS3UrlToProxy = (s3Url: string, thumbnail: boolean = false, size: number = 80): string => {
-    if (!s3Url) return s3Url
-    
-    // Convert S3 URL to proxy URL
-    const match = s3Url.match(/https:\/\/ai-dilan\.s3\.[^/]+\.amazonaws\.com\/(.+)/)
-    if (match) {
-      if (thumbnail) {
-        return `${API_URL}/images/avatar/thumbnail/${match[1]}?size=${size}&quality=90`
-      }
-      return `${API_URL}/images/avatar/full/${match[1]}`
-    }
-    return s3Url
   }
 
   // Optimized image preloading with parallel loading and better error handling

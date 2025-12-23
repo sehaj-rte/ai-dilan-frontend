@@ -97,93 +97,17 @@ interface PasswordResetData {
 class BrevoService {
   /**
    * Send combined user registration and payment success notification with voice setup steps
+   * DISABLED: Notifications are now sent from backend webhook only
    */
   async sendUserRegistrationNotification(
     userData: UserRegistrationData,
   ): Promise<boolean> {
-    try {
-      // Prepare customer recipient (user gets the email)
-      const customerRecipient = {
-        email: userData.userEmail,
-        name: userData.fullName || userData.userName,
-      };
-
-      // Admin recipients
-      const adminRecipients = [
-        ...ADMIN_EMAILS.EXPERTS.map((email) => ({
-          email,
-          name: "Expert Admin",
-        })),
-        ...ADMIN_EMAILS.SUPER_ADMINS.map((email) => ({
-          email,
-          name: "Super Admin",
-        })),
-      ];
-
-      // Customer + Admins all receive this email
-      const recipients = [customerRecipient, ...adminRecipients];
-
-      const expertName = userData.expertName || "AI Expert";
-      const DASHBOARD_URL =
-        process.env.NEXT_PUBLIC_DASHBOARD_URL ||
-        "https://your-domain.com/dashboard";
-
-      const sendSmtpEmail = new SendSmtpEmail();
-      sendSmtpEmail.to = recipients;
-      sendSmtpEmail.templateId = TEMPLATES.USER_REGISTRATION;
-      
-      // Set dynamic subject
-      sendSmtpEmail.subject = `${expertName} | Welcome to ${expertName} — Your Receipt & Access Details`;
-      
-      // Dynamic subject
-      const dynamicSubject = `${expertName} | Welcome to ${expertName} — Your Receipt & Access Details`;
-      
-      // Base parameters with dynamic expert name
-      const params: any = {
-        CLIENT_NAME: userData.fullName || userData.userName,
-        USER_EMAIL: userData.userEmail,
-        PRODUCT_NAME: expertName,  // Dynamic expert name
-        EXPERT_NAME: expertName,   // Also as EXPERT_NAME
-        ACCESS_LINK: DASHBOARD_URL,
-        EMAIL_SUBJECT: dynamicSubject,  // Dynamic subject as parameter
-        REGISTRATION_DATE: userData.registrationDate || new Date().toLocaleDateString('en-US', {
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit'
-        }),
-      };
-
-      // Add payment success message if requested
-      if (userData.includePaymentSuccess !== false) {
-        params.PAYMENT_SUCCESS = "✅ Payment processed successfully!";
-      }
-
-      // Voice setup steps removed as requested
-
-      // Add invoice URL if available
-      if (userData.invoiceUrl) {
-        params.INVOICE_URL = userData.invoiceUrl;
-        params.INVOICE_MESSAGE = "📄 View your invoice and receipt";
-      }
-
-      sendSmtpEmail.params = params;
-
-      const api = getApiInstance();
-      if (!api) {
-        throw new Error("Brevo API not initialized");
-      }
-      const response = await api.sendTransacEmail(sendSmtpEmail);
-      console.log(
-        "✅ Combined registration and payment notification with voice setup sent successfully:",
-        response,
-      );
-      return true;
-    } catch (error) {
-      console.error("❌ Failed to send registration notification:", error);
-      return false;
-    }
+    // Notifications are now handled by backend webhook - no frontend calls needed
+    console.log("ℹ️ BREVO SERVICE: User registration notification disabled - handled by backend webhook");
+    console.log("📝 BREVO SERVICE: Would have sent notification for:", userData.userEmail);
+    
+    // Return true to not break existing code flow
+    return true;
   }
 
   /**

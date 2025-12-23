@@ -107,15 +107,9 @@ const ClientChatPage = () => {
 
   const convertS3UrlToProxy = (s3Url: string, thumbnail: boolean = false, size: number = 40): string => {
     if (!s3Url) return s3Url as any;
-    const match = s3Url.match(
-      /https:\/\/ai-dilan\.s3\.[^/]+\.amazonaws\.com\/(.+)/,
-    );
-    if (match) {
-      if (thumbnail) {
-        return `${API_URL}/images/avatar/thumbnail/${match[1]}?size=${size}&quality=90`;
-      }
-      return `${API_URL}/images/avatar/full/${match[1]}`;
-    }
+    
+    // Since avatars are now public, return direct S3 URLs for better performance
+    // No need to proxy through the backend anymore
     return s3Url;
   };
 

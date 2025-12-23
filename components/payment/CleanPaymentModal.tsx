@@ -31,7 +31,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAppDispatch } from "@/store/hooks";
 import { registerUser, type AuthResponse } from "@/store/slices/authSlice";
-import { notificationService } from "@/lib/notifications";
 
 interface Plan {
   id: string;
@@ -312,48 +311,7 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
         // Redirect immediately without additional delay since we're already showing loading
         window.location.href = data.checkout_url;
       } else if (data.subscription_id) {
-alert("✅ PAYMENT DEBUG: Payment successful, subscription_id: " + data.subscription_id);
-
-        // Send combined registration/payment/voice setup notification with invoice
-        try {
-          const userToken = localStorage.getItem("dilan_ai_token");
-          const userData = localStorage.getItem("dilan_ai_user");
-
-
-
-          alert("🔍 PAYMENT DEBUG: Starting notification process");
-          console.log("🔍 PAYMENT DEBUG: subscription_id:", data.subscription_id);
-          console.log("🔍 PAYMENT DEBUG: userData:", userData);
-
-          if (userData) {
-            const user = JSON.parse(userData);
-            const notificationData = {
-              userEmail: user.email || "",
-              userName: user.username || "",
-              fullName: user.full_name || user.name || "",
-              includePaymentSuccess: true,
-              includeVoiceSetup: false, // Voice setup removed as requested
-              subscriptionId: data.subscription_id, // Include subscription ID to get invoice URL
-              expertName: expertName, // Pass expert name for dynamic content
-            };
-
-
-
-            console.log("📧 PAYMENT DEBUG: Sending notification with data:", notificationData);
-
-            const result = await notificationService.sendUserRegistrationNotification(notificationData);
-
-
-
-            console.log("✅ PAYMENT DEBUG: Notification sent successfully");
-          } else {
-            console.warn("⚠️ PAYMENT DEBUG: No user data found in localStorage");
-          }
-        } catch (error) {
-          const errorMessage = error instanceof Error ? error.message : error?.toString() || 'Unknown error';
-
-          console.error("❌ PAYMENT DEBUG: Failed to send registration notification:", error);
-        }
+        console.log("✅ PAYMENT DEBUG: Payment successful, subscription_id:", data.subscription_id);
 
         setIsRedirectingToStripe(false); // Reset redirect state
         setSuccess(true);

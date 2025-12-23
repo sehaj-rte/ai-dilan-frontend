@@ -3,48 +3,18 @@ import { brevoService, UserRegistrationData } from '@/lib/brevoService';
 
 export async function POST(request: NextRequest) {
   try {
-    // Parse the request body
+    // DISABLED: User registration notifications are now handled by backend webhook
+    console.log('ℹ️ User registration notification API disabled - handled by backend webhook');
+    
+    // Parse the request body for logging
     const body = await request.json();
+    console.log('📝 Would have sent notification for:', body.userEmail);
 
-    // Validate required fields
-    const { userEmail, userName, fullName } = body;
-
-    if (!userEmail || !userName) {
-      return NextResponse.json(
-        { error: 'Missing required fields: userEmail and userName are required' },
-        { status: 400 }
-      );
-    }
-
-    // Prepare user registration data
-    const userData: UserRegistrationData = {
-      userEmail,
-      userName,
-      fullName,
-      registrationDate: new Date().toLocaleString('en-US', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        timeZoneName: 'short'
-      })
-    };
-
-    // Send notification to admins
-    const success = await brevoService.sendUserRegistrationNotification(userData);
-
-    if (success) {
-      return NextResponse.json({
-        success: true,
-        message: 'User registration notification sent successfully'
-      });
-    } else {
-      return NextResponse.json(
-        { error: 'Failed to send user registration notification' },
-        { status: 500 }
-      );
-    }
+    // Return success to not break existing code flow
+    return NextResponse.json({
+      success: true,
+      message: 'User registration notification handled by backend webhook'
+    });
   } catch (error) {
     console.error('Error in user registration notification API:', error);
     return NextResponse.json(
