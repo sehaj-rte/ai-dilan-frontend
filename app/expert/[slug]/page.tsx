@@ -17,6 +17,7 @@ import { convertS3UrlToProxy } from '@/utils/imageUtils';
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useClientAuthFlow } from "@/contexts/ClientAuthFlowContext";
 import { useExpert } from "@/contexts/ExpertContext";
+import { notificationService } from "@/lib/notifications";
 import AuthModal from "@/components/client/AuthModal";
 import PaymentModal from "@/components/client/PaymentModal";
 import PrivateExpertPaymentModal from "@/components/client/PrivateExpertPaymentModal";

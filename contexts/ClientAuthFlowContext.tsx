@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { API_URL } from "@/lib/config";
+import { notificationService } from "@/lib/notifications";
 
 interface User {
   id: string;
@@ -227,8 +228,20 @@ export function ClientAuthFlowProvider({
         localStorage.setItem("dilan_ai_token", token);
         localStorage.setItem("dilan_ai_user", JSON.stringify(user));
 
-        // Registration notification will be sent from backend webhook when payment is made
-        // No need to send notification here for regular registration
+        // Send admin notification about new user registration
+        try {
+          await notificationService.sendUserRegistrationNotification({
+            userEmail: email,
+            userName: username,
+            fullName: user.full_name || user.name || "",
+          });
+        } catch (error) {
+          // Don't block the user flow if notification fails
+          console.warn(
+            "Failed to send admin notification for user registration:",
+            error,
+          );
+        }
 
         // Close auth modal and continue flow
         setShowAuthModal(false);

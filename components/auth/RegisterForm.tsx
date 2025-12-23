@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import { registerUser, clearError } from "@/store/slices/authSlice";
+import { notificationService } from "@/lib/notifications";
 import { Eye, EyeOff } from "lucide-react";
 import Link from "next/link";
 
@@ -87,8 +88,20 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSuccess }) => {
     const result = await dispatch(registerUser(registerData));
 
     if (registerUser.fulfilled.match(result)) {
-      // Registration notification will be sent from backend webhook when payment is made
-      // No need to send notification here for regular registration
+      // Send admin notification about new user registration
+      try {
+        await notificationService.sendUserRegistrationNotification({
+          userEmail: registerData.email,
+          userName: registerData.username,
+          fullName: registerData.full_name,
+        });
+      } catch (error) {
+        // Don't block the user flow if notification fails
+        console.warn(
+          "Failed to send admin notification for user registration:",
+          error,
+        );
+      }
 
       onSuccess?.();
     }
