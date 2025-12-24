@@ -285,7 +285,9 @@ export const usePlanLimitations = ({
         return false;
       }
 
-      // If there are minute limits, check if user has enough minutes for the estimated duration
+      // If there are minute limits, check if user has enough minutes
+      // For starting calls: require at least 1 minute
+      // For ongoing calls: will be handled by real-time tracking
       if (
         limitStatus.minutesRemaining !== null &&
         limitStatus.minutesRemaining < estimatedMinutes
