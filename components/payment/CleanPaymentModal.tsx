@@ -455,8 +455,8 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
         className="max-w-6xl max-h-[95vh] overflow-y-auto"
         onPointerDownOutside={isCreatingAccount || isRedirectingToStripe ? (e) => e.preventDefault() : undefined}
       >
-        <DialogHeader>
-          <DialogTitle className="text-2xl font-bold text-center mb-1">
+        <DialogHeader className="mb-0">
+          <DialogTitle className="text-3xl font-bold text-center">
             Subscribe to {expertName}
           </DialogTitle>
         </DialogHeader>
@@ -777,25 +777,26 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
 
           </div>
         ) : (
-          <div className="py-6 max-w-md mx-auto space-y-6">
-            <div className="rounded-xl border border-blue-200 bg-blue-50/40 p-5 space-y-2">
+          <div className="py-3 max-w-md mx-auto space-y-2 -mt-4">
+            <div className="rounded-lg border border-blue-200 bg-blue-50/40 p-3 space-y-1">
               <p className="text-sm text-gray-600">
-                You're subscribing to <strong>{selectedPlan?.name}</strong>.
+                Congratulations, you're subscribing to the <strong>{selectedPlan?.name}</strong> AI Jeff plan. 
+                <button
+                  type="button"
+                  className="text-blue-600 hover:underline font-medium text-sm ml-1"
+                  onClick={() => {
+                    setCurrentStep("plan");
+                    setAccountForm({ email: "", password: "" });
+                    setAccountError(null);
+                  }}
+                >
+                  Or go back and choose a different plan.
+                </button>
               </p>
-              <button
-                type="button"
-                className="text-blue-600 hover:underline font-medium"
-                onClick={() => {
-                  setCurrentStep("plan");
-                  setAccountForm({ email: "", password: "" });
-                  setAccountError(null);
-                }}
-              >
-                Change plan
-              </button>
+             
             </div>
 
-            <form className="space-y-4" onSubmit={handleAccountSubmit}>
+            <form className="space-y-3" onSubmit={handleAccountSubmit}>
               {accountError && (
                 <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
                   <AlertCircle className="h-4 w-4" />
@@ -803,8 +804,8 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
                 </div>
               )}
 
-              <div className="space-y-2">
-                <Label htmlFor="account-email">Email Address</Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="account-email">Email Address <span className="text-red-500">*</span></Label>
                 <Input
                   id="account-email"
                   type="email"
@@ -820,8 +821,8 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="account-password">Password</Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="account-password">Password <span className="text-red-500">*</span></Label>
                 <div className="relative">
                   <Input
                     id="account-password"
@@ -853,17 +854,16 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
               </div>
 
               {/* Coupon Code Field */}
-              <div className="space-y-2">
+              <div className="space-y-1.5">
                 <Label htmlFor="coupon-code">Trial Coupon Code (Optional)</Label>
                 <div className="flex gap-2">
                   <div className="relative flex-1">
                     <Input
                       id="coupon-code"
                       type="text"
-                      placeholder="Enter coupon code (e.g., TRIAL2024)"
+                      placeholder="Enter coupon code"
                       value={couponCode}
                       onChange={(e) => handleCouponChange(e.target.value)}
-                      className="font-mono tracking-wider"
                       maxLength={20}
                     />
                     {couponValidation.isValidating && (
@@ -908,22 +908,10 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
                 <p className="text-xs text-gray-500">Enter a trial coupon to get 7 days free access</p>
               </div>
 
-              <div className="flex flex-col sm:flex-row gap-4">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    setCurrentStep("plan");
-                    setAccountError(null);
-                  }}
-                  disabled={isCreatingAccount || isRedirectingToStripe}
-                  className="flex-1"
-                >
-                  Back to plans
-                </Button>
+              <div className="pt-2">
                 <Button
                   type="submit"
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 text-lg font-semibold"
                   disabled={isCreatingAccount || isRedirectingToStripe}
                 >
                   {isCreatingAccount || isRedirectingToStripe ? (
@@ -938,8 +926,8 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
               </div>
             </form>
 
-            <div className="flex items-center justify-center gap-3 text-gray-500">
-              <Lock className="w-5 h-5" />
+            <div className="flex items-center justify-center gap-2 text-gray-500 pt-2">
+              <Lock className="w-4 h-4" />
               <span className="text-sm">Secure payment powered by Stripe</span>
             </div>
           </div>
