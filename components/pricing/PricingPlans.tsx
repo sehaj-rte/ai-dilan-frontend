@@ -15,8 +15,8 @@ interface Plan {
   monthlyPrice: number;
   upfrontPrice?: number;
   billingPeriod: number; // in months
-  messages: string;
-  callMinutes: string;
+  message_limit: number;
+  minute_limit: number;
   popular?: boolean;
   bestValue?: boolean;
   badge?: string;
@@ -42,8 +42,8 @@ const plans: Plan[] = [
     monthlyPrice: 20,
     upfrontPrice: 120,
     billingPeriod: 6,
-    messages: '1000 text messages',
-    callMinutes: '240 minutes of voice calls',
+    message_limit: 1000,
+    minute_limit: 240,
     badge: 'Best Value',
     bestValue: true,
     billingNote: 'Pay £120 upfront for 6 months'
@@ -55,8 +55,8 @@ const plans: Plan[] = [
     monthlyPrice: 30,
     upfrontPrice: 90,
     billingPeriod: 3,
-    messages: '1000 text messages',
-    callMinutes: '240 minutes of voice calls',
+    message_limit: 1000,
+    minute_limit: 240,
     badge: 'Most Popular',
     popular: true,
     billingNote: 'Pay £90 upfront for 3 months'
@@ -67,8 +67,8 @@ const plans: Plan[] = [
     duration: '1 month',
     monthlyPrice: 40,
     billingPeriod: 1,
-    messages: '1000 text messages',
-    callMinutes: '240 minutes of voice calls',
+    message_limit: 1000,
+    minute_limit: 240,
     badge: 'Most Flexible',
     billingNote: 'Pay monthly, cancel anytime'
   }
@@ -103,11 +103,11 @@ const PricingPlans: React.FC = () => {
             <div className="flex items-center justify-center space-x-8">
               <div className="flex items-center">
                 <MessageCircle className="h-5 w-5 text-blue-600 mr-2" />
-                <span className="text-gray-700">1000 text messages/month</span>
+                <span className="text-gray-700">Plan usage varies by duration</span>
               </div>
               <div className="flex items-center">
                 <Clock className="h-5 w-5 text-blue-600 mr-2" />
-                <span className="text-gray-700">240 minutes of voice calls/month</span>
+                <span className="text-gray-700">See individual plan details</span>
               </div>
             </div>
           </div>

@@ -821,47 +821,45 @@ const ClientExpertPage = () => {
 
           {/* CTA Buttons and Browser Notice - Horizontally Aligned */}
           <div className="flex flex-col items-center gap-4 mb-6">
-            {/* CTA Buttons - Reduced gap for closer alignment */}
-            <div className="w-[100%] md:w-[45%] flex flex-col gap-3">
-              <div className="w-full flex justify-between">
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="px-8 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 border-2"
-                  style={{ borderColor: primaryColor, color: primaryColor }}
-                  onClick={handleStartChat}
-                  disabled={checkingSubscription}
-                >
-                  <MessageCircle className="h-5 w-5 mr-2" />
-                  Chat
-                </Button>
-                <Button
-                  size="lg"
-                  className="text-white px-8 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
-                  style={{ backgroundColor: primaryColor }}
-                  onClick={handleStartCall}
-                  disabled={checkingSubscription}
-                >
-                  <Phone className="h-5 w-5 mr-2" />
-                  Call
-                </Button>
-              </div>
-
-              {/* Browser Compatibility Notice - Smaller font size and compact padding */}
-              <div
-                className="w-full border rounded-full px-3.5 py-2 shadow-sm"
-                style={{
-                  borderColor: primaryColor + '40',
-                  backgroundColor: primaryColor + '10',
-                  color: primaryColor
-                }}
+            {/* CTA Buttons - Same gap as project page */}
+            <div className="flex justify-center gap-3">
+              <Button
+                size="lg"
+                variant="outline"
+                className="px-8 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 border-2"
+                style={{ borderColor: primaryColor, color: primaryColor }}
+                onClick={handleStartChat}
+                disabled={checkingSubscription}
               >
-                <div className="flex items-center space-x-1.5">
-                  <Globe className="h-3 w-3 flex-shrink-0" />
-                  <p className="text-xs font-medium">
-                    Best experience with Chrome or Safari
-                  </p>
-                </div>
+                <MessageCircle className="h-5 w-5 mr-2" />
+                Chat
+              </Button>
+              <Button
+                size="lg"
+                className="text-white px-8 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+                style={{ backgroundColor: primaryColor }}
+                onClick={handleStartCall}
+                disabled={checkingSubscription}
+              >
+                <Phone className="h-5 w-5 mr-2" />
+                Call
+              </Button>
+            </div>
+
+            {/* Browser Compatibility Notice */}
+            <div
+              className="max-w-sm mx-auto border rounded-full px-3.5 py-2 shadow-sm"
+              style={{
+                borderColor: primaryColor + '40',
+                backgroundColor: primaryColor + '10',
+                color: primaryColor
+              }}
+            >
+              <div className="flex items-center justify-center space-x-1">
+                <Globe className="h-3 w-2 flex-shrink-0" />
+                <p className="text-xs font-medium">
+                  Best experience with Chrome or Safari
+                </p>
               </div>
             </div>
           </div>

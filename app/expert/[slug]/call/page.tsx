@@ -65,6 +65,11 @@ const ClientCallPage = () => {
   const [timerInterval, setTimerInterval] = useState<NodeJS.Timeout | null>(
     null,
   );
+  const [usageTrackingInterval, setUsageTrackingInterval] = useState<NodeJS.Timeout | null>(
+    null,
+  );
+  const [lastTrackedMinute, setLastTrackedMinute] = useState(0);
+  const [showLowTimeWarning, setShowLowTimeWarning] = useState(false);
   const [paymentSessionId, setPaymentSessionId] = useState<string | null>(null);
   const [paymentSessionValid, setPaymentSessionValid] = useState<
     boolean | null
@@ -328,12 +333,40 @@ const ClientCallPage = () => {
   const handleStartCall = async () => {
     if (!expert) return;
 
-    // Check if user can make calls before proceeding
-    // Only check limits if data has been loaded (not loading)
-    // This prevents false positives when data is still being fetched
-    if (isAuthenticated && !planLoading && !checkCanMakeCall(5)) {
-      setShowLimitReachedModal(true);
+    console.log(`🔍 Pre-call checks:`);
+    console.log(`   isAuthenticated: ${isAuthenticated}`);
+    console.log(`   planLoading: ${planLoading}`);
+    console.log(`   expert.id: ${expert.id}`);
+
+    // CRITICAL: Block calls until usage data is fully loaded
+    if (planLoading) {
+      console.log(`🚫 Call blocked - usage data still loading`);
+      setError("Loading usage data... Please wait.");
       return;
+    }
+
+    // Get current usage status
+    const remainingUsage = getRemainingUsage();
+    console.log(`   remainingUsage:`, remainingUsage);
+    console.log(`   limitStatus:`, limitStatus);
+
+    // Check if user can make calls - ONLY after data is loaded
+    if (isAuthenticated) {
+      const canMakeCall = checkCanMakeCall(1);
+      console.log(`   checkCanMakeCall(1): ${canMakeCall}`);
+      
+      if (!canMakeCall) {
+        console.log(`🚫 Call blocked - showing limit modal`);
+        setShowLimitReachedModal(true);
+        return;
+      }
+      
+      // Additional check for overuse cases
+      if (remainingUsage.minutes !== null && remainingUsage.minutes <= 0) {
+        console.log(`🚫 Call blocked - no minutes remaining (${remainingUsage.minutes})`);
+        setShowLimitReachedModal(true);
+        return;
+      }
     }
 
     try {
@@ -345,16 +378,27 @@ const ClientCallPage = () => {
         return;
       }
 
+      console.log(`📞 Starting call - checks passed`);
       await startConversation();
 
-      // Start timer (no usage tracking during call - only at the end)
+      // Reset tracking state
       setCallDuration(0);
+      setLastTrackedMinute(0);
+      setShowLowTimeWarning(false);
+
+      // Start timer for UI display
       const interval = setInterval(() => {
         setCallDuration((prev) => prev + 1);
       }, 1000);
       setTimerInterval(interval);
 
-      console.log(`📞 Call started - timer running`);
+      // Start real-time usage tracking (every 30 seconds instead of 60)
+      const usageInterval = setInterval(() => {
+        trackRealTimeUsage();
+      }, 30000); // Track every 30 seconds for better accuracy
+      setUsageTrackingInterval(usageInterval);
+
+      console.log(`📞 Call started - timer and real-time tracking running`);
     } catch (error) {
       console.error("Failed to start voice conversation:", error);
       if (error instanceof Error) {
@@ -377,10 +421,14 @@ const ClientCallPage = () => {
     try {
       await endConversation();
 
-      // Stop timer first
+      // Stop all timers first
       if (timerInterval) {
         clearInterval(timerInterval);
         setTimerInterval(null);
+      }
+      if (usageTrackingInterval) {
+        clearInterval(usageTrackingInterval);
+        setUsageTrackingInterval(null);
       }
 
       // Calculate total minutes used (round up partial minutes for billing)
@@ -388,15 +436,17 @@ const ClientCallPage = () => {
       
       console.log(`📞 Call ended: ${formatCallDurationWithText(callDuration)} (${callDuration} seconds) -> billing ${totalMinutes} minute${totalMinutes !== 1 ? 's' : ''}`);
 
-      // Track ONLY the total minutes used - single tracking event
-      if (isAuthenticated && expert?.id && totalMinutes > 0) {
-        console.log(`📞 Tracking ${totalMinutes} minutes for call`);
+      // Track final usage - only track remaining minutes not already tracked
+      if (isAuthenticated && expert?.id && totalMinutes > lastTrackedMinute) {
+        const remainingMinutes = totalMinutes - lastTrackedMinute;
+        console.log(`📞 Tracking final ${remainingMinutes} minutes for call (total: ${totalMinutes}, already tracked: ${lastTrackedMinute})`);
+        
         trackUsage({
           expert_id: expert.id,
           event_type: "minutes_used",
-          quantity: totalMinutes,
+          quantity: remainingMinutes,
         }).catch((err) =>
-          console.error("Failed to track call minutes:", err),
+          console.error("Failed to track final call minutes:", err),
         );
 
         // Refresh usage data after tracking
@@ -406,6 +456,10 @@ const ClientCallPage = () => {
           );
         }, 1000); // Small delay to ensure backend processing completes
       }
+
+      // Reset state
+      setShowLowTimeWarning(false);
+      setLastTrackedMinute(0);
     } catch (error) {
       console.error("Failed to end voice conversation:", error);
     }
@@ -448,14 +502,93 @@ const ClientCallPage = () => {
     }
   };
 
-  // Cleanup timer on unmount
+  // Real-time usage tracking function
+  const trackRealTimeUsage = async () => {
+    if (!isAuthenticated || !expert?.id || callDuration === 0) return;
+
+    const currentMinutes = Math.ceil(callDuration / 60);
+    
+    // Only track if we've crossed into a new minute
+    if (currentMinutes > lastTrackedMinute) {
+      const minutesToTrack = currentMinutes - lastTrackedMinute;
+      
+      console.log(`📊 Real-time tracking: ${minutesToTrack} minute(s) (total: ${currentMinutes}, last tracked: ${lastTrackedMinute})`);
+      
+      try {
+        await trackUsage({
+          expert_id: expert.id,
+          event_type: "minutes_used",
+          quantity: minutesToTrack,
+        });
+        
+        setLastTrackedMinute(currentMinutes);
+        
+        // Refresh usage data to get updated limits
+        await refreshUsage();
+        
+        // Check if user is running low on time (1 minute remaining)
+        const remainingUsage = getRemainingUsage();
+        console.log(`📊 After tracking - remaining minutes: ${remainingUsage.minutes}`);
+        
+        if (remainingUsage.minutes !== null && remainingUsage.minutes <= 1 && remainingUsage.minutes > 0) {
+          if (!showLowTimeWarning) {
+            setShowLowTimeWarning(true);
+            console.log(`⚠️ Low time warning: ${remainingUsage.minutes} minute(s) remaining`);
+          }
+        }
+        
+        // If no minutes remaining, end the call gracefully
+        if (remainingUsage.minutes !== null && remainingUsage.minutes <= 0) {
+          console.log(`🚫 No minutes remaining - ending call gracefully`);
+          await handleEndCall();
+          setShowLimitReachedModal(true);
+        }
+        
+      } catch (error) {
+        console.error("Failed to track real-time usage:", error);
+      }
+    }
+  };
+
+  // Check usage every 10 seconds during calls (more frequent checking)
+  useEffect(() => {
+    if (state.isConnected && callDuration > 0) {
+      const checkInterval = setInterval(() => {
+        // Check remaining time every 10 seconds
+        const remainingUsage = getRemainingUsage();
+        console.log(`🔍 Usage check: ${remainingUsage.minutes} minutes remaining`);
+        
+        // Show warning when 1 minute left
+        if (remainingUsage.minutes !== null && remainingUsage.minutes <= 1 && remainingUsage.minutes > 0) {
+          if (!showLowTimeWarning) {
+            setShowLowTimeWarning(true);
+            console.log(`⚠️ Low time warning triggered: ${remainingUsage.minutes} minute(s) remaining`);
+          }
+        }
+        
+        // End call when 0 minutes
+        if (remainingUsage.minutes !== null && remainingUsage.minutes <= 0) {
+          console.log(`🚫 No minutes remaining - ending call immediately`);
+          handleEndCall();
+          setShowLimitReachedModal(true);
+        }
+      }, 10000); // Check every 10 seconds
+      
+      return () => clearInterval(checkInterval);
+    }
+  }, [state.isConnected, callDuration, showLowTimeWarning, getRemainingUsage, handleEndCall]);
+
+  // Cleanup timers on unmount
   useEffect(() => {
     return () => {
       if (timerInterval) {
         clearInterval(timerInterval);
       }
+      if (usageTrackingInterval) {
+        clearInterval(usageTrackingInterval);
+      }
     };
-  }, [timerInterval]);
+  }, [timerInterval, usageTrackingInterval]);
 
   if (loading) {
     return (
@@ -711,6 +844,15 @@ const ClientCallPage = () => {
                   <div className="text-sm text-gray-500 font-medium">
                     {formatCallDurationWithText(callDuration)} • Will bill {Math.ceil(callDuration / 60)} minute{Math.ceil(callDuration / 60) !== 1 ? 's' : ''}
                   </div>
+                  
+                  {/* Low Time Warning */}
+                  {showLowTimeWarning && (
+                    <div className="mt-2 px-3 py-1 bg-orange-100 border border-orange-300 rounded-full">
+                      <span className="text-xs font-medium text-orange-800">
+                        ⚠️ Low on time - call will end soon
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -889,13 +1031,18 @@ const ClientCallPage = () => {
               {!state.isConnected ? (
                 <Button
                   onClick={handleStartCall}
-                  disabled={state.isConnecting || !expert}
-                  className="bg-black hover:bg-gray-800 text-white px-8 py-6 rounded-full text-lg font-medium shadow-lg"
+                  disabled={state.isConnecting || !expert || planLoading}
+                  className="bg-black hover:bg-gray-800 text-white px-8 py-6 rounded-full text-lg font-medium shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {state.isConnecting ? (
                     <>
                       <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
                       Connecting...
+                    </>
+                  ) : planLoading ? (
+                    <>
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                      Loading usage data...
                     </>
                   ) : (
                     <>
