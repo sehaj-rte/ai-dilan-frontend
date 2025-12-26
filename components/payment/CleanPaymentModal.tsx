@@ -710,14 +710,7 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
                               <span className="text-gray-700 text-xs leading-snug">{feature}</span>
                             </div>
                           ))}
-                          {enhancedInfo.features.length > 5 && (
-                            <div className="flex items-start gap-2">
-                              <CheckCircle2 className="w-3.5 h-3.5 text-green-500 flex-shrink-0 mt-0.5" />
-                              <span className="text-gray-700 text-xs leading-snug">
-                                + {enhancedInfo.features.length - 5} more features
-                              </span>
-                            </div>
-                          )}
+
                         </div>
                       </div>
 
