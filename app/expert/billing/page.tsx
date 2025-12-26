@@ -82,10 +82,15 @@ const ExpertBillingPage = () => {
             <p className="text-gray-600">
               You need to be logged in to view billing information.
             </p>
-            <div className="flex gap-2">
-              <Button onClick={() => router.push("/auth/login")}>Login</Button>
-              <Button variant="outline" onClick={() => router.push("/")}>
-                Go Home
+            <div className="flex justify-center">
+              <Button 
+                onClick={() => {
+                  // Redirect back to expert page with slug, defaulting to ai-jeff if no expert slug
+                  const targetSlug = expertSlug || 'ai-jeff';
+                  router.push(`/expert/${targetSlug}`);
+                }}
+              >
+                Login
               </Button>
             </div>
           </CardContent>
