@@ -22,6 +22,8 @@ import AuthModal from "@/components/client/AuthModal";
 import PaymentModal from "@/components/client/PaymentModal";
 import PrivateExpertPaymentModal from "@/components/client/PrivateExpertPaymentModal";
 import BillingButton from "@/components/billing/BillingButton";
+import ExpertPageHeader from "@/components/layout/ExpertPageHeader";
+import AvatarSettingsModal from "@/components/dashboard/AvatarSettingsModal";
 import { RootState } from "@/store/store";
 import { logout } from "@/store/slices/authSlice";
 import OptimizedImage from "@/components/ui/OptimizedImage";
@@ -156,6 +158,7 @@ const ClientExpertPage = () => {
   const [showPaymentSuccess, setShowPaymentSuccess] = useState(false);
   const [paymentSuccessMessage, setPaymentSuccessMessage] = useState('');
   const [paymentSuccessShown, setPaymentSuccessShown] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
 
   // Cleanup effect to prevent modal from persisting across route changes
   useEffect(() => {
@@ -691,94 +694,30 @@ const ClientExpertPage = () => {
       )}
       <div className="relative">
         {/* Enhanced Header with backdrop blur */}
-        <div
-          className={`${publication?.banner_url ? "bg-white/60 backdrop-blur-xl border-b border-white/30 shadow-lg" : "border-b border-gray-200"}`}
-        >
-          <div className="container mx-auto px-4 py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <h1
-                  className={`text-xl font-bold ${publication?.banner_url ? "text-gray-900" : "text-gray-900"}`}
-                >
-                  {publication?.display_name || expert?.name || "Expert"}
-                </h1>
-              </div>
-
-
-
-              {/* User Info & Actions */}
-              {isAuthenticated && user ? (
-                <div className="flex items-center gap-3">
-                  <div className="text-right">
-                    <p className="text-sm font-medium text-gray-900">
-                      {user.email}
-                    </p>
-                  </div>
-
-
-
-                  {/* Billing Button - Hide for super_admins */}
-                  {user.role !== "super_admin" && (
-                    <BillingButton
-                      userToken={
-                        typeof window !== "undefined"
-                          ? localStorage.getItem("dilan_ai_token") || undefined
-                          : ""
-                      }
-                      variant="outline"
-                      size="sm"
-                      expertSlug={slug} // Pass the expert slug
-                      primaryColor={primaryColor}
-                    />
-                  )}
-
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      // Clear context state
-                      setCurrentUser(null);
-                      // Clear Redux state
-                      dispatch(logout());
-                      // Clear localStorage
-                      localStorage.removeItem("dilan_ai_token");
-                      localStorage.removeItem("dilan_ai_user");
-                      // Redirect
-                      router.push(`/expert/${slug}`);
-                    }}
-                    className="flex items-center gap-2"
-                    style={{
-                      borderColor: primaryColor,
-                      color: primaryColor,
-                    }}
-                  >
-                    <LogOut className="h-4 w-4" />
-                    Logout
-                  </Button>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setShowSignupInitially(false);
-                      setShowAuthModal(true);
-                    }}
-                    className="flex items-center gap-2"
-                    style={{
-                      borderColor: primaryColor,
-                      color: primaryColor,
-                    }}
-                  >
-                    <LogIn className="h-4 w-4" />
-                    Login
-                  </Button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+        <ExpertPageHeader
+          expertName={publication?.display_name || expert?.name || "Expert"}
+          user={currentUser}
+          isAuthenticated={isAuthenticated}
+          onShowAuthModal={() => {
+            setShowSignupInitially(false);
+            setShowAuthModal(true);
+          }}
+          onShowProfileModal={() => setShowProfileModal(true)}
+          onShowBilling={() => router.push(`/expert/billing?expert=${slug}`)}
+          onLogout={() => {
+            // Clear context state
+            setCurrentUser(null);
+            // Clear Redux state
+            dispatch(logout());
+            // Clear localStorage
+            localStorage.removeItem("dilan_ai_token");
+            localStorage.removeItem("dilan_ai_user");
+            // Redirect
+            router.push(`/expert/${slug}`);
+          }}
+          primaryColor={primaryColor}
+          hasBackdrop={!!publication?.banner_url}
+        />
       </div>
 
       {/* Main Content - Centered */}
@@ -1027,6 +966,13 @@ const ClientExpertPage = () => {
           onPaymentSuccess={handlePrivatePaymentSuccess}
         />
       )}
+
+      {/* Profile Settings Modal */}
+      <AvatarSettingsModal
+        isOpen={showProfileModal}
+        onClose={() => setShowProfileModal(false)}
+        userData={currentUser}
+      />
     </div>
   );
 };

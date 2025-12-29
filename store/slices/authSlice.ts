@@ -7,6 +7,7 @@ interface User {
   email: string
   username: string
   full_name?: string
+  phone_number?: string
   bio?: string
   avatar_url?: string
   is_active: boolean
@@ -31,6 +32,7 @@ interface RegisterCredentials {
   username: string
   password: string
   full_name?: string
+  phone_number?: string
 }
 
 export interface AuthResponse {
