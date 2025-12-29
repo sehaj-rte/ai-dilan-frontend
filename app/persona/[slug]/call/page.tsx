@@ -9,6 +9,9 @@ import { ArrowLeft, Phone, PhoneOff, User, LogIn, LogOut, MessageSquare } from '
 import { useVoiceConversation } from '@/hooks/useVoiceConversation'
 import { RootState } from '@/store/store'
 import { logout, loadUserFromStorage } from '@/store/slices/authSlice'
+import { usePlanLimitations } from '@/hooks/usePlanLimitations'
+import { UsageStatusBar } from '@/components/usage/UsageStatusBar'
+import { LimitReachedModal } from '@/components/usage/LimitReachedModal'
 
 interface Expert {
   id: string
@@ -44,6 +47,29 @@ const ExpertCallPage = () => {
   const [error, setError] = useState<string | null>(null)
   const [callDuration, setCallDuration] = useState(0)
   const [timerInterval, setTimerInterval] = useState<NodeJS.Timeout | null>(null)
+  const [isExpertOwner, setIsExpertOwner] = useState(false)
+  const [usageRefreshTrigger, setUsageRefreshTrigger] = useState(0)  // Add refresh trigger
+  const [usageTrackingInterval, setUsageTrackingInterval] = useState<NodeJS.Timeout | null>(null)
+  const [lastTrackedMinute, setLastTrackedMinute] = useState(0)
+  const [showLimitReachedModal, setShowLimitReachedModal] = useState(false)
+
+  // Plan limitations hook
+  const {
+    usage,
+    limitStatus,
+    currentPlan,
+    subscription,
+    loading: planLoading,
+    error: planError,
+    refreshUsage,
+    trackUsage,
+    checkCanSendMessage,
+    checkCanMakeCall,
+    getRemainingUsage,
+  } = usePlanLimitations({
+    expertId: expert?.id || "",
+    enabled: isAuthenticated && !!expert?.id,
+  })
 
   const convertS3UrlToProxy = (s3Url: string): string => {
     if (!s3Url) return s3Url as any
@@ -60,6 +86,7 @@ const ExpertCallPage = () => {
     endConversation,
   } = useVoiceConversation({
     expertId: expert?.id || '',
+    userId: user?.id, // Pass user ID for expert owner tracking
     onError: (error) => {
       setError(error)
     },
@@ -77,6 +104,20 @@ const ExpertCallPage = () => {
     fetchExpertData()
   }, [slug])
 
+  // Check expert ownership when user authentication changes
+  useEffect(() => {
+    if (expert && user) {
+      if (String(expert.user_id) === String(user.id)) {
+        setIsExpertOwner(true);
+        console.log("🎯 Expert owner detected on auth change (call page):", user.id, "owns expert", expert.id);
+      } else {
+        setIsExpertOwner(false);
+      }
+    } else {
+      setIsExpertOwner(false);
+    }
+  }, [user, expert])
+
   const fetchExpertData = async () => {
     try {
       // Fetch expert data directly by ID (no publication required)
@@ -93,6 +134,15 @@ const ExpertCallPage = () => {
           ...data.expert,
           avatar_url: data.expert?.avatar_url ? convertS3UrlToProxy(data.expert.avatar_url) : null
         })
+        
+        // Check if current user is the expert owner
+        if (user && data.expert && String(data.expert.user_id) === String(user.id)) {
+          setIsExpertOwner(true);
+          console.log("🎯 Expert owner detected on call page:", user.id, "owns expert", data.expert.id);
+        } else {
+          setIsExpertOwner(false);
+        }
+        
         // Set default publication data for styling
         setPublication({
           id: data.expert.id,
@@ -117,6 +167,13 @@ const ExpertCallPage = () => {
   const handleStartCall = async () => {
     if (!expert) return
     
+    // Check if user can make calls using plan limitations
+    if (isAuthenticated && !checkCanMakeCall(1)) {
+      console.log("🚫 Call blocked - showing limit modal");
+      setShowLimitReachedModal(true);
+      return;
+    }
+    
     try {
       // Check for microphone permission first
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
@@ -126,12 +183,22 @@ const ExpertCallPage = () => {
       
       await startConversation()
       
-      // Start timer
+      // Reset tracking state
       setCallDuration(0)
+      setLastTrackedMinute(0)
+      
+      // Start timer
       const interval = setInterval(() => {
         setCallDuration(prev => prev + 1)
       }, 1000)
       setTimerInterval(interval)
+      
+      // Start real-time usage tracking (every 30 seconds)
+      const usageInterval = setInterval(() => {
+        trackRealTimeUsage();
+      }, 30000); // Track every 30 seconds
+      setUsageTrackingInterval(usageInterval);
+      console.log('📊 Started real-time usage tracking');
     } catch (error) {
       console.error('Failed to start voice conversation:', error)
       if (error instanceof Error) {
@@ -150,11 +217,47 @@ const ExpertCallPage = () => {
     try {
       await endConversation()
       
-      // Stop timer
+      // Stop all timers first
       if (timerInterval) {
         clearInterval(timerInterval)
         setTimerInterval(null)
       }
+      if (usageTrackingInterval) {
+        clearInterval(usageTrackingInterval)
+        setUsageTrackingInterval(null)
+      }
+      
+      // Calculate total minutes used (round up partial minutes for billing)
+      const totalMinutes = Math.ceil(callDuration / 60);
+      
+      console.log(`📞 Call ended: ${callDuration} seconds -> billing ${totalMinutes} minute(s)`);
+      
+      // Track final usage - only track remaining minutes not already tracked
+      if (isAuthenticated && expert?.id && totalMinutes > lastTrackedMinute) {
+        const remainingMinutes = totalMinutes - lastTrackedMinute;
+        console.log(`📞 Tracking final ${remainingMinutes} minutes for call (total: ${totalMinutes}, already tracked: ${lastTrackedMinute})`);
+        
+        try {
+          await trackUsage({
+            expert_id: expert.id,
+            event_type: "minutes_used",
+            quantity: remainingMinutes,
+          });
+          console.log("📊 Final call usage tracked successfully");
+          
+          // Refresh usage data after tracking
+          setTimeout(() => {
+            refreshUsage().catch((err) =>
+              console.error("Failed to refresh usage after call:", err),
+            );
+          }, 1000); // Small delay to ensure backend processing completes
+        } catch (error) {
+          console.error('Failed to track final call minutes:', error);
+        }
+      }
+      
+      // Reset state
+      setLastTrackedMinute(0);
     } catch (error) {
       console.error('Failed to end voice conversation:', error)
     }
@@ -183,14 +286,58 @@ const ExpertCallPage = () => {
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
   }
 
+  // Real-time usage tracking function
+  const trackRealTimeUsage = async () => {
+    if (!isAuthenticated || !expert?.id || callDuration === 0) return;
+
+    const currentMinutes = Math.ceil(callDuration / 60);
+    
+    // Only track if we've crossed into a new minute
+    if (currentMinutes > lastTrackedMinute) {
+      const minutesToTrack = currentMinutes - lastTrackedMinute;
+      
+      console.log(`📊 Real-time tracking: ${minutesToTrack} minute(s) (total: ${currentMinutes}, last tracked: ${lastTrackedMinute})`);
+      
+      try {
+        await trackUsage({
+          expert_id: expert.id,
+          event_type: "minutes_used",
+          quantity: minutesToTrack,
+        });
+        
+        setLastTrackedMinute(currentMinutes);
+        
+        // Refresh usage data to get updated limits
+        await refreshUsage();
+        
+        // Check if user is running low on time or out of minutes
+        const remainingUsage = getRemainingUsage();
+        console.log(`📊 After tracking - remaining minutes: ${remainingUsage.minutes}`);
+        
+        // If no minutes remaining, end the call gracefully
+        if (remainingUsage.minutes !== null && remainingUsage.minutes <= 0) {
+          console.log(`🚫 No minutes remaining - ending call gracefully`);
+          await handleEndCall();
+          setShowLimitReachedModal(true);
+        }
+        
+      } catch (error) {
+        console.error("Failed to track real-time usage:", error);
+      }
+    }
+  };
+
   // Cleanup timer on unmount
   useEffect(() => {
     return () => {
       if (timerInterval) {
         clearInterval(timerInterval)
       }
+      if (usageTrackingInterval) {
+        clearInterval(usageTrackingInterval)
+      }
     }
-  }, [timerInterval])
+  }, [timerInterval, usageTrackingInterval])
 
   if (loading) {
     return (
@@ -312,6 +459,21 @@ const ExpertCallPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Usage Status Bar - only show for authenticated users with plan limitations */}
+      {isAuthenticated && currentPlan && !limitStatus.isUnlimited && (
+        <div className="px-4 py-2 bg-gray-50 border-b">
+          <div className="container mx-auto">
+            <UsageStatusBar
+              limitStatus={limitStatus}
+              currentPlan={currentPlan}
+              loading={planLoading}
+              compact={true}
+              expertSlug={slug}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Main Content */}
       <div className="container mx-auto px-4 py-8">
@@ -475,13 +637,18 @@ const ExpertCallPage = () => {
             {!state.isConnected ? (
               <Button
                 onClick={handleStartCall}
-                disabled={state.isConnecting || !expert}
-                className="bg-black hover:bg-gray-800 text-white px-8 py-6 rounded-full text-lg font-medium shadow-lg"
+                disabled={state.isConnecting || !expert || planLoading}
+                className="bg-black hover:bg-gray-800 text-white px-8 py-6 rounded-full text-lg font-medium shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {state.isConnecting ? (
                   <>
                     <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
                     Connecting...
+                  </>
+                ) : planLoading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
+                    Loading usage data...
                   </>
                 ) : (
                   <>
@@ -557,6 +724,16 @@ const ExpertCallPage = () => {
 
         </div>
       </div>
+
+      {/* Limit Reached Modal */}
+      <LimitReachedModal
+        isOpen={showLimitReachedModal}
+        onClose={() => setShowLimitReachedModal(false)}
+        limitStatus={limitStatus}
+        currentPlan={currentPlan}
+        expertSlug={slug}
+        featureType="call"
+      />
     </div>
   )
 }

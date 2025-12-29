@@ -47,6 +47,10 @@ import {
 import FilePreviewModal from "@/components/chat/FilePreviewModal";
 import { RootState } from "@/store/store";
 import { logout, loadUserFromStorage } from "@/store/slices/authSlice";
+import { usePlanLimitations } from "@/hooks/usePlanLimitations";
+import { UsageStatusBar } from "@/components/usage/UsageStatusBar";
+import { LimitReachedModal } from "@/components/usage/LimitReachedModal";
+import { MonthlyWarningModal } from "@/components/usage/MonthlyWarningModal";
 
 interface FileAttachment {
   name: string;
@@ -174,6 +178,48 @@ const ExpertChatPage = () => {
   const [previewFile, setPreviewFile] = useState<FileAttachment | null>(null);
   const [previewFiles, setPreviewFiles] = useState<FileAttachment[]>([]);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [isExpertOwner, setIsExpertOwner] = useState(false);
+  const [usageRefreshTrigger, setUsageRefreshTrigger] = useState(0);  // Add refresh trigger
+  
+  // Monthly warning modal state
+  const [monthlyWarningModal, setMonthlyWarningModal] = useState<{
+    isOpen: boolean;
+    warningMessage: string;
+    currentUsage: number;
+    monthlyThreshold: number;
+    usageType: string;
+    planName: string;
+    subscriptionMonths: number;
+  }>({
+    isOpen: false,
+    warningMessage: "",
+    currentUsage: 0,
+    monthlyThreshold: 0,
+    usageType: "",
+    planName: "",
+    subscriptionMonths: 0,
+  });
+
+  // Limit reached modal state
+  const [showLimitReachedModal, setShowLimitReachedModal] = useState(false);
+
+  // Plan limitations hook
+  const {
+    usage,
+    limitStatus,
+    currentPlan,
+    subscription,
+    loading: planLoading,
+    error: planError,
+    refreshUsage,
+    trackUsage,
+    checkCanSendMessage,
+    checkCanMakeCall,
+    getRemainingUsage,
+  } = usePlanLimitations({
+    expertId: expert?.id || "",
+    enabled: isAuthenticated && !!expert?.id,
+  });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const userMenuTriggerRef = useRef<HTMLButtonElement>(null);
 
@@ -249,6 +295,14 @@ const ExpertChatPage = () => {
               ? convertS3UrlToProxy(data.expert.avatar_url)
               : null,
           });
+          
+          // Check if current user is the expert owner
+          if (user && data.expert && String(data.expert.user_id) === String(user.id)) {
+            setIsExpertOwner(true);
+            console.log("🎯 Expert owner detected:", user.id, "owns expert", data.expert.id);
+          } else {
+            setIsExpertOwner(false);
+          }
           // Set default publication data for styling
           setPublication({
             primary_color: "#3B82F6",
@@ -302,6 +356,14 @@ const ExpertChatPage = () => {
   useEffect(() => {
     if (expert) {
       loadConversations(expert.id);
+      
+      // Check if current user is the expert owner
+      if (user && expert && String(expert.user_id) === String(user.id)) {
+        setIsExpertOwner(true);
+        console.log("🎯 Expert owner detected on auth change:", user.id, "owns expert", expert.id);
+      } else {
+        setIsExpertOwner(false);
+      }
     }
   }, [isAuthenticated, user, expert]);
 
@@ -1002,6 +1064,13 @@ const ExpertChatPage = () => {
     )
       return;
 
+    // Check if user can send messages using plan limitations
+    if (isAuthenticated && !checkCanSendMessage()) {
+      console.log("🚫 Message blocked - showing limit modal");
+      setShowLimitReachedModal(true);
+      return;
+    }
+
     const userMessage: ChatMessage = {
       id: `user-${Date.now()}`,
       type: "user",
@@ -1236,6 +1305,26 @@ const ExpertChatPage = () => {
 
       // NOW save to database AFTER streaming completes (no latency impact)
       console.log("✅ Streaming complete! Now saving to database...");
+
+      // Refresh usage ribbon for expert owners
+      if (isExpertOwner) {
+        setUsageRefreshTrigger(prev => prev + 1);
+        console.log("🔄 Triggering usage ribbon refresh for expert owner");
+      }
+
+      // Track message usage for authenticated users
+      if (isAuthenticated && expert?.id) {
+        try {
+          await trackUsage({
+            expert_id: expert.id,
+            event_type: "message_sent",
+            quantity: 1,
+          });
+          console.log("📊 Message usage tracked successfully");
+        } catch (err) {
+          console.error("❌ Failed to track message usage:", err);
+        }
+      }
 
       // Save conversation and messages to database
       let conversationId = currentConvId;
@@ -2090,6 +2179,21 @@ const ExpertChatPage = () => {
           </div>
         </div>
 
+        {/* Usage Status Bar - only show for authenticated users with plan limitations */}
+        {isAuthenticated && currentPlan && !limitStatus.isUnlimited && (
+          <div className="px-3 sm:px-6 py-2 bg-gray-50 border-b">
+            <div className="max-w-3xl mx-auto">
+              <UsageStatusBar
+                limitStatus={limitStatus}
+                currentPlan={currentPlan}
+                loading={planLoading}
+                compact={true}
+                expertSlug={slug}
+              />
+            </div>
+          </div>
+        )}
+
         {/* Messages */}
         <div className="flex-1 overflow-y-auto p-3 sm:p-6">
           <div className="max-w-3xl mx-auto space-y-4 sm:space-y-6">
@@ -2618,7 +2722,8 @@ const ExpertChatPage = () => {
                     disabled={
                       (!inputText.trim() && uploadedFiles.length === 0) ||
                       isWaitingForResponse ||
-                      streamingMessageId !== null
+                      streamingMessageId !== null ||
+                      planLoading
                     }
                     size="icon"
                     className="rounded-xl h-8 w-8 sm:h-10 sm:w-10 flex-shrink-0 transition-all duration-200 shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
@@ -2626,13 +2731,15 @@ const ExpertChatPage = () => {
                       backgroundColor:
                         (inputText.trim() || uploadedFiles.length > 0) &&
                         !isWaitingForResponse &&
-                        !streamingMessageId
+                        !streamingMessageId &&
+                        !planLoading
                           ? primaryColor
                           : "#E5E7EB",
                       color:
                         (inputText.trim() || uploadedFiles.length > 0) &&
                         !isWaitingForResponse &&
-                        !streamingMessageId
+                        !streamingMessageId &&
+                        !planLoading
                           ? "white"
                           : "#9CA3AF",
                     }}
@@ -2640,7 +2747,8 @@ const ExpertChatPage = () => {
                       if (
                         (inputText.trim() || uploadedFiles.length > 0) &&
                         !isWaitingForResponse &&
-                        !streamingMessageId
+                        !streamingMessageId &&
+                        !planLoading
                       ) {
                         e.currentTarget.style.backgroundColor = secondaryColor;
                         e.currentTarget.style.transform = "scale(1.05)";
@@ -2650,7 +2758,8 @@ const ExpertChatPage = () => {
                       if (
                         (inputText.trim() || uploadedFiles.length > 0) &&
                         !isWaitingForResponse &&
-                        !streamingMessageId
+                        !streamingMessageId &&
+                        !planLoading
                       ) {
                         e.currentTarget.style.backgroundColor = primaryColor;
                         e.currentTarget.style.transform = "scale(1)";
@@ -2690,6 +2799,28 @@ const ExpertChatPage = () => {
           setPreviewFile(null);
           setPreviewFiles([]);
         }}
+      />
+
+      {/* Limit Reached Modal */}
+      <LimitReachedModal
+        isOpen={showLimitReachedModal}
+        onClose={() => setShowLimitReachedModal(false)}
+        limitStatus={limitStatus}
+        currentPlan={currentPlan}
+        expertSlug={slug}
+        featureType="chat"
+      />
+
+      {/* Monthly Warning Modal */}
+      <MonthlyWarningModal
+        isOpen={monthlyWarningModal.isOpen}
+        onClose={() => setMonthlyWarningModal(prev => ({ ...prev, isOpen: false }))}
+        warningMessage={monthlyWarningModal.warningMessage}
+        currentUsage={monthlyWarningModal.currentUsage}
+        monthlyThreshold={monthlyWarningModal.monthlyThreshold}
+        usageType={monthlyWarningModal.usageType}
+        planName={monthlyWarningModal.planName}
+        subscriptionMonths={monthlyWarningModal.subscriptionMonths}
       />
     </div>
   );

@@ -23,13 +23,14 @@ export interface VoiceConversationState {
 
 export interface UseVoiceConversationOptions {
   expertId: string
+  userId?: string  // Add userId for expert owner tracking
   onMessage?: (message: VoiceMessage) => void
   onError?: (error: string) => void
   onStatusChange?: (status: 'connected' | 'connecting' | 'disconnected') => void
 }
 
 export const useVoiceConversation = (options: UseVoiceConversationOptions) => {
-  const { expertId, onMessage, onError, onStatusChange } = options
+  const { expertId, userId, onMessage, onError, onStatusChange } = options
   
   const [state, setState] = useState<VoiceConversationState>({
     isConnected: false,
@@ -51,7 +52,16 @@ export const useVoiceConversation = (options: UseVoiceConversationOptions) => {
   
   const getSignedUrl = useCallback(async (): Promise<string> => {
     try {
-      const response = await fetch(`${API_URL}/conversation/signed-url/${expertId}`)
+      const url = userId 
+        ? `${API_URL}/conversation/signed-url/${expertId}?user_id=${userId}`
+        : `${API_URL}/conversation/signed-url/${expertId}`
+      
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('dilan_ai_token')}`,
+          'Content-Type': 'application/json'
+        }
+      })
       const data = await response.json()
       
       if (!data.success) {
@@ -63,7 +73,7 @@ export const useVoiceConversation = (options: UseVoiceConversationOptions) => {
       const errorMessage = error instanceof Error ? error.message : 'Failed to get signed URL'
       throw new Error(errorMessage)
     }
-  }, [expertId])
+  }, [expertId, userId])
   
   const startConversation = useCallback(async () => {
     if (conversationRef.current || state.isConnecting) {
