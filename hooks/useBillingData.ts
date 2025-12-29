@@ -22,6 +22,7 @@ interface Subscription {
   created_at: string;
   updated_at: string;
   plan_id?: string;
+  invoice_url?: string;
   usage_info?: {
     trial_days_remaining: number;
     messages_used: number;

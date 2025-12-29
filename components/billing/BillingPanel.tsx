@@ -1066,7 +1066,7 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => window.open(subscription.invoice_url, '_blank')}
+                                onClick={() => subscription.invoice_url && window.open(subscription.invoice_url, '_blank')}
                                 className="text-blue-600 hover:text-blue-700 border-blue-200 hover:border-blue-300"
                               >
                                 <ExternalLink className="h-4 w-4 mr-1" />
