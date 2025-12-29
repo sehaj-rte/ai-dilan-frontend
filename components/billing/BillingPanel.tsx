@@ -19,6 +19,8 @@ import {
   MessageCircle,
   Phone,
   BarChart3,
+  Download,
+  ExternalLink,
 } from "lucide-react";
 import { loadStripe } from "@stripe/stripe-js";
 import { API_URL } from "@/lib/config";
@@ -54,6 +56,7 @@ interface Subscription {
   created_at: string;
   updated_at: string;
   plan_id?: string; // Add plan_id to the interface
+  invoice_url?: string; // Add invoice URL field
   usage_info?: {
     trial_days_remaining: number;
     messages_used: number;
@@ -1057,20 +1060,36 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
                         </div>
                         
                         <div className="text-right">
-                          {subscription.cancel_at_period_end ? (
-                            <Badge variant="secondary" className="text-orange-700 bg-orange-100 border-orange-200">
-                              Cancels {formatDate(subscription.current_period_end)}
-                            </Badge>
-                          ) : (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleShowCancelModal(subscription)}
-                              className="text-red-600 hover:text-red-700 border-red-200 hover:border-red-300"
-                            >
-                              Cancel Subscription
-                            </Button>
-                          )}
+                          <div className="flex items-center gap-2 mb-2">
+                            {/* Invoice Download Button */}
+                            {subscription.invoice_url && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => window.open(subscription.invoice_url, '_blank')}
+                                className="text-blue-600 hover:text-blue-700 border-blue-200 hover:border-blue-300"
+                              >
+                                <ExternalLink className="h-4 w-4 mr-1" />
+                                View Invoice
+                              </Button>
+                            )}
+                            
+                            {/* Cancel/Reactivate Button */}
+                            {subscription.cancel_at_period_end ? (
+                              <Badge variant="secondary" className="text-orange-700 bg-orange-100 border-orange-200">
+                                Cancels {formatDate(subscription.current_period_end)}
+                              </Badge>
+                            ) : (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => handleShowCancelModal(subscription)}
+                                className="text-red-600 hover:text-red-700 border-red-200 hover:border-red-300"
+                              >
+                                Cancel Subscription
+                              </Button>
+                            )}
+                          </div>
                         </div>
                       </div>
 

@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from "react"
 import DashboardLayout from "@/components/dashboard/DashboardLayout"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Loader2, History, AlertCircle } from "lucide-react"
+import { Loader2, History, AlertCircle, ExternalLink, Download } from "lucide-react"
 import { useToast, ToastContainer } from "@/components/ui/toast"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
@@ -22,6 +22,7 @@ interface SubscriptionRecord {
   ended_at: string | null
   user_name?: string | null
   user_email?: string | null
+  invoice_url?: string | null  // Add invoice URL field
 }
 
 interface PlanItem {
@@ -211,19 +212,92 @@ export default function SubscriptionHistoryPage() {
     }
   }
 
+  // CSV Download function
+  const downloadCSV = () => {
+    if (subscriptions.length === 0) {
+      error("No subscription data to download")
+      return
+    }
+
+    // Define CSV headers
+    const headers = [
+      'Subscription ID',
+      'Subscriber Name',
+      'Subscriber Email', 
+      'Plan Name',
+      'Amount',
+      'Currency',
+      'Status',
+      'Start Date',
+      'End Date',
+      'Invoice URL'
+    ]
+
+    // Convert subscription data to CSV format
+    const csvData = subscriptions.map(sub => [
+      sub.id,
+      sub.user_name || '',
+      sub.user_email || '',
+      sub.plan_name,
+      sub.amount.toString(),
+      sub.currency,
+      sub.status,
+      sub.started_at ? new Date(sub.started_at).toLocaleDateString() : '',
+      sub.ended_at ? new Date(sub.ended_at).toLocaleDateString() : '',
+      sub.invoice_url || ''
+    ])
+
+    // Combine headers and data
+    const csvContent = [headers, ...csvData]
+      .map(row => row.map(field => `"${field}"`).join(','))
+      .join('\n')
+
+    // Create and download the file
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    
+    if (link.download !== undefined) {
+      const url = URL.createObjectURL(blob)
+      link.setAttribute('href', url)
+      link.setAttribute('download', `subscription-history-${projectId}-${new Date().toISOString().split('T')[0]}.csv`)
+      link.style.visibility = 'hidden'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      
+      success("CSV file downloaded successfully")
+    } else {
+      error("CSV download not supported in this browser")
+    }
+  }
+
   return (
     <DashboardLayout>
       <ToastContainer toasts={toasts} onClose={removeToast} />
 
       <div className="max-w-5xl mx-auto p-6">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center">
-            <History className="w-6 h-6 mr-3 text-blue-600" />
-            Subscription History
-          </h1>
-          <p className="text-gray-600 mt-1">
-            View all subscription records for this expert.
-          </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 flex items-center">
+                <History className="w-6 h-6 mr-3 text-blue-600" />
+                Subscription History
+              </h1>
+              <p className="text-gray-600 mt-1">
+                View all subscription records for this expert.
+              </p>
+            </div>
+            <div>
+              <Button
+                onClick={downloadCSV}
+                disabled={loading || subscriptions.length === 0}
+                className="bg-green-600 hover:bg-green-700 text-white"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Download CSV
+              </Button>
+            </div>
+          </div>
         </div>
 
         {summary && (
@@ -315,6 +389,7 @@ export default function SubscriptionHistoryPage() {
                       <th className="p-3">Status</th>
                       <th className="p-3">Start Date</th>
                       <th className="p-3">End Date</th>
+                      <th className="p-3">Invoice</th>
                       {/* <th className="p-3">Actions</th> */}
                     </tr>
                   </thead>
@@ -347,6 +422,21 @@ export default function SubscriptionHistoryPage() {
                           {sub.ended_at
                             ? new Date(sub.ended_at).toLocaleDateString()
                             : "—"}
+                        </td>
+                        <td className="p-3">
+                          {sub.invoice_url ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => window.open(sub.invoice_url, '_blank')}
+                              className="text-blue-600 hover:text-blue-700 border-blue-200 hover:border-blue-300"
+                            >
+                              <ExternalLink className="h-3 w-3 mr-1" />
+                              View
+                            </Button>
+                          ) : (
+                            <span className="text-gray-400 text-sm">—</span>
+                          )}
                         </td>
                         {/* <td className="p-3 space-x-2">
                           <Button
