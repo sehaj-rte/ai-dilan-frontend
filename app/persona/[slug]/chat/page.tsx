@@ -2179,10 +2179,11 @@ const ExpertChatPage = () => {
           </div>
         </div>
 
-        {/* Usage Status Bar - only show for authenticated users with plan limitations */}
-        {isAuthenticated && currentPlan && !limitStatus.isUnlimited && (
-          <div className="px-3 sm:px-6 py-2 bg-gray-50 border-b">
-            <div className="max-w-3xl mx-auto">
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto p-3 sm:p-6 relative">
+          {/* Usage Status Bar - only show for authenticated users with plan limitations */}
+          {isAuthenticated && currentPlan && !limitStatus.isUnlimited && (
+            <div className="sticky top-0 z-10 bg-gray-50 border border-gray-200 rounded-lg p-3 mb-4 mx-auto max-w-3xl">
               <UsageStatusBar
                 limitStatus={limitStatus}
                 currentPlan={currentPlan}
@@ -2191,12 +2192,10 @@ const ExpertChatPage = () => {
                 expertSlug={slug}
               />
             </div>
-          </div>
-        )}
-
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-3 sm:p-6">
+          )}
+          
           <div className="max-w-3xl mx-auto space-y-4 sm:space-y-6">
+
             {/* Initial greeting when no messages */}
             {messages.length === 0 && !isWaitingForResponse && (
               <div className="flex flex-col items-center justify-center h-full text-center space-y-3">
