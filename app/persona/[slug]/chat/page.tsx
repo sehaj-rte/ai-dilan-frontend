@@ -2664,10 +2664,15 @@ const ExpertChatPage = () => {
 
               {/* Helper text */}
               <div className="mt-2 px-1 flex items-center justify-between text-xs text-gray-400">
-                <span className="hidden sm:inline">
-                  Press Enter to send, Shift+Enter for new line
-                </span>
-                <span className="sm:hidden text-[10px]">Enter to send</span>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2">
+                  <span className="hidden sm:inline">
+                    Press Enter to send, Shift+Enter for new line
+                  </span>
+                  <span className="sm:hidden text-[10px]">Enter to send</span>
+                  <span className="text-[10px] sm:text-xs">
+                    • Best experience with Chrome or Safari
+                  </span>
+                </div>
                 {(isWaitingForResponse || streamingMessageId) && (
                   <span className="flex items-center gap-1 text-gray-500">
                     <div className="h-1.5 w-1.5 rounded-full bg-gray-400 animate-pulse"></div>

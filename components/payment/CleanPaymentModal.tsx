@@ -74,7 +74,12 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
   const [hasExistingCard, setHasExistingCard] = useState<boolean | null>(null);
   const [checkingPaymentMethods, setCheckingPaymentMethods] = useState(true);
   const [activeToken, setActiveToken] = useState(userToken);
-  const [accountForm, setAccountForm] = useState({ email: "", password: "" });
+  const [accountForm, setAccountForm] = useState({ 
+    email: "", 
+    password: "", 
+    full_name: "", 
+    phone_number: "" 
+  });
   const [accountError, setAccountError] = useState<string | null>(null);
   const [currentStep, setCurrentStep] = useState<"plan" | "account">("plan");
   const [isCreatingAccount, setIsCreatingAccount] = useState(false);
@@ -109,7 +114,7 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
   useEffect(() => {
     if (!isOpen) {
       setCurrentStep("plan");
-      setAccountForm({ email: "", password: "" });
+      setAccountForm({ email: "", password: "", full_name: "", phone_number: "" });
       setAccountError(null);
       setIsCreatingAccount(false);
       setIsRedirectingToStripe(false);
@@ -122,7 +127,7 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
   useEffect(() => {
     if (activeToken) {
       setCurrentStep("plan");
-      setAccountForm({ email: "", password: "" });
+      setAccountForm({ email: "", password: "", full_name: "", phone_number: "" });
       setAccountError(null);
     }
   }, [activeToken]);
@@ -344,8 +349,8 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
   const handleAccountSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
 
-    if (!accountForm.email || !accountForm.password) {
-      setAccountError("Please enter both email and password.");
+    if (!accountForm.email || !accountForm.password || !accountForm.full_name) {
+      setAccountError("Please enter email, password, and full name.");
       return;
     }
 
@@ -358,6 +363,7 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
           email: accountForm.email.trim().toLowerCase(),
           password: accountForm.password,
           username: generateUsername(accountForm.email),
+          full_name: accountForm.full_name.trim(),
         }),
       );
 
@@ -368,7 +374,7 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
 
         setActiveToken(payload.access_token);
         setCurrentStep("plan");
-        setAccountForm({ email: "", password: "" });
+        setAccountForm({ email: "", password: "", full_name: "", phone_number: "" });
         setIsCreatingAccount(false); // Reset account creation state before processing
         await processSubscription(payload.access_token);
       } else {
@@ -786,7 +792,7 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
                   className="text-blue-600 hover:underline font-medium text-sm ml-1"
                   onClick={() => {
                     setCurrentStep("plan");
-                    setAccountForm({ email: "", password: "" });
+                    setAccountForm({ email: "", password: "", full_name: "", phone_number: "" });
                     setAccountError(null);
                   }}
                 >
@@ -818,6 +824,39 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
                     }))
                   }
                   required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="account-full-name">Full Name <span className="text-red-500">*</span></Label>
+                <Input
+                  id="account-full-name"
+                  type="text"
+                  placeholder="Your full name"
+                  value={accountForm.full_name}
+                  onChange={(e) =>
+                    setAccountForm((prev) => ({
+                      ...prev,
+                      full_name: e.target.value,
+                    }))
+                  }
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="account-phone">Phone Number (Optional)</Label>
+                <Input
+                  id="account-phone"
+                  type="tel"
+                  placeholder="Your phone number"
+                  value={accountForm.phone_number}
+                  onChange={(e) =>
+                    setAccountForm((prev) => ({
+                      ...prev,
+                      phone_number: e.target.value,
+                    }))
+                  }
                 />
               </div>
 
