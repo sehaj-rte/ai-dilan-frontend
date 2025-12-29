@@ -54,7 +54,7 @@ export const LimitReachedModal: React.FC<LimitReachedModalProps> = ({
   const [upgradeMessage, setUpgradeMessage] = useState<string | null>(null);
   const [upgradeError, setUpgradeError] = useState<string | null>(null);
   
-  const isTrialSubscription = subscription?.status === "trialing";
+  const isTrialSubscription = subscription?.status === "trialing" || subscription?.usage_info?.is_trial;
   const trialUsage = subscription?.usage_info;
 
   // Handle payment confirmation for trial termination (3D Secure)
