@@ -20,6 +20,7 @@ interface Expert {
   description: string
   avatar_url: string
   elevenlabs_agent_id: string
+  user_id: string
 }
 
 interface Publication {
