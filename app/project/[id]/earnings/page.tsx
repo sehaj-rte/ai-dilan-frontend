@@ -428,7 +428,7 @@ export default function SubscriptionHistoryPage() {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => window.open(sub.invoice_url, '_blank')}
+                              onClick={() => sub.invoice_url && window.open(sub.invoice_url, '_blank')}
                               className="text-blue-600 hover:text-blue-700 border-blue-200 hover:border-blue-300"
                             >
                               <ExternalLink className="h-3 w-3 mr-1" />
