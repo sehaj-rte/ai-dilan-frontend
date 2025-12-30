@@ -94,7 +94,7 @@ export const UsageStatusBar: React.FC<UsageStatusBarProps> = ({
               <span className="font-bold text-gray-900">
                 {limitStatus.messagesRemaining === null ? "∞" : limitStatus.messagesRemaining}
               </span>
-              <span className="text-gray-600 font-medium ml-1">left</span>
+              <span className="text-gray-600 font-medium ml-1">messages left</span>
               {/* Show monthly breakdown for multi-month plans */}
               {currentPlan.billing_interval_count && currentPlan.billing_interval_count > 1 && 
                currentPlan.message_limit && limitStatus.messagesRemaining !== null && (
@@ -114,7 +114,7 @@ export const UsageStatusBar: React.FC<UsageStatusBarProps> = ({
               <span className="font-bold text-gray-900">
                 {limitStatus.minutesRemaining === null ? "∞" : `${limitStatus.minutesRemaining} voice`}
               </span>
-              <span className="text-gray-600 font-medium ml-1">left</span>
+              <span className="text-gray-600 font-medium ml-1">minutes left</span>
               {/* Show monthly breakdown for multi-month plans */}
               {currentPlan.billing_interval_count && currentPlan.billing_interval_count > 1 && 
                currentPlan.minute_limit && limitStatus.minutesRemaining !== null && (

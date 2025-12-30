@@ -185,43 +185,46 @@ const ChatPage = () => {
             {expert.is_active ? "Online" : "Offline"}
           </p>
 
-          {/* CTA Buttons */}
-          <div className="flex justify-center gap-3 mb-6">
-            <Button
-              size="lg"
-              className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
-              onClick={handleStartChat}
-            >
-              <MessageCircle className="h-5 w-5 mr-2" />
-              Chat
-            </Button>
-            <Button
-              size="lg"
-              className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
-              onClick={handleStartCall}
-            >
-              <Phone className="h-5 w-5 mr-2" />
-              Call
-            </Button>
-          </div>
-
-          {/* Browser Compatibility Banner */}
-          <div className="mb-12">
-            <div className="inline-flex items-center px-6 py-3 rounded-full bg-orange-50 border border-orange-200 text-orange-800 text-sm font-medium shadow-sm">
-              <svg 
-                className="w-4 h-4 mr-2 text-orange-600" 
-                fill="none" 
-                stroke="currentColor" 
-                viewBox="0 0 24 24"
+          {/* CTA Buttons and Browser Notice - Horizontally Aligned */}
+          <div className="flex flex-col items-center gap-4 mb-6">
+            {/* CTA Buttons */}
+            <div className="flex justify-center gap-3">
+              <Button
+                size="lg"
+                className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+                onClick={handleStartChat}
               >
-                <path 
-                  strokeLinecap="round" 
-                  strokeLinejoin="round" 
-                  strokeWidth={2} 
-                  d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" 
-                />
-              </svg>
-              Best experience with Chrome or Safari
+                <MessageCircle className="h-5 w-5 mr-2" />
+                Chat
+              </Button>
+              <Button
+                size="lg"
+                className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+                onClick={handleStartCall}
+              >
+                <Phone className="h-5 w-5 mr-2" />
+                Call
+              </Button>
+            </div>
+
+            {/* Browser Compatibility Notice - Match button container width */}
+            <div className="flex justify-center gap-3">
+              <div className="inline-flex items-center px-3 py-2 rounded-full bg-orange-50 border border-orange-200 text-orange-700 text-xs font-medium shadow-sm max-w-fit">
+                <svg 
+                  className="w-3 h-3 mr-1 text-orange-600 flex-shrink-0" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round" 
+                    strokeWidth={2} 
+                    d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" 
+                  />
+                </svg>
+                <span className="whitespace-nowrap">Best experience with Chrome or Safari</span>
+              </div>
             </div>
           </div>
 
