@@ -1946,7 +1946,7 @@ const ClientChatPage = () => {
               {grouped.today.length > 0 && (
                 <div>
                   <div className="text-xs font-semibold text-gray-400 mb-2 px-2">
-                    Today
+                    Today's Conversations
                   </div>
                   {grouped.today.map((c) => (
                     <div
@@ -2577,8 +2577,7 @@ const ClientChatPage = () => {
                     Ask me anything!
                   </p>
                   <p className="text-sm text-gray-500">
-                    I'm ready to help with your questions about{" "}
-                    {expert?.name || "this expert"}
+                    I'm ready to help with your questions.
                   </p>
                 </div>
               </div>

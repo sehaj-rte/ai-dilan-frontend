@@ -1642,7 +1642,7 @@ const ExpertChatPage = () => {
               {grouped.today.length > 0 && (
                 <div>
                   <div className="text-xs font-semibold text-gray-400 mb-2 px-2">
-                    Today
+                    Today's Conversations
                   </div>
                   {grouped.today.map((c) => (
                     <div
@@ -2183,7 +2183,7 @@ const ExpertChatPage = () => {
         <div className="flex-1 overflow-y-auto p-3 sm:p-6 relative">
           {/* Usage Status Bar - only show for authenticated users with plan limitations */}
           {isAuthenticated && currentPlan && !limitStatus.isUnlimited && (
-            <div className="sticky top-0 z-10 bg-gray-50 border border-gray-200 rounded-lg p-3 mb-4 mx-auto max-w-3xl">
+            <div className=" top-0 z-10 bg-gray-50 border border-gray-200">
               <UsageStatusBar
                 limitStatus={limitStatus}
                 currentPlan={currentPlan}
@@ -2231,8 +2231,8 @@ const ExpertChatPage = () => {
                     Ask me anything!
                   </p>
                   <p className="text-sm text-gray-500">
-                    I'm ready to help with your questions about{" "}
-                    {expert?.name || "this expert"}
+                    I'm ready to help with your questions.
+                  
                   </p>
                 </div>
               </div>
