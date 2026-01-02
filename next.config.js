@@ -6,6 +6,10 @@ const nextConfig = {
         source: '/src/legal/:path*',
         destination: '/legal/:path*',
       },
+      {
+        source: '/bapi/:path*',
+        destination: 'http://localhost:8000/:path*',
+      },
     ];
   },
   webpack: (config) => {

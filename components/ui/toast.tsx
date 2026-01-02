@@ -112,6 +112,10 @@ export const useToast = () => {
     setToasts(prev => prev.filter(toast => toast.id !== id))
   }
 
+  const showToast = (message: string, type: 'success' | 'error' | 'warning' | 'info' = 'info', title?: string) => {
+    addToast({ type, message, title })
+  }
+
   const success = (message: string, title?: string) => {
     addToast({ type: 'success', message, title })
   }
@@ -128,13 +132,24 @@ export const useToast = () => {
     addToast({ type: 'info', message, title })
   }
 
+  // Component that renders the toasts
+  const ToastContainer = () => (
+    <div className="fixed top-4 right-4 z-50 space-y-2 max-w-sm w-full">
+      {toasts.map((toast) => (
+        <ToastComponent key={toast.id} toast={toast} onClose={removeToast} />
+      ))}
+    </div>
+  )
+
   return {
     toasts,
     addToast,
     removeToast,
+    showToast,
     success,
     error,
     warning,
-    info
+    info,
+    ToastContainer
   }
 }
