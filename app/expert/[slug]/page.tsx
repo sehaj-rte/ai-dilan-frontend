@@ -754,7 +754,7 @@ const ClientExpertPage = () => {
             <p
               className={`text-sm mb-8 ${publication?.banner_url ? "text-gray-600" : "text-gray-500"}`}
             >
-              /{expert.headline}/
+             Ask a question by typing or speaking - answers are evidence-led
             </p>
           )}
 
@@ -765,29 +765,29 @@ const ClientExpertPage = () => {
               <Button
                 size="lg"
                 variant="outline"
-                className="px-8 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 border-2"
+                className="px-7 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 border-2"
                 style={{ borderColor: primaryColor, color: primaryColor }}
                 onClick={handleStartChat}
                 disabled={checkingSubscription}
               >
                 <MessageCircle className="h-5 w-5 mr-2" />
-                Chat
+                Type
               </Button>
               <Button
                 size="lg"
-                className="text-white px-8 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+                className="text-white px-7 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
                 style={{ backgroundColor: primaryColor }}
                 onClick={handleStartCall}
                 disabled={checkingSubscription}
               >
-                <Phone className="h-5 w-5 mr-2" />
-                Call
+                <Phone className="h-5 w-4 mr-2" />
+                Speak
               </Button>
             </div>
 
             {/* Browser Compatibility Notice */}
             <div
-              className="max-w-sm mx-auto border rounded-full px-3.5 py-2 shadow-sm"
+              className="max-w-sm mx-auto border rounded-full px-3 py-2 shadow-sm"
               style={{
                 borderColor: primaryColor + '40',
                 backgroundColor: primaryColor + '10',
