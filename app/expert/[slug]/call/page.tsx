@@ -841,10 +841,6 @@ const ClientCallPage = () => {
                       {formatCallDuration(callDuration)}
                     </span>
                   </div>
-                  <div className="text-sm text-gray-500 font-medium">
-                    {formatCallDurationWithText(callDuration)} • Will bill {Math.ceil(callDuration / 60)} minute{Math.ceil(callDuration / 60) !== 1 ? 's' : ''}
-                  </div>
-                  
                   {/* Low Time Warning */}
                   {showLowTimeWarning && (
                     <div className="mt-2 px-3 py-1 bg-orange-100 border border-orange-300 rounded-full">
