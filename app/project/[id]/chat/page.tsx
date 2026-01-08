@@ -12,6 +12,7 @@ import OptimizedImage from "@/components/ui/OptimizedImage";
 interface Expert {
   id: string;
   name: string;
+  headline: string;
   description: string;
   avatar_url: string | null;
   elevenlabs_agent_id: string;
@@ -249,7 +250,7 @@ const ChatPage = () => {
               </h2>
             </div>
             <div className="text-left text-gray-700 leading-relaxed space-y-4">
-              <p>{expert.description || "No description available."}</p>
+              <p>{expert.headline || "No headline available."}</p>
             </div>
           </div>
         </div>

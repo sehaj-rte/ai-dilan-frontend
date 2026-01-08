@@ -353,16 +353,16 @@ const PublicExpertPage = () => {
             </div>
             <div className="text-left text-gray-700 leading-relaxed space-y-4">
               {(() => {
-                const description = publication?.description || expert?.description || 'No description available.'
+                const headline = expert?.headline || 'No headline available.'
                 const charLimit = 200
-                const shouldTruncate = description.length > charLimit
+                const shouldTruncate = headline.length > charLimit
                 
                 return (
                   <>
                     <p>
                       {shouldTruncate && !showFullDescription
-                        ? `${description.substring(0, charLimit)}...`
-                        : description}
+                        ? `${headline.substring(0, charLimit)}...`
+                        : headline}
                     </p>
                     {shouldTruncate && (
                       <button 

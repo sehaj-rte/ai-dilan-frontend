@@ -819,19 +819,18 @@ const ClientExpertPage = () => {
               className={`text-left leading-relaxed space-y-4 ${publication?.banner_url ? "text-gray-800" : "text-gray-700"}`}
             >
               {(() => {
-                const description =
-                  publication?.description ||
-                  expert?.description ||
-                  "No description available.";
+                const headline =
+                  expert?.headline ||
+                  "No headline available.";
                 const charLimit = 200;
-                const shouldTruncate = description.length > charLimit;
+                const shouldTruncate = headline.length > charLimit;
 
                 return (
                   <>
                     <p>
                       {shouldTruncate && !showFullDescription
-                        ? `${description.substring(0, charLimit)}...`
-                        : description}
+                        ? `${headline.substring(0, charLimit)}...`
+                        : headline}
                     </p>
                     {shouldTruncate && (
                       <button

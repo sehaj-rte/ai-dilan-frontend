@@ -204,7 +204,7 @@ const PublishManagerPage = () => {
     const displayName = expert?.name || publishForm.slug
       .replace(/-/g, " ")
       .replace(/\b\w/g, (l) => l.toUpperCase()) || "Your Expert";
-    const tagline = expert?.headline || "AI Expert Assistant";
+    const tagline = "Ask a question by typing or speaking - answers are evidence-led";
     const avatarUrl = expert?.avatar_url ? convertS3UrlToProxy(expert.avatar_url) : null;
     const bannerUrl = publishForm.banner_url ? convertS3UrlToProxy(publishForm.banner_url) : null;
     const primaryColor = publishForm.primary_color || "#3B82F6";
@@ -235,13 +235,13 @@ const PublishManagerPage = () => {
                 className="px-2 py-1 rounded-full text-xs font-medium border"
                 style={{ borderColor: primaryColor + '60', color: primaryColor }}
               >
-                Chat
+                Type
               </div>
               <div 
                 className="px-2 py-1 rounded-full text-xs font-medium text-white"
                 style={{ backgroundColor: primaryColor }}
               >
-                Call
+                Speak
               </div>
               {bannerUrl && (
                 <div className="w-4 h-4 rounded border border-gray-300 overflow-hidden">
@@ -276,8 +276,8 @@ const PublishManagerPage = () => {
     const displayName = expert?.name || publishForm.slug
       .replace(/-/g, " ")
       .replace(/\b\w/g, (l) => l.toUpperCase()) || "Your Expert";
-    const tagline = expert?.headline || "AI Expert Assistant";
-    const description = expert?.description || "Professional AI assistant ready to help you.";
+    const tagline = "Ask a question by typing or speaking - answers are evidence-led";
+    const headline = expert?.headline || "No headline available.";
     const avatarUrl = expert?.avatar_url ? convertS3UrlToProxy(expert.avatar_url) : null;
     const bannerUrl = publishForm.banner_url ? convertS3UrlToProxy(publishForm.banner_url) : null;
     const primaryColor = publishForm.primary_color || "#3B82F6";
@@ -385,14 +385,14 @@ const PublishManagerPage = () => {
                           style={{ borderColor: primaryColor, color: primaryColor }}
                         >
                           <MessageCircle className="h-4 w-4 mr-2 inline" />
-                          Chat
+                          Type
                         </button>
                         <button
                           className="text-white px-6 py-2.5 rounded-full font-semibold shadow-lg transition-all duration-200 transform hover:scale-105"
                           style={{ backgroundColor: primaryColor }}
                         >
                           <Phone className="h-4 w-4 mr-2 inline" />
-                          Call
+                          Speak
                         </button>
                       </div>
 
@@ -430,9 +430,9 @@ const PublishManagerPage = () => {
                         className={`text-left leading-relaxed ${bannerUrl ? "text-gray-800" : "text-gray-700"}`}
                       >
                         <p className="text-sm">
-                          {description.length > 150 ? `${description.substring(0, 150)}...` : description}
+                          {headline.length > 150 ? `${headline.substring(0, 150)}...` : headline}
                         </p>
-                        {description.length > 150 && (
+                        {headline.length > 150 && (
                           <button
                             className={`text-sm font-medium transition-colors mt-1 ${bannerUrl
                                 ? "text-gray-600 hover:text-gray-900"
@@ -1172,7 +1172,7 @@ const PublishManagerPage = () => {
                 ) : (
                   <>
                     <Globe className="h-4 w-4 mr-2" />
-                    {publication ? "Save Settings" : "Create & Monetise"}
+                    {publication ? "Save Settings" : "Save Settings"}
                   </>
                 )}
               </Button>
