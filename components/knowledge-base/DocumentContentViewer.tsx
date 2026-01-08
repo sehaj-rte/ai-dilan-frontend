@@ -247,7 +247,7 @@ const DocumentContentViewer: React.FC<DocumentContentViewerProps> = ({
           </div>
           
           <div className="flex-1 min-w-0">
-            <h2 className="text-xl font-semibold text-gray-900 truncate">
+            <h2 className="text-xl font-semibold text-gray-900 truncate" title={document.name}>
               {document.name}
             </h2>
             <div className="flex items-center space-x-2 mt-1">

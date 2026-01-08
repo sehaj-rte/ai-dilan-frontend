@@ -1,15 +1,30 @@
 'use client'
 
-import React, { useState, useEffect } from 'react'
-import { usePathname } from 'next/navigation'
+import React, { useState, useEffect, useRef } from 'react'
+import { usePathname, useRouter } from 'next/navigation'
 import Sidebar from './Sidebar'
 import AvatarSettingsModal from './AvatarSettingsModal'
 import { useAppSelector, useAppDispatch } from '@/store/hooks'
-import { loadUserFromStorage, fetchCurrentUser } from '@/store/slices/authSlice'
-import { Menu, X, User, Settings, FileText, Database, Zap, Loader2, Shield } from 'lucide-react'
+import { loadUserFromStorage, fetchCurrentUser, logout } from '@/store/slices/authSlice'
+import { 
+  Menu, 
+  X, 
+  User, 
+  Settings, 
+  FileText, 
+  Database, 
+  Zap, 
+  Loader2, 
+  Shield,
+  ChevronDown,
+  LogOut,
+  CreditCard,
+  HelpCircle
+} from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { API_URL } from '@/lib/config'
 import { fetchWithAuth, getAuthHeaders } from '@/lib/api-client'
+import OptimizedImage from '@/components/ui/OptimizedImage'
 
 interface DashboardLayoutProps {
   children: React.ReactNode
@@ -31,8 +46,9 @@ interface KnowledgeBaseStats {
 }
 
 const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, customHeader, hideDefaultHeader = false }) => {
+  const router = useRouter()
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [avatarSettingsOpen, setAvatarSettingsOpen] = useState(false)
+  const [showProfileModal, setShowProfileModal] = useState(false)
   const [knowledgeBaseStats, setKnowledgeBaseStats] = useState<KnowledgeBaseStats | null>(null)
   const [loadingKBStats, setLoadingKBStats] = useState(false)
   const [projectName, setProjectName] = useState<string>('Dashboard')
@@ -48,6 +64,23 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, customHeade
       dispatch(fetchCurrentUser())
     }
   }, [dispatch])
+
+  const getUserInitials = () => {
+    if (user?.full_name) {
+      const names = user.full_name.split(' ')
+      return names.length > 1 
+        ? `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase()
+        : names[0][0].toUpperCase()
+    }
+    return user?.email?.[0]?.toUpperCase() || 'U'
+  }
+
+  const handleLogout = () => {
+    dispatch(logout())
+    localStorage.removeItem('dilan_ai_token')
+    localStorage.removeItem('dilan_ai_user')
+    router.push('/')
+  }
   
   // Extract projectId from URL if we're in a project context
   const projectId = React.useMemo(() => {
@@ -126,7 +159,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, customHeade
   }, [projectId])
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex h-full bg-gray-50">
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div 
@@ -159,35 +192,35 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, customHeade
                 </button>
                 
                 <div className="flex items-center space-x-3">
-                  {/* Knowledge Base Statistics - Only show for specific expert ID */}
-                  {projectId === '8488be6d-50a3-4b8a-ac7d-f54348b5fd08' && (
+                  {/* Knowledge Base Statistics - Show for all projects with data */}
+                  {knowledgeBaseStats && knowledgeBaseStats.total_vectors > 0 && (
                     <div className="flex items-center gap-3">
                       {/* Word Count Badge */}
                       <div 
                         className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 rounded-lg border border-blue-100 cursor-help hover:bg-blue-100 transition-colors" 
-                        title="Total words in Pinecone: 30,800,000 words"
+                        title={`Total words: ${knowledgeBaseStats.total_word_count.toLocaleString()} words`}
                       >
                         <FileText className="h-4 w-4 text-blue-600" />
-                        <span className="text-blue-700 font-semibold text-sm">30.8M</span>
+                        <span className="text-blue-700 font-semibold text-sm">{knowledgeBaseStats.total_word_count_formatted}</span>
                         <span className="text-blue-600 text-xs font-medium">words</span>
                       </div>
                       
                       {/* Memory Usage Badge */}
                       <div 
                         className="flex items-center gap-2 px-3 py-1.5 bg-purple-50 rounded-lg border border-purple-100 cursor-help hover:bg-purple-100 transition-colors" 
-                        title="Pinecone storage: 3.6 GB"
+                        title={`Storage: ${knowledgeBaseStats.memory_usage_formatted}`}
                       >
                         <Database className="h-4 w-4 text-purple-600" />
-                        <span className="text-purple-700 font-semibold text-sm">3.6 GB</span>
+                        <span className="text-purple-700 font-semibold text-sm">{knowledgeBaseStats.memory_usage_formatted}</span>
                       </div>
                       
                       {/* Vector Count Badge */}
                       <div 
                         className="flex items-center gap-2 px-3 py-1.5 bg-green-50 rounded-lg border border-green-100 cursor-help hover:bg-green-100 transition-colors" 
-                        title="Total vectors: 306,839 chunks"
+                        title={`Total vectors: ${knowledgeBaseStats.total_vectors.toLocaleString()} chunks`}
                       >
                         <Zap className="h-4 w-4 text-green-600" />
-                        <span className="text-green-700 font-semibold text-sm">306,839</span>
+                        <span className="text-green-700 font-semibold text-sm">{knowledgeBaseStats.total_vectors.toLocaleString()}</span>
                         <span className="text-green-600 text-xs font-medium">vectors</span>
                       </div>
                     </div>
@@ -214,21 +247,43 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, customHeade
                   </div>
                 )}
                 
-                {/* Avatar Settings Button */}
-                <Button
-                  onClick={() => setAvatarSettingsOpen(true)}
-                  variant="ghost"
-                  size="sm"
-                  className="flex items-center space-x-2 hover:bg-gray-100"
-                >
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center border border-gray-200">
-                    <User className="h-4 w-4 text-blue-600" />
+                {/* Profile Avatar and Settings */}
+                <div className="flex items-center gap-3">
+                  {/* Avatar */}
+                  <div className="relative">
+                    {user?.avatar_url ? (
+                      <OptimizedImage
+                        src={user.avatar_url}
+                        alt="Profile"
+                        className="w-8 h-8 rounded-full object-cover"
+                        fallbackClassName="w-8 h-8 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center"
+                        fallbackIcon={
+                          <span className="text-blue-600 text-sm font-semibold">
+                            {getUserInitials()}
+                          </span>
+                        }
+                      />
+                    ) : (
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center">
+                        <span className="text-blue-600 text-sm font-semibold">
+                          {getUserInitials()}
+                        </span>
+                      </div>
+                    )}
+                    {/* Online indicator */}
+                    <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-green-400 border-2 border-white rounded-full"></div>
                   </div>
-                  <span className="hidden sm:inline text-sm font-medium text-gray-700">
-                    {user?.full_name || user?.username || 'User'}
-                  </span>
-                  <Settings className="h-4 w-4 text-gray-500" />
-                </Button>
+
+                  {/* Settings Button */}
+                  <Button
+                    onClick={() => setShowProfileModal(true)}
+                    variant="ghost"
+                    size="sm"
+                    className="p-2 hover:bg-gray-100 rounded-lg"
+                  >
+                    <Settings className="h-5 w-5 text-gray-600" />
+                  </Button>
+                </div>
               </div>
             </div>
           </header>
@@ -256,10 +311,10 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, customHeade
         </main>
       </div>
       
-      {/* Avatar Settings Modal */}
+      {/* Profile Settings Modal */}
       <AvatarSettingsModal
-        isOpen={avatarSettingsOpen}
-        onClose={() => setAvatarSettingsOpen(false)}
+        isOpen={showProfileModal}
+        onClose={() => setShowProfileModal(false)}
       />
     </div>
   )

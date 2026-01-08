@@ -3,6 +3,9 @@ import { Inter } from 'next/font/google'
 import './globals.css'
 import { ReduxProvider } from '@/components/providers/ReduxProvider'
 import { LogRocketProvider } from '@/components/providers/LogRocketProvider'
+import { LegalProvider } from '@/contexts/LegalContext'
+import { LegalFooter } from '@/components/legal'
+import { ConditionalFooter } from '@/components/layout'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -21,7 +24,14 @@ export default function RootLayout({
       <body className={inter.className}>
         <LogRocketProvider>
           <ReduxProvider>
-            {children}
+            <LegalProvider>
+              <div className="h-screen flex flex-col">
+                <main className="flex-1 overflow-y-auto" >
+                  {children}
+                </main>
+                <ConditionalFooter className="z-40" />
+              </div>
+            </LegalProvider>
           </ReduxProvider>
         </LogRocketProvider>
       </body>

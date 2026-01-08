@@ -1,0 +1,36 @@
+{
+  "company": {
+    "name": "YOORZ.AI LIMITED - Expert Platform",
+    "address": {
+      "street": "Expert Services Division",
+      "city": "London",
+      "state": "England",
+      "country": "United Kingdom",
+      "postalCode": "SW1A 1AA"
+    },
+    "phone": "+44 20 7946 0958",
+    "email": "experts@yoorz.ai",
+    "website": "https://yoorz.ai/expert"
+  },
+  "legal": {
+    "registrationNumber": "12345678",
+    "taxId": "GB123456789",
+    "jurisdiction": "England and Wales"
+  },
+  "support": {
+    "email": "expert-support@yoorz.ai",
+    "phone": "+44 20 7946 0959",
+    "hours": "24/7 Expert Consultation Support"
+  },
+  "privacy": {
+    "dpo": "dpo@yoorz.ai",
+    "privacyEmail": "privacy@yoorz.ai",
+    "dataRequests": "data-requests@yoorz.ai"
+  },
+  "expert": {
+    "consultationEmail": "consultations@yoorz.ai",
+    "technicalSupport": "expert-tech@yoorz.ai",
+    "billing": "expert-billing@yoorz.ai",
+    "partnerships": "expert-partnerships@yoorz.ai"
+  }
+}

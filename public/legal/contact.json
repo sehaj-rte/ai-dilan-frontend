@@ -1,0 +1,26 @@
+{
+  "placeholder": "Please extract contact details from 'Contact Details for Dubai Legal Docs Dec 2025.docx' and format as JSON",
+  "company": {
+    "name": "",
+    "address": {
+      "street": "",
+      "city": "",
+      "state": "",
+      "country": "",
+      "postalCode": ""
+    },
+    "phone": "",
+    "email": "",
+    "website": ""
+  },
+  "legal": {
+    "registrationNumber": "",
+    "taxId": "",
+    "jurisdiction": ""
+  },
+  "support": {
+    "email": "",
+    "phone": "",
+    "hours": ""
+  }
+}

@@ -1,152 +1,140 @@
-'use client'
+"use client";
 
-import React, { useState, useEffect, useRef } from 'react'
-import { useParams, useRouter } from 'next/navigation'
-import DashboardLayout from '@/components/dashboard/DashboardLayout'
-import { Button } from '@/components/ui/button'
-import { API_URL } from '@/lib/config'
-import { fetchWithAuth, getAuthHeaders } from '@/lib/api-client'
-import { 
-  MessageCircle, 
-  Phone, 
-  User
-} from 'lucide-react'
+import React, { useState, useEffect, useRef } from "react";
+import { useParams, useRouter } from "next/navigation";
+import DashboardLayout from "@/components/dashboard/DashboardLayout";
+import { Button } from "@/components/ui/button";
+import { API_URL } from "@/lib/config";
+import { fetchWithAuth, getAuthHeaders } from "@/lib/api-client";
+import { MessageCircle, Phone, User } from "lucide-react";
+import OptimizedImage from "@/components/ui/OptimizedImage";
 
 interface Expert {
-  id: string
-  name: string
-  description: string
-  avatar_url: string | null
-  elevenlabs_agent_id: string
-  is_active: boolean
-  text_only: boolean
-  created_at: string
+  id: string;
+  name: string;
+  description: string;
+  avatar_url: string | null;
+  elevenlabs_agent_id: string;
+  is_active: boolean;
+  text_only: boolean;
+  created_at: string;
 }
 
 interface Message {
-  id: string
-  content: string
-  isUser: boolean
-  timestamp: Date
-  type?: 'text' | 'voice' | 'transcription'
+  id: string;
+  content: string;
+  isUser: boolean;
+  timestamp: Date;
+  type?: "text" | "voice" | "transcription";
 }
 
 const ChatPage = () => {
-  const params = useParams()
-  const router = useRouter()
-  const expertId = params.id as string
-  
-  const [expert, setExpert] = useState<Expert | null>(null)
-  const [publication, setPublication] = useState<any>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [checkingPublication, setCheckingPublication] = useState(true)
+  const params = useParams();
+  const router = useRouter();
+  const expertId = params.id as string;
+
+  const [expert, setExpert] = useState<Expert | null>(null);
+  const [publication, setPublication] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [checkingPublication, setCheckingPublication] = useState(true);
   useEffect(() => {
     if (expertId) {
-      fetchExpertAndPublication()
+      fetchExpertAndPublication();
     }
-  }, [expertId])
+  }, [expertId]);
 
-  const convertS3UrlToProxy = (s3Url: string): string => {
-    if (!s3Url) return s3Url
-    
-    const match = s3Url.match(/https:\/\/ai-dilan\.s3\.[^/]+\.amazonaws\.com\/(.+)/)
-    if (match) {
-      return `${API_URL}/images/avatar/full/${match[1]}`
-    }
-    return s3Url
-  }
+  const convertS3UrlToProxy = (s3Url: string, thumbnail: boolean = false, size: number = 128): string => {
+    if (!s3Url) return s3Url;
+
+    // Since avatars are now public, return direct S3 URLs for better performance
+    // No need to proxy through the backend anymore
+    return s3Url;
+  };
 
   const fetchExpertAndPublication = async () => {
     try {
-      setIsLoading(true)
-      setCheckingPublication(true)
-      
-      // Fetch expert data
-      const expertResponse = await fetchWithAuth(`${API_URL}/experts/${expertId}`, {
-        headers: getAuthHeaders(),
-      })
-      const expertData = await expertResponse.json()
-      
-      if (!expertData.success || !expertData.expert) {
-        console.error('Failed to fetch expert:', expertData.error)
-        router.push('/projects')
-        return
-      }
+      setIsLoading(true);
+      setCheckingPublication(true);
 
-      const expertWithProxyUrl = {
-        ...expertData.expert,
-        avatar_url: expertData.expert.avatar_url ? convertS3UrlToProxy(expertData.expert.avatar_url) : null
-      }
-      setExpert(expertWithProxyUrl)
-
-      // Check if expert has a publication
-      try {
-        console.log('🔍 Checking publication for expert:', expertId)
-        const pubResponse = await fetchWithAuth(`${API_URL}/publishing/experts/${expertId}/publication`, {
+      // Parallel fetch for better performance
+      const [expertResponse, pubResponse] = await Promise.allSettled([
+        fetchWithAuth(`${API_URL}/experts/${expertId}`, {
+          headers: getAuthHeaders(),
+        }),
+        fetchWithAuth(`${API_URL}/publishing/experts/${expertId}/publication`, {
           headers: getAuthHeaders(),
         })
-        console.log('📡 Publication response status:', pubResponse.status)
+      ]);
+
+      // Handle expert data
+      if (expertResponse.status === 'fulfilled') {
+        const expertData = await expertResponse.value.json();
         
-        const pubData = await pubResponse.json()
-        console.log('📦 Publication data:', pubData)
-        
-        if (pubData.success && pubData.publication) {
-          console.log('✅ Publication found:', pubData.publication)
-          setPublication(pubData.publication)
-        } else {
-          console.log('⚠️ No publication in response:', pubData)
+        if (!expertData.success || !expertData.expert) {
+          console.error("Failed to fetch expert:", expertData.error);
+          router.push("/projects");
+          return;
         }
-      } catch (pubError) {
-        console.error('❌ Publication check error:', pubError)
-        // Not an error - expert just hasn't published yet
+
+        const expertWithProxyUrl = {
+          ...expertData.expert,
+          avatar_url: expertData.expert.avatar_url
+            ? convertS3UrlToProxy(expertData.expert.avatar_url, true, 128)
+            : null,
+        };
+        setExpert(expertWithProxyUrl);
+      } else {
+        console.error("Error fetching expert:", expertResponse.reason);
+        router.push("/projects");
+        return;
       }
-      
+
+      // Handle publication data (optional)
+      if (pubResponse.status === 'fulfilled') {
+        try {
+          const pubData = await pubResponse.value.json();
+          if (pubData.success && pubData.publication) {
+            setPublication(pubData.publication);
+          }
+        } catch (pubError) {
+          console.log("Publication not available or error parsing:", pubError);
+        }
+      }
     } catch (error) {
-      console.error('Error fetching expert:', error)
-      router.push('/projects')
+      console.error("Error fetching expert:", error);
+      router.push("/projects");
     } finally {
-      setIsLoading(false)
-      setCheckingPublication(false)
+      setIsLoading(false);
+      setCheckingPublication(false);
     }
-  }
+  };
 
   const handleStartChat = () => {
-    console.log('🖱️ Chat button clicked')
-    console.log('📋 Current publication state:', publication)
-    
-    // If published, redirect to public slug chat
-    if (publication && publication.slug) {
-      console.log('✅ Redirecting to:', `/expert/${publication.slug}/chat`)
-      router.push(`/expert/${publication.slug}/chat`)
-    } else {
-      console.log('❌ No publication found, redirecting to publish manager')
-      // If not published, show alert and redirect to publish page
-      alert('Please publish your expert first to enable chat functionality.')
-      router.push(`/project/${expertId}/publish-manager`)
-    }
-  }
+    console.log("🖱️ Redirecting to expert chat using ID:", expertId);
+    // Redirect to expert chat using expert ID (no publication required)
+    router.push(`/persona/${expertId}/chat`);
+  };
 
   const handleStartCall = () => {
-    // If published, redirect to public slug call
-    if (publication && publication.slug) {
-      router.push(`/expert/${publication.slug}/call`)
-    } else {
-      // If not published, show alert and redirect to publish page
-      alert('Please publish your expert first to enable call functionality.')
-      router.push(`/project/${expertId}/publish-manager`)
-    }
-  }
+    console.log("📋 Redirecting to expert call using ID:", expertId);
+    // Redirect to expert call using expert ID (no publication required)
+    router.push(`/persona/${expertId}/call`);
+  };
 
-
-  if (isLoading || checkingPublication) {
+  if (isLoading) {
     return (
       <DashboardLayout>
         <div className="flex items-center justify-center h-full">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-          <span className="ml-2 text-gray-600">Loading expert...</span>
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <span className="text-gray-600 text-lg">Loading expert...</span>
+            {checkingPublication && (
+              <p className="text-gray-500 text-sm mt-2">Checking publication status...</p>
+            )}
+          </div>
         </div>
       </DashboardLayout>
-    )
+    );
   }
 
   if (!expert) {
@@ -154,14 +142,16 @@ const ChatPage = () => {
       <DashboardLayout>
         <div className="flex items-center justify-center h-full">
           <div className="text-center">
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">Expert not found</h2>
-            <Button onClick={() => router.push('/projects')}>
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">
+              Expert not found
+            </h2>
+            <Button onClick={() => router.push("/projects")}>
               Back to Projects
             </Button>
           </div>
         </div>
       </DashboardLayout>
-    )
+    );
   }
 
   return (
@@ -169,60 +159,73 @@ const ChatPage = () => {
       <div className="container mx-auto px-4 py-16">
         <div className="max-w-2xl mx-auto text-center">
           {/* Expert Avatar */}
-          <div className="mb-6">
-            {expert.avatar_url ? (
-              <div className="relative">
-                <img
-                  src={expert.avatar_url}
-                  alt={expert.name}
-                  className="w-32 h-32 rounded-full mx-auto object-cover shadow-lg"
-                  onError={(e) => {
-                    e.currentTarget.style.display = 'none'
-                    const fallback = e.currentTarget.parentElement?.querySelector('.avatar-fallback') as HTMLElement
-                    if (fallback) fallback.style.display = 'flex'
-                  }}
-                />
-                <div 
-                  className="avatar-fallback w-32 h-32 rounded-full mx-auto hidden items-center justify-center bg-gray-200 text-gray-600 text-4xl font-bold shadow-lg"
-                >
+          <div className="mb-6 flex justify-center">
+            <OptimizedImage
+              src={expert.avatar_url}
+              alt={expert.name}
+              className="w-32 h-32 rounded-full object-cover shadow-lg"
+              fallbackClassName="w-32 h-32 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 shadow-lg"
+              fallbackIcon={
+                <span className="text-gray-600 text-4xl font-bold">
                   {expert.name.charAt(0)}
-                </div>
-              </div>
-            ) : (
-              <div className="w-32 h-32 rounded-full mx-auto flex items-center justify-center bg-gray-200 text-gray-600 text-4xl font-bold shadow-lg">
-                {expert.name.charAt(0)}
-              </div>
-            )}
+                </span>
+              }
+              priority={true}
+              placeholder="blur"
+            />
           </div>
 
           {/* Expert Name */}
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
             {expert.name}
           </h1>
-          
+
           {/* Status */}
           <p className="text-gray-500 text-sm mb-8">
-            {expert.is_active ? 'Online' : 'Offline'}
+            {expert.is_active ? "Online" : "Offline"}
           </p>
 
-          {/* CTA Buttons */}
-          <div className="flex justify-center gap-3 mb-12">
-            <Button 
-              size="lg" 
-              className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
-              onClick={handleStartChat}
-            >
-              <MessageCircle className="h-5 w-5 mr-2" />
-              Chat
-            </Button>
-            <Button 
-              size="lg" 
-              className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
-              onClick={handleStartCall}
-            >
-              <Phone className="h-5 w-5 mr-2" />
-              Call
-            </Button>
+          {/* CTA Buttons and Browser Notice - Vertically Aligned */}
+          <div className="flex flex-col items-center gap-4 mb-6">
+            {/* CTA Buttons - Fixed width container */}
+            <div className="flex gap-3 w-64">
+              <Button
+                size="lg"
+                className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 flex-1"
+                onClick={handleStartChat}
+              >
+                <MessageCircle className="h-5 w-5 mr-2" />
+                Chat
+              </Button>
+              <Button
+                size="lg"
+                className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 flex-1"
+                onClick={handleStartCall}
+              >
+                <Phone className="h-5 w-5 mr-2" />
+                Call
+              </Button>
+            </div>
+
+            {/* Browser Compatibility Notice - Same fixed width */}
+            <div className="w-64 flex justify-center">
+              <div className="inline-flex items-center px-3 py-2 rounded-full bg-gray-50 border border-gray-200 text-gray-600 text-xs font-medium shadow-sm">
+                <svg 
+                  className="w-3 h-3 mr-1 text-gray-500 flex-shrink-0" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path 
+                    strokeLinecap="round" 
+                    strokeLinejoin="round" 
+                    strokeWidth={2} 
+                    d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" 
+                  />
+                </svg>
+                <span className="whitespace-nowrap">Best experience with Chrome or Safari</span>
+              </div>
+            </div>
           </div>
 
           {/* Publication Status Badge - Only show if not published */}
@@ -230,7 +233,9 @@ const ChatPage = () => {
             <div className="mb-8">
               <div className="inline-flex items-center px-4 py-2 rounded-full bg-yellow-100 text-yellow-800 text-sm">
                 <span className="mr-2">⚠️</span>
-                <span>Not published yet - Click Chat/Call to publish first</span>
+                <span>
+                  Not published yet - Click Chat/Call to publish first
+                </span>
               </div>
             </div>
           )}
@@ -244,16 +249,13 @@ const ChatPage = () => {
               </h2>
             </div>
             <div className="text-left text-gray-700 leading-relaxed space-y-4">
-              <p>
-                {expert.description || 'No description available.'}
-              </p>
+              <p>{expert.description || "No description available."}</p>
             </div>
           </div>
-
         </div>
       </div>
     </DashboardLayout>
-  )
-}
+  );
+};
 
-export default ChatPage
+export default ChatPage;

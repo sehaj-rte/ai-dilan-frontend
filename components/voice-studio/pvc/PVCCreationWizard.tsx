@@ -740,9 +740,9 @@ export default function PVCCreationWizard({ isOpen, onClose, projectId, onSucces
           description: description || undefined,
           expert_id: projectId,
           labels: {
-            "Accent": accents.find(a => a.code === accent)?.name || "American",
-            "Gender": genders.find(g => g.code === gender)?.name || "Male", 
-            "Age": ages.find(a => a.code === age)?.name || "Middle Aged"
+            "accent": accents.find(a => a.code === accent)?.name?.toLowerCase() || "american",
+            "gender": genders.find(g => g.code === gender)?.name?.toLowerCase() || "male", 
+            "age": ages.find(a => a.code === age)?.name?.toLowerCase().replace(/\s+/g, '_') || "middle_aged"
           }
         })
       })

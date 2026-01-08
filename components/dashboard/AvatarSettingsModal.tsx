@@ -21,9 +21,22 @@ import {
   CheckCircle
 } from 'lucide-react'
 
+interface User {
+  id: string
+  email: string
+  username: string
+  full_name?: string
+  phone_number?: string
+  bio?: string
+  avatar_url?: string
+  is_active: boolean
+  role?: string
+}
+
 interface AvatarSettingsModalProps {
   isOpen: boolean
   onClose: () => void
+  userData?: User | null // Add optional user data prop
 }
 
 interface UserProfile {
@@ -31,24 +44,29 @@ interface UserProfile {
   email: string
   username: string
   full_name?: string
+  phone_number?: string
   bio?: string
   avatar_url?: string
   is_active: boolean
 }
 
-const AvatarSettingsModal: React.FC<AvatarSettingsModalProps> = ({ isOpen, onClose }) => {
-  const { user } = useAppSelector((state) => state.auth)
+const AvatarSettingsModal: React.FC<AvatarSettingsModalProps> = ({ isOpen, onClose, userData }) => {
+  const { user: reduxUser } = useAppSelector((state) => state.auth)
   const dispatch = useAppDispatch()
   const fileInputRef = useRef<HTMLInputElement>(null)
   
+  // Use userData prop if provided, otherwise fall back to Redux store
+  const user = userData || reduxUser
+  
   const [profile, setProfile] = useState<UserProfile>({
-    id: user?.id || '',
-    email: user?.email || '',
-    username: user?.username || '',
-    full_name: user?.full_name || '',
+    id: '',
+    email: '',
+    username: '',
+    full_name: '',
+    phone_number: '',
     bio: '',
     avatar_url: '',
-    is_active: user?.is_active || true
+    is_active: true
   })
   
   const [isLoading, setIsLoading] = useState(false)
@@ -60,12 +78,14 @@ const AvatarSettingsModal: React.FC<AvatarSettingsModalProps> = ({ isOpen, onClo
 
   // Update profile state when user data changes (e.g., after loadUserFromStorage)
   React.useEffect(() => {
-    if (user) {
+    if (user && isOpen) {
+      console.log('Loading user data into profile modal:', user)
       setProfile({
         id: user.id,
         email: user.email,
         username: user.username,
         full_name: user.full_name || '',
+        phone_number: user.phone_number || '',
         bio: user.bio || '',
         avatar_url: user.avatar_url || '',
         is_active: user.is_active
@@ -73,16 +93,20 @@ const AvatarSettingsModal: React.FC<AvatarSettingsModalProps> = ({ isOpen, onClo
       
       if (user.avatar_url) {
         setPreviewUrl(convertS3UrlToProxy(user.avatar_url))
+      } else {
+        setPreviewUrl(null)
       }
     }
-  }, [user])
+  }, [user, isOpen]) // Add isOpen to dependencies to refresh when modal opens
 
   // Load user profile when modal opens
   React.useEffect(() => {
-    if (isOpen && user) {
-      fetchUserProfile()
+    if (isOpen) {
+      console.log('Modal opened, fetching current user data')
+      // Always fetch fresh user data when modal opens
+      dispatch(fetchCurrentUser())
     }
-  }, [isOpen, user])
+  }, [isOpen, dispatch])
 
   const fetchUserProfile = async () => {
     try {
@@ -200,7 +224,7 @@ const AvatarSettingsModal: React.FC<AvatarSettingsModalProps> = ({ isOpen, onClo
         },
         body: JSON.stringify({
           full_name: profile.full_name,
-          bio: profile.bio,
+          phone_number: profile.phone_number,
         }),
       })
 
@@ -339,39 +363,24 @@ const AvatarSettingsModal: React.FC<AvatarSettingsModalProps> = ({ isOpen, onClo
               </div>
               
               <div>
-                <Label htmlFor="username" className="text-sm">Username</Label>
-                <Input
-                  id="username"
-                  value={profile.username}
-                  disabled
-                  className="bg-gray-50"
-                />
-                <p className="text-xs text-gray-500 mt-1">Username cannot be changed</p>
-              </div>
-              
-              <div>
-                <Label htmlFor="full_name" className="text-sm">Display Name</Label>
+                <Label htmlFor="full_name" className="text-sm">Full Name</Label>
                 <Input
                   id="full_name"
                   value={profile.full_name || ''}
                   onChange={(e) => setProfile(prev => ({ ...prev, full_name: e.target.value }))}
-                  placeholder="Enter your display name"
+                  placeholder="Enter your full name"
                 />
               </div>
               
               <div>
-                <Label htmlFor="bio" className="text-sm">Bio</Label>
-                <Textarea
-                  id="bio"
-                  value={profile.bio || ''}
-                  onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setProfile(prev => ({ ...prev, bio: e.target.value }))}
-                  placeholder="Tell us about yourself..."
-                  rows={3}
-                  maxLength={500}
+                <Label htmlFor="phone_number" className="text-sm">Phone Number</Label>
+                <Input
+                  id="phone_number"
+                  value={profile.phone_number || ''}
+                  onChange={(e) => setProfile(prev => ({ ...prev, phone_number: e.target.value }))}
+                  placeholder="Enter your phone number"
+                  type="tel"
                 />
-                <p className="text-xs text-gray-500 mt-1">
-                  {(profile.bio || '').length}/500 characters
-                </p>
               </div>
             </div>
           </div>

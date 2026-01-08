@@ -275,7 +275,7 @@ const DocumentSelector: React.FC<DocumentSelectorProps> = ({
                     
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center space-x-2">
-                        <h4 className="font-medium text-gray-900 truncate">{doc.name}</h4>
+                        <h4 className="font-medium text-gray-900 truncate" title={doc.name}>{doc.name}</h4>
                         <span className="px-2 py-1 text-xs bg-gray-100 text-gray-600 rounded">
                           {doc.document_type.toUpperCase()}
                         </span>
