@@ -651,6 +651,8 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
                                   <span className="text-base text-gray-500 font-medium">/month</span>
                                 </div>
                                 <div className="text-xs text-gray-600 font-medium">billed monthly</div>
+                                {/* Empty div to maintain consistent spacing with multi-month plans */}
+                                <div className="h-4"></div>
                               </div>
                             )}
                           </div>

@@ -725,9 +725,9 @@ const ExpertCallPage = () => {
 
           {/* Browser Compatibility Banner */}
           <div className="mb-8">
-            <div className="inline-flex items-center px-6 py-3 rounded-full bg-orange-50 border border-orange-200 text-orange-800 text-sm font-medium shadow-sm">
+            <div className="inline-flex items-center px-6 py-3 rounded-full  border border-200 text-800 text-sm font-medium shadow-sm">
               <svg 
-                className="w-4 h-4 mr-2 text-orange-600" 
+                className="w-4 h-4 mr-2" 
                 fill="none" 
                 stroke="currentColor" 
                 viewBox="0 0 24 24"
