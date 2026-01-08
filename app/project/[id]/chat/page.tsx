@@ -185,13 +185,13 @@ const ChatPage = () => {
             {expert.is_active ? "Online" : "Offline"}
           </p>
 
-          {/* CTA Buttons and Browser Notice - Horizontally Aligned */}
+          {/* CTA Buttons and Browser Notice - Vertically Aligned */}
           <div className="flex flex-col items-center gap-4 mb-6">
-            {/* CTA Buttons */}
-            <div className="flex justify-center gap-3">
+            {/* CTA Buttons - Fixed width container */}
+            <div className="flex gap-3 w-64">
               <Button
                 size="lg"
-                className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+                className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 flex-1"
                 onClick={handleStartChat}
               >
                 <MessageCircle className="h-5 w-5 mr-2" />
@@ -199,7 +199,7 @@ const ChatPage = () => {
               </Button>
               <Button
                 size="lg"
-                className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+                className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 flex-1"
                 onClick={handleStartCall}
               >
                 <Phone className="h-5 w-5 mr-2" />
@@ -207,11 +207,11 @@ const ChatPage = () => {
               </Button>
             </div>
 
-            {/* Browser Compatibility Notice - Match button container width */}
-            <div className="flex justify-center gap-3">
-              <div className="inline-flex items-center px-3 py-2 rounded-full bg-orange-50 border border-orange-200 text-orange-700 text-xs font-medium shadow-sm max-w-fit">
+            {/* Browser Compatibility Notice - Same fixed width */}
+            <div className="w-64 flex justify-center">
+              <div className="inline-flex items-center px-3 py-2 rounded-full bg-gray-50 border border-gray-200 text-gray-600 text-xs font-medium shadow-sm">
                 <svg 
-                  className="w-3 h-3 mr-1 text-orange-600 flex-shrink-0" 
+                  className="w-3 h-3 mr-1 text-gray-500 flex-shrink-0" 
                   fill="none" 
                   stroke="currentColor" 
                   viewBox="0 0 24 24"
