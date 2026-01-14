@@ -1493,6 +1493,29 @@ const ExpertChatPage = () => {
 
         setMessages(loadedMessages);
 
+        // CRITICAL FIX: Restore conversation context to OpenAI session
+        if (sessionId && loadedMessages.length > 0) {
+          console.log("🔄 Restoring conversation context to OpenAI session...");
+          try {
+            await fetch(`${API_URL}/openai-chat/session/restore-context`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                session_id: sessionId,
+                messages: loadedMessages.map(msg => ({
+                  role: msg.type === "user" ? "user" : "assistant",
+                  content: msg.text
+                }))
+              }),
+            });
+            console.log("✅ Conversation context restored");
+          } catch (error) {
+            console.error("❌ Failed to restore conversation context:", error);
+          }
+        }
+
         // Save to sessionStorage for persistence during current session only
         if (expert) {
           sessionStorage.setItem(`last_conversation_${expert.id}`, conv.id);
@@ -2316,24 +2339,62 @@ const ExpertChatPage = () => {
                             {m.text}
                           </p>
                           {m.files && m.files.length > 0 && (
-                            <div className="mt-2 flex flex-wrap gap-2">
+                            <div className="mt-2 space-y-2">
                               {m.files.map((file, idx) => (
-                                <button
-                                  key={idx}
-                                  onClick={() => {
-                                    setPreviewFile(file);
-                                    setPreviewFiles(m.files || []);
-                                    setIsPreviewOpen(true);
-                                  }}
-                                  className="flex items-center gap-2 bg-white bg-opacity-20 rounded-lg px-3 py-2 hover:bg-white hover:bg-opacity-30 transition-colors cursor-pointer"
-                                >
+                                <div key={idx}>
                                   {file.type.startsWith("image/") ? (
-                                    <ImageIcon className="h-4 w-4" />
+                                    // Display images inline like ChatGPT
+                                    <div className="relative group">
+                                      <img
+                                        src={file.url}
+                                        alt={file.name}
+                                        className="max-w-full max-h-64 rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
+                                        onClick={() => {
+                                          setPreviewFile(file);
+                                          setPreviewFiles(m.files || []);
+                                          setIsPreviewOpen(true);
+                                        }}
+                                        onError={(e) => {
+                                          // Fallback to file icon if image fails to load
+                                          const target = e.target as HTMLImageElement;
+                                          target.style.display = 'none';
+                                          const fallback = target.nextElementSibling as HTMLElement;
+                                          if (fallback) fallback.style.display = 'flex';
+                                        }}
+                                      />
+                                      {/* Fallback file button (hidden by default) */}
+                                      <button
+                                        style={{ display: 'none' }}
+                                        onClick={() => {
+                                          setPreviewFile(file);
+                                          setPreviewFiles(m.files || []);
+                                          setIsPreviewOpen(true);
+                                        }}
+                                        className="flex items-center gap-2 bg-white bg-opacity-20 rounded-lg px-3 py-2 hover:bg-white hover:bg-opacity-30 transition-colors cursor-pointer"
+                                      >
+                                        <ImageIcon className="h-4 w-4" />
+                                        <span className="text-xs">{file.name}</span>
+                                      </button>
+                                      {/* Overlay with file name on hover */}
+                                      <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs p-2 rounded-b-lg opacity-0 group-hover:opacity-100 transition-opacity">
+                                        {file.name}
+                                      </div>
+                                    </div>
                                   ) : (
-                                    <FileIcon className="h-4 w-4" />
+                                    // Non-image files as buttons
+                                    <button
+                                      onClick={() => {
+                                        setPreviewFile(file);
+                                        setPreviewFiles(m.files || []);
+                                        setIsPreviewOpen(true);
+                                      }}
+                                      className="flex items-center gap-2 bg-white bg-opacity-20 rounded-lg px-3 py-2 hover:bg-white hover:bg-opacity-30 transition-colors cursor-pointer"
+                                    >
+                                      <FileIcon className="h-4 w-4" />
+                                      <span className="text-xs">{file.name}</span>
+                                    </button>
                                   )}
-                                  <span className="text-xs">{file.name}</span>
-                                </button>
+                                </div>
                               ))}
                             </div>
                           )}
@@ -2548,40 +2609,64 @@ const ExpertChatPage = () => {
                     key={idx}
                     className="group flex items-center gap-2 bg-white rounded-xl px-3 py-2.5 border border-gray-200 shadow-sm hover:shadow-md hover:border-gray-300 transition-all duration-200"
                   >
-                    <button
-                      onClick={() => {
-                        const fileAttachment: FileAttachment = {
-                          name: file.name,
-                          type: file.type,
-                          url: URL.createObjectURL(file),
-                          size: file.size,
-                        };
-                        setPreviewFile(fileAttachment);
-                        setPreviewFiles([fileAttachment]);
-                        setIsPreviewOpen(true);
-                      }}
-                      className="flex items-center gap-2 flex-1 min-w-0 hover:bg-gray-50 rounded-lg p-1 transition-colors"
-                    >
-                      <div
-                        className="p-1.5 rounded-lg"
-                        style={{ backgroundColor: `${primaryColor}15` }}
+                    {file.type.startsWith("image/") ? (
+                      // Show image thumbnail
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <img
+                          src={URL.createObjectURL(file)}
+                          alt={file.name}
+                          className="h-10 w-10 rounded-lg object-cover cursor-pointer hover:opacity-80 transition-opacity"
+                          onClick={() => {
+                            const fileAttachment: FileAttachment = {
+                              name: file.name,
+                              type: file.type,
+                              url: URL.createObjectURL(file),
+                              size: file.size,
+                            };
+                            setPreviewFile(fileAttachment);
+                            setPreviewFiles([fileAttachment]);
+                            setIsPreviewOpen(true);
+                          }}
+                        />
+                        <div className="flex-1 min-w-0">
+                          <span className="text-sm font-medium text-gray-700 block truncate">
+                            {file.name}
+                          </span>
+                          <span className="text-xs text-gray-500">
+                            {(file.size / 1024 / 1024).toFixed(1)} MB
+                          </span>
+                        </div>
+                      </div>
+                    ) : (
+                      // Show file icon for non-images
+                      <button
+                        onClick={() => {
+                          const fileAttachment: FileAttachment = {
+                            name: file.name,
+                            type: file.type,
+                            url: URL.createObjectURL(file),
+                            size: file.size,
+                          };
+                          setPreviewFile(fileAttachment);
+                          setPreviewFiles([fileAttachment]);
+                          setIsPreviewOpen(true);
+                        }}
+                        className="flex items-center gap-2 flex-1 min-w-0 hover:bg-gray-50 rounded-lg p-1 transition-colors"
                       >
-                        {file.type.startsWith("image/") ? (
-                          <ImageIcon
-                            className="h-4 w-4"
-                            style={{ color: primaryColor }}
-                          />
-                        ) : (
+                        <div
+                          className="p-1.5 rounded-lg"
+                          style={{ backgroundColor: `${primaryColor}15` }}
+                        >
                           <FileIcon
                             className="h-4 w-4"
                             style={{ color: primaryColor }}
                           />
-                        )}
-                      </div>
-                      <span className="text-sm font-medium text-gray-700 max-w-[150px] truncate">
-                        {file.name}
-                      </span>
-                    </button>
+                        </div>
+                        <span className="text-sm font-medium text-gray-700 max-w-[150px] truncate">
+                          {file.name}
+                        </span>
+                      </button>
+                    )}
                     <button
                       onClick={() => removeFile(idx)}
                       className="ml-1 p-1 rounded-full hover:bg-gray-100 text-gray-400 hover:text-red-500 transition-colors"
@@ -2656,10 +2741,61 @@ const ExpertChatPage = () => {
                         }
                       }
                     }}
+                    onPaste={async (e) => {
+                      const items = Array.from(e.clipboardData?.items || []);
+                      const imageItems = items.filter(item => item.type.startsWith('image/'));
+                      
+                      if (imageItems.length > 0) {
+                        e.preventDefault();
+                        setIsUploadingFiles(true);
+                        
+                        try {
+                          const files: File[] = [];
+                          for (const item of imageItems) {
+                            const file = item.getAsFile();
+                            if (file) {
+                              files.push(file);
+                            }
+                          }
+                          
+                          if (files.length > 0) {
+                            console.log("📋 Pasting", files.length, "image(s)");
+                            
+                            // Upload to S3
+                            const s3Files = await uploadFilesToS3(files);
+                            console.log("✅ Pasted images uploaded to S3:", s3Files);
+                            
+                            // Add to uploaded files
+                            setUploadedFiles((prev) => [...prev, ...files]);
+                            
+                            // Store S3 URLs
+                            const s3FileData = s3Files.map((f) => ({
+                              name: f.name,
+                              type: f.type,
+                              url: f.url,
+                              s3_key: f.s3_key,
+                              size: f.size,
+                            }));
+                            
+                            const existingS3Files = (window as any).__s3UploadedFiles || [];
+                            (window as any).__s3UploadedFiles = [...existingS3Files, ...s3FileData];
+                            
+                            console.log("✅ Pasted images ready to send");
+                          }
+                        } catch (error) {
+                          console.error("❌ Failed to paste images:", error);
+                          alert("Failed to paste images. Please try again.");
+                        } finally {
+                          setIsUploadingFiles(false);
+                        }
+                      }
+                    }}
                     placeholder={
                       isListening
                         ? "🎤 Listening... speak now"
-                        : "Type your message..."
+                        : isUploadingFiles
+                        ? "Uploading images..."
+                        : "Type your message or paste images..."
                     }
                     className="w-full border-0 bg-transparent focus:outline-none resize-none overflow-y-auto text-sm sm:text-[15px] leading-6 text-gray-900 placeholder:text-gray-400"
                     style={{ height: "24px", maxHeight: "100px" }}
