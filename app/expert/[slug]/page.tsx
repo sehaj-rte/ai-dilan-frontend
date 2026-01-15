@@ -754,7 +754,7 @@ const ClientExpertPage = () => {
             <p
               className={`text-sm mb-8 ${publication?.banner_url ? "text-gray-600" : "text-gray-500"}`}
             >
-             Ask a question by typing or speaking - answers are evidence-led
+             Ask a question by typing or speaking
             </p>
           )}
 
