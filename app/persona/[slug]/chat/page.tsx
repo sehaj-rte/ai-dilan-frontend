@@ -2343,43 +2343,24 @@ const ExpertChatPage = () => {
                               {m.files.map((file, idx) => (
                                 <div key={idx}>
                                   {file.type.startsWith("image/") ? (
-                                    // Display images inline like ChatGPT
-                                    <div className="relative group">
-                                      <img
-                                        src={file.url}
-                                        alt={file.name}
-                                        className="max-w-full max-h-64 rounded-lg cursor-pointer hover:opacity-90 transition-opacity"
-                                        onClick={() => {
-                                          setPreviewFile(file);
-                                          setPreviewFiles(m.files || []);
-                                          setIsPreviewOpen(true);
-                                        }}
-                                        onError={(e) => {
-                                          // Fallback to file icon if image fails to load
-                                          const target = e.target as HTMLImageElement;
-                                          target.style.display = 'none';
-                                          const fallback = target.nextElementSibling as HTMLElement;
-                                          if (fallback) fallback.style.display = 'flex';
-                                        }}
-                                      />
-                                      {/* Fallback file button (hidden by default) */}
-                                      <button
-                                        style={{ display: 'none' }}
-                                        onClick={() => {
-                                          setPreviewFile(file);
-                                          setPreviewFiles(m.files || []);
-                                          setIsPreviewOpen(true);
-                                        }}
-                                        className="flex items-center gap-2 bg-white bg-opacity-20 rounded-lg px-3 py-2 hover:bg-white hover:bg-opacity-30 transition-colors cursor-pointer"
-                                      >
-                                        <ImageIcon className="h-4 w-4" />
-                                        <span className="text-xs">{file.name}</span>
-                                      </button>
-                                      {/* Overlay with file name on hover */}
-                                      <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs p-2 rounded-b-lg opacity-0 group-hover:opacity-100 transition-opacity">
-                                        {file.name}
-                                      </div>
-                                    </div>
+                                    // Display images like ChatGPT - simple and clean
+                                    <img
+                                      src={file.url}
+                                      alt={file.name}
+                                      className="max-w-full max-h-64 rounded-lg cursor-pointer hover:opacity-95 transition-opacity"
+                                      onClick={() => {
+                                        setPreviewFile(file);
+                                        setPreviewFiles(m.files || []);
+                                        setIsPreviewOpen(true);
+                                      }}
+                                      onError={(e) => {
+                                        // Fallback to file icon if image fails to load
+                                        const target = e.target as HTMLImageElement;
+                                        target.style.display = 'none';
+                                        const fallback = target.nextElementSibling as HTMLElement;
+                                        if (fallback) fallback.style.display = 'flex';
+                                      }}
+                                    />
                                   ) : (
                                     // Non-image files as buttons
                                     <button
@@ -2391,6 +2372,21 @@ const ExpertChatPage = () => {
                                       className="flex items-center gap-2 bg-white bg-opacity-20 rounded-lg px-3 py-2 hover:bg-white hover:bg-opacity-30 transition-colors cursor-pointer"
                                     >
                                       <FileIcon className="h-4 w-4" />
+                                      <span className="text-xs">{file.name}</span>
+                                    </button>
+                                  )}
+                                  {/* Fallback file button (hidden by default) */}
+                                  {file.type.startsWith("image/") && (
+                                    <button
+                                      style={{ display: 'none' }}
+                                      onClick={() => {
+                                        setPreviewFile(file);
+                                        setPreviewFiles(m.files || []);
+                                        setIsPreviewOpen(true);
+                                      }}
+                                      className="flex items-center gap-2 bg-white bg-opacity-20 rounded-lg px-3 py-2 hover:bg-white hover:bg-opacity-30 transition-colors cursor-pointer"
+                                    >
+                                      <ImageIcon className="h-4 w-4" />
                                       <span className="text-xs">{file.name}</span>
                                     </button>
                                   )}

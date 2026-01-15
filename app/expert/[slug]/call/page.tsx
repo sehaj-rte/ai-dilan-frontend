@@ -1118,11 +1118,12 @@ const ClientCallPage = () => {
               )}
             </div>
 
-            {/* Browser Compatibility Banner */}
-            <div className="mb-8">
-              <div className="inline-flex items-center px-6 py-3 rounded-full bg-orange-50 border border-orange-200 text-orange-800 text-sm font-medium shadow-sm">
+  
+           {/* Browser Compatibility Notice - Same fixed width */}
+            <div >
+              <div className="inline-flex items-center px-3 py-2 rounded-full bg-gray-50 border border-gray-200 text-gray-600 text-xs font-medium shadow-sm">
                 <svg 
-                  className="w-4 h-4 mr-2 text-orange-600" 
+                  className="w-3 h-3 mr-1 text-gray-500 flex-shrink-0" 
                   fill="none" 
                   stroke="currentColor" 
                   viewBox="0 0 24 24"
@@ -1134,7 +1135,7 @@ const ClientCallPage = () => {
                     d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" 
                   />
                 </svg>
-                Best experience with Chrome or Safari
+                <span className="whitespace-nowrap">Best experience with Chrome or Safari</span>
               </div>
             </div>
           </div>

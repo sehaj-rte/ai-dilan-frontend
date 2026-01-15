@@ -149,7 +149,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, projectId }) => {
               icon: TrendingUp,
             },
             {
-              title: "Earnings",
+              title: "Earnings from Subscriptions",
               href: `/project/${projectId}/earnings`,
               icon: BarChart3,
             },
