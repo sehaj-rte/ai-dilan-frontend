@@ -160,8 +160,8 @@ const PricingSubscriptionManagerPage = () => {
   const [createPlanForm, setCreatePlanForm] = useState({
     name: "",
     price: "",
-    messageLimit: "",
-    minuteLimit: "",
+    messageLimit: "700",
+    minuteLimit: "70",
     billingInterval: "month",
     billingIntervalCount: 1,
     freeTrialEnabled: false,
@@ -196,6 +196,15 @@ const PricingSubscriptionManagerPage = () => {
       result += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     return result;
+  };
+
+  // Helper function to calculate max limits based on billing interval
+  const calculateMaxLimits = (interval: string, count: number) => {
+    const totalMonths = interval === 'year' ? count * 12 : count;
+    return {
+      messages: totalMonths * 700,
+      minutes: totalMonths * 70
+    };
   };
 
   useEffect(() => {
@@ -417,12 +426,19 @@ const PricingSubscriptionManagerPage = () => {
 
     // Validate message limit if provided
     let messageLimit = null;
+    const maxLimits = calculateMaxLimits(createPlanForm.billingInterval, createPlanForm.billingIntervalCount);
+
     if (createPlanForm.messageLimit) {
       messageLimit = parseInt(createPlanForm.messageLimit);
       if (isNaN(messageLimit) || messageLimit <= 0) {
         warning(
           "Please enter a valid message limit or leave empty for unlimited",
         );
+        return;
+      }
+
+      if (messageLimit > maxLimits.messages) {
+        warning(`Message limit cannot exceed ${maxLimits.messages} for this billing period`);
         return;
       }
     }
@@ -435,6 +451,11 @@ const PricingSubscriptionManagerPage = () => {
         warning(
           "Please enter a valid minute limit or leave empty for unlimited",
         );
+        return;
+      }
+
+      if (minuteLimit > maxLimits.minutes) {
+        warning(`Voice minutes cannot exceed ${maxLimits.minutes} for this billing period`);
         return;
       }
     }
@@ -572,8 +593,8 @@ const PricingSubscriptionManagerPage = () => {
         setCreatePlanForm({
           name: "",
           price: "",
-          messageLimit: "",
-          minuteLimit: "",
+          messageLimit: "700",
+          minuteLimit: "70",
           billingInterval: "month",
           billingIntervalCount: 1,
           freeTrialEnabled: false,
@@ -1110,8 +1131,8 @@ const PricingSubscriptionManagerPage = () => {
                         setCreatePlanForm({
                           name: "",
                           price: "",
-                          messageLimit: "",
-                          minuteLimit: "",
+                          messageLimit: "700",
+                          minuteLimit: "70",
                           billingInterval: "month",
                           billingIntervalCount: 1,
                           freeTrialEnabled: false,
@@ -1200,11 +1221,16 @@ const PricingSubscriptionManagerPage = () => {
                       <select
                         value={`${createPlanForm.billingIntervalCount}-${createPlanForm.billingInterval}`}
                         onChange={(e) => {
-                          const [count, interval] = e.target.value.split("-");
+                          const [countStr, interval] = e.target.value.split("-");
+                          const count = parseInt(countStr);
+                          const limits = calculateMaxLimits(interval, count);
+
                           setCreatePlanForm({
                             ...createPlanForm,
-                            billingIntervalCount: parseInt(count),
+                            billingIntervalCount: count,
                             billingInterval: interval,
+                            messageLimit: limits.messages.toString(),
+                            minuteLimit: limits.minutes.toString(),
                           });
                         }}
                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -1230,19 +1256,28 @@ const PricingSubscriptionManagerPage = () => {
                     {/* Message Limit Field */}
                     <div>
                       <Label className="block text-sm font-medium text-gray-700 mb-2">
-                        Message Limit (optional)
+                        Message Limit (max {calculateMaxLimits(createPlanForm.billingInterval, createPlanForm.billingIntervalCount).messages})
                       </Label>
                       <Input
                         type="number"
                         min="1"
                         value={createPlanForm.messageLimit}
-                        onChange={(e) =>
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          const num = parseInt(val);
+                          const max = calculateMaxLimits(createPlanForm.billingInterval, createPlanForm.billingIntervalCount).messages;
+
+                          if (num > max) {
+                            warning(`Message limit cannot exceed ${max} for this billing period`);
+                            return;
+                          }
+
                           setCreatePlanForm({
                             ...createPlanForm,
-                            messageLimit: e.target.value,
-                          })
-                        }
-                        placeholder="e.g., 100 (leave empty for unlimited)"
+                            messageLimit: val,
+                          });
+                        }}
+                        placeholder={`e.g., ${calculateMaxLimits(createPlanForm.billingInterval, createPlanForm.billingIntervalCount).messages}`}
                         className="w-full"
                       />
                       <p className="text-xs text-gray-500 mt-1">
@@ -1254,19 +1289,28 @@ const PricingSubscriptionManagerPage = () => {
                     {/* Minute Limit Field */}
                     <div>
                       <Label className="block text-sm font-medium text-gray-700 mb-2">
-                        Voice Call Minutes (optional)
+                        Voice Call Minutes (max {calculateMaxLimits(createPlanForm.billingInterval, createPlanForm.billingIntervalCount).minutes})
                       </Label>
                       <Input
                         type="number"
                         min="1"
                         value={createPlanForm.minuteLimit}
-                        onChange={(e) =>
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          const num = parseInt(val);
+                          const max = calculateMaxLimits(createPlanForm.billingInterval, createPlanForm.billingIntervalCount).minutes;
+
+                          if (num > max) {
+                            warning(`Voice minutes cannot exceed ${max} for this billing period`);
+                            return;
+                          }
+
                           setCreatePlanForm({
                             ...createPlanForm,
-                            minuteLimit: e.target.value,
-                          })
-                        }
-                        placeholder="e.g., 60 (leave empty for unlimited)"
+                            minuteLimit: val,
+                          });
+                        }}
+                        placeholder={`e.g., ${calculateMaxLimits(createPlanForm.billingInterval, createPlanForm.billingIntervalCount).minutes}`}
                         className="w-full"
                       />
                       <p className="text-xs text-gray-500 mt-1">
@@ -1422,8 +1466,8 @@ const PricingSubscriptionManagerPage = () => {
                             setCreatePlanForm({
                               name: "",
                               price: "",
-                              messageLimit: "",
-                              minuteLimit: "",
+                              messageLimit: "700",
+                              minuteLimit: "70",
                               billingInterval: "month",
                               billingIntervalCount: 1,
                               freeTrialEnabled: false,
