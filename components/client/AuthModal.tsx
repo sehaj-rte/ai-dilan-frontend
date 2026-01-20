@@ -45,7 +45,9 @@ const AuthModal: React.FC<AuthModalProps> = ({
 }) => {
   const handleSubscribeClick = () => {
     onClose()
-    onRequestSubscription()
+    if (onRequestSubscription) {
+      onRequestSubscription()
+    }
   }
 
   const [isLoginMode, setIsLoginMode] = useState(!showSignupInitially)
