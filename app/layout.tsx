@@ -7,6 +7,8 @@ import { LegalProvider } from '@/contexts/LegalContext'
 import { LegalFooter } from '@/components/legal'
 import { ConditionalFooter } from '@/components/layout'
 
+import { ExpertProvider } from '@/context/ExpertContext'
+
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
@@ -25,12 +27,14 @@ export default function RootLayout({
         <LogRocketProvider>
           <ReduxProvider>
             <LegalProvider>
-              <div className="h-screen flex flex-col">
-                <main className="flex-1 overflow-y-auto" >
-                  {children}
-                </main>
-                <ConditionalFooter className="z-40" />
-              </div>
+              <ExpertProvider>
+                <div className="h-screen flex flex-col">
+                  <main className="flex-1 overflow-y-auto" >
+                    {children}
+                  </main>
+                  <ConditionalFooter className="z-40" />
+                </div>
+              </ExpertProvider>
             </LegalProvider>
           </ReduxProvider>
         </LogRocketProvider>
