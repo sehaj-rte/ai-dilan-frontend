@@ -12,6 +12,7 @@ import {
 } from "@/store/slices/authSlice";
 import { API_URL } from "@/lib/config";
 import { fetchWithAuth, getAuthHeaders } from "@/lib/api-client";
+import { useExpert } from "@/context/ExpertContext";
 import {
   Home,
   MessageSquare,
@@ -28,6 +29,9 @@ import {
   Share2,
   TestTube,
   TrendingUp,
+  Eye,
+  CreditCard,
+  FileText,
 } from "lucide-react";
 
 import type { LucideIcon } from "lucide-react";
@@ -68,57 +72,16 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, projectId }) => {
   const router = useRouter();
   const dispatch = useAppDispatch();
   const { user } = useAppSelector((state) => state.auth);
-  const [projectName, setProjectName] = useState<string>("");
-  const [expertOwnerId, setExpertOwnerId] = useState<string | null>(null);
+  const { expert } = useExpert();
 
-  // Debug: Log user data
-  useEffect(() => {
-    console.log("👤 User data in Sidebar:", user);
-  }, [user]);
+  const projectName = expert?.name || "";
+  const expertOwnerId = expert?.user_id || null;
 
-  // Ensure we have the freshest user profile when sidebar mounts
+  // Ensure we have user from storage if needed
   useEffect(() => {
     dispatch(loadUserFromStorage());
-    const token =
-      typeof window !== "undefined"
-        ? localStorage.getItem("dilan_ai_token")
-        : null;
-    if (token) {
-      dispatch(fetchCurrentUser());
-    }
   }, [dispatch]);
 
-  // Fetch project name and owner when projectId is available
-  useEffect(() => {
-    const fetchProjectName = async () => {
-      if (!projectId) {
-        setProjectName("");
-        setExpertOwnerId(null);
-        return;
-      }
-
-      try {
-        const response = await fetchWithAuth(
-          `${API_URL}/experts/${projectId}`,
-          {
-            headers: getAuthHeaders(),
-          },
-        );
-        const data = await response.json();
-
-        if (data.success && data.expert) {
-          setProjectName(data.expert.name || "Project");
-          setExpertOwnerId(data.expert.user_id || null);
-        }
-      } catch (error) {
-        console.error("Error fetching project name:", error);
-        setProjectName("Project");
-        setExpertOwnerId(null);
-      }
-    };
-
-    fetchProjectName();
-  }, [projectId]);
 
   // Create dynamic sidebar items based on context
   const dynamicSidebarItems = React.useMemo(() => {
@@ -178,10 +141,25 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, projectId }) => {
               href: `/project/${projectId}/profile-settings`,
               icon: User,
             },
+          ],
+        },
+        {
+          title: "Publish Manager",
+          items: [
             {
-              title: "Publish Manager",
-              href: `/project/${projectId}/publish`,
-              icon: Share2,
+              title: "AI Persona Preview Manager",
+              href: `/project/${projectId}/expert-preview`,
+              icon: Eye,
+            },
+            {
+              title: "Pricing & Subscription Manager",
+              href: `/project/${projectId}/pricing-subscription`,
+              icon: CreditCard,
+            },
+            {
+              title: "Legal Documents",
+              href: `/project/${projectId}/legal-documents`,
+              icon: FileText,
             },
           ],
         },
@@ -260,62 +238,62 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, projectId }) => {
       <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
         {projectId
           ? // Render hierarchical structure for project pages
-            (dynamicSidebarItems as SidebarSection[]).map((section, sectionIndex) => (
-              <div
-                key={section.title}
-                className={sectionIndex > 0 ? "mt-6" : ""}
-              >
-                <h3 className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                  {section.title}
-                </h3>
-                <div className="mt-1 space-y-1">
-                  {section.items.map((item) => {
-                    const Icon = item.icon;
-                    const isActive = pathname?.startsWith(item.href);
+          (dynamicSidebarItems as SidebarSection[]).map((section, sectionIndex) => (
+            <div
+              key={section.title}
+              className={sectionIndex > 0 ? "mt-6" : ""}
+            >
+              <h3 className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                {section.title}
+              </h3>
+              <div className="mt-1 space-y-1">
+                {section.items.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = pathname?.startsWith(item.href);
 
-                    return (
-                      <Link
-                        key={item.href}
-                        href={item.href}
-                        onClick={handleLinkClick}
-                        className={cn(
-                          "flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors",
-                          isActive
-                            ? "bg-blue-50 text-blue-700 border-r-2 border-blue-700"
-                            : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
-                        )}
-                      >
-                        <Icon className="mr-3 h-5 w-5" />
-                        {item.title}
-                      </Link>
-                    );
-                  })}
-                </div>
-
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={handleLinkClick}
+                      className={cn(
+                        "flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors",
+                        isActive
+                          ? "bg-blue-50 text-blue-700 border-r-2 border-blue-700"
+                          : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
+                      )}
+                    >
+                      <Icon className="mr-3 h-5 w-5" />
+                      {item.title}
+                    </Link>
+                  );
+                })}
               </div>
-            ))
-          : // Render flat structure for non-project pages
-            (dynamicSidebarItems as SidebarItem[]).map((item) => {
-              const Icon = item.icon;
-              const isActive = pathname?.startsWith(item.href);
 
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  onClick={handleLinkClick}
-                  className={cn(
-                    "flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors",
-                    isActive
-                      ? "bg-blue-50 text-blue-700 border-r-2 border-blue-700"
-                      : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
-                  )}
-                >
-                  <Icon className="mr-3 h-5 w-5" />
-                  {item.title}
-                </Link>
-              );
-            })}
+            </div>
+          ))
+          : // Render flat structure for non-project pages
+          (dynamicSidebarItems as SidebarItem[]).map((item) => {
+            const Icon = item.icon;
+            const isActive = pathname?.startsWith(item.href);
+
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={handleLinkClick}
+                className={cn(
+                  "flex items-center px-3 py-2 text-sm font-medium rounded-lg transition-colors",
+                  isActive
+                    ? "bg-blue-50 text-blue-700 border-r-2 border-blue-700"
+                    : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
+                )}
+              >
+                <Icon className="mr-3 h-5 w-5" />
+                {item.title}
+              </Link>
+            );
+          })}
       </nav>
 
       {/* Logout */}

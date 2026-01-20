@@ -23,12 +23,12 @@ interface Plan {
   billingNote: string;
 }
 
-// All plans offer the EXACT same AI Jeff product - only billing differs
+// All plans offer the EXACT same expert product - only billing differs
 const commonFeatures = [
-  'Full access to AI Jeff — your personalised Building Forensics assistant',
-  'Jeff Charlton\'s c.40 years expert mind in your hands',
-  'Unlimited expert-style responses from UK\'s #1 mould expert',
-  'Personalised explanations to mould and fire damage questions',
+  'Full access to AI Expert — your personalised assistant',
+  'Expert mind in your hands',
+  'Unlimited expert-style responses',
+  'Personalised explanations to your questions',
   'Immediate responses: text or call',
   '24/7 availability',
   'Same monthly usage allowance across all plans'
@@ -37,39 +37,39 @@ const commonFeatures = [
 const plans: Plan[] = [
   {
     id: '6month',
-    name: 'AI Jeff — 6-Month Plan',
+    name: '6-Month Plan',
     duration: '6 months',
     monthlyPrice: 20,
     upfrontPrice: 120,
     billingPeriod: 6,
     message_limit: 1000,
     minute_limit: 240,
-    badge: 'Best Value',
+    badge: '6-Month Plan',
     bestValue: true,
     billingNote: 'Pay £120 upfront for 6 months'
   },
   {
     id: '3month',
-    name: 'AI Jeff — 3-Month Plan',
+    name: '3-Month Plan',
     duration: '3 months',
     monthlyPrice: 30,
     upfrontPrice: 90,
     billingPeriod: 3,
     message_limit: 1000,
     minute_limit: 240,
-    badge: 'Most Popular',
+    badge: '3-Month Plan',
     popular: true,
     billingNote: 'Pay £90 upfront for 3 months'
   },
   {
     id: 'monthly',
-    name: 'AI Jeff — Monthly Plan',
+    name: 'Monthly Plan',
     duration: '1 month',
     monthlyPrice: 40,
     billingPeriod: 1,
     message_limit: 1000,
     minute_limit: 240,
-    badge: 'Most Flexible',
+    badge: 'Monthly Plan',
     billingNote: 'Pay monthly, cancel anytime'
   }
 ];
@@ -82,7 +82,7 @@ const PricingPlans: React.FC = () => {
         {/* Header */}
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold text-gray-900 mb-8">
-            AI Jeff Pricing Plans
+            AI Expert Pricing Plans
           </h1>
         </div>
 
@@ -119,24 +119,22 @@ const PricingPlans: React.FC = () => {
             return (
               <div
                 key={plan.id}
-                className={`relative bg-white rounded-2xl shadow-lg flex flex-col h-full ${
-                  plan.popular
-                    ? 'ring-2 ring-blue-600 transform scale-105'
-                    : plan.bestValue
+                className={`relative bg-white rounded-2xl shadow-lg flex flex-col h-full ${plan.popular
+                  ? 'ring-2 ring-blue-600 transform scale-105'
+                  : plan.bestValue
                     ? 'ring-2 ring-green-600 transform scale-105'
                     : 'hover:shadow-xl transition-shadow'
-                }`}
+                  }`}
                 style={{ padding: '32px' }}
               >
                 {/* 1. Badge - Standardized positioning */}
                 <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 h-8 flex items-center justify-center">
-                  <span className={`px-4 py-1 rounded-full text-sm font-medium whitespace-nowrap ${
-                    plan.bestValue 
-                      ? 'bg-green-600 text-white'
-                      : plan.popular
+                  <span className={`px-4 py-1 rounded-full text-sm font-medium whitespace-nowrap ${plan.bestValue
+                    ? 'bg-green-600 text-white'
+                    : plan.popular
                       ? 'bg-blue-600 text-white'
                       : 'bg-gray-600 text-white'
-                  }`}>
+                    }`}>
                     {plan.badge}
                   </span>
                 </div>
@@ -227,11 +225,10 @@ const PricingPlans: React.FC = () => {
                 {/* 10. CTA Button - Always aligned at bottom */}
                 <div className="mt-auto">
                   <button
-                    className={`w-full py-3 px-6 rounded-lg font-medium transition-colors h-12 ${
-                      plan.popular || plan.bestValue
-                        ? 'bg-blue-600 text-white hover:bg-blue-700'
-                        : 'bg-gray-900 text-white hover:bg-gray-800'
-                    }`}
+                    className={`w-full py-3 px-6 rounded-lg font-medium transition-colors h-12 ${plan.popular || plan.bestValue
+                      ? 'bg-blue-600 text-white hover:bg-blue-700'
+                      : 'bg-gray-900 text-white hover:bg-gray-800'
+                      }`}
                   >
                     Choose Plan
                   </button>

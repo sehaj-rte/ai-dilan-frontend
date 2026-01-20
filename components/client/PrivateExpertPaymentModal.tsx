@@ -97,7 +97,7 @@ const PrivateExpertPaymentModal: React.FC<PrivateExpertPaymentModalProps> = ({
         if (data.success && data.plans) {
           // Store expert ID for coupon validation
           setExpertId(data.expert_id);
-          
+
           const transformedPlans = data.plans.map(
             (plan: any, index: number) => ({
               id: plan.id,
@@ -133,14 +133,6 @@ const PrivateExpertPaymentModal: React.FC<PrivateExpertPaymentModalProps> = ({
     fetchPlans();
   }, [isOpen, publication.slug, sessionType]);
 
-  if (loading) {
-    return null;
-  }
-
-  if (error || plans.length === 0) {
-    return null;
-  }
-
   return (
     <CleanPaymentModal
       isOpen={isOpen}
@@ -155,6 +147,7 @@ const PrivateExpertPaymentModal: React.FC<PrivateExpertPaymentModalProps> = ({
           ? localStorage.getItem("dilan_ai_token") || ""
           : ""
       }
+      isLoadingPlans={loading}
     />
   );
 };

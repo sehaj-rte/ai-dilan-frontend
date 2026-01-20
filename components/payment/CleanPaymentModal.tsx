@@ -54,6 +54,7 @@ interface CleanPaymentModalProps {
   expertId?: string;
   onPaymentSuccess: (subscriptionId: string) => void;
   userToken: string;
+  isLoadingPlans?: boolean;
 }
 
 const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
@@ -65,6 +66,7 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
   expertId,
   onPaymentSuccess,
   userToken,
+  isLoadingPlans = false,
 }) => {
   const dispatch = useAppDispatch();
   const [selectedPlan, setSelectedPlan] = useState<Plan | null>(null);
@@ -74,11 +76,11 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
   const [hasExistingCard, setHasExistingCard] = useState<boolean | null>(null);
   const [checkingPaymentMethods, setCheckingPaymentMethods] = useState(true);
   const [activeToken, setActiveToken] = useState(userToken);
-  const [accountForm, setAccountForm] = useState({ 
-    email: "", 
-    password: "", 
-    full_name: "", 
-    phone_number: "" 
+  const [accountForm, setAccountForm] = useState({
+    email: "",
+    password: "",
+    full_name: "",
+    phone_number: ""
   });
   const [accountError, setAccountError] = useState<string | null>(null);
   const [currentStep, setCurrentStep] = useState<"plan" | "account">("plan");
@@ -97,7 +99,11 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
   const [showTrialTerms, setShowTrialTerms] = useState(false);
 
   // Toggle state for showing discounted vs regular pricing
-  const [showDiscountedPricing, setShowDiscountedPricing] = useState<{[key: string]: boolean}>({});
+  const [showDiscountedPricing, setShowDiscountedPricing] = useState<{ [key: string]: boolean }>({});
+
+  // Dynamic pricing content state
+  const [pricingContent, setPricingContent] = useState<any>(null);
+  const [isLoadingPricingContent, setIsLoadingPricingContent] = useState(false);
 
   // Auto-select recommended plan or first plan
   useEffect(() => {
@@ -106,6 +112,41 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
       setSelectedPlan(recommended || plans[0]);
     }
   }, [plans, selectedPlan]);
+
+  // Fetch pricing content when modal opens
+  useEffect(() => {
+    if (isOpen && expertId) {
+      fetchPricingContent();
+    }
+  }, [isOpen, expertId]);
+
+  const fetchPricingContent = async () => {
+    if (!expertId) return;
+
+    try {
+      setIsLoadingPricingContent(true);
+      const headers: Record<string, string> = {};
+      if (activeToken) {
+        headers["Authorization"] = `Bearer ${activeToken}`;
+      }
+
+      const response = await fetch(
+        `${API_URL}/expert-pricing-content/experts/${expertId}`,
+        {
+          headers
+        }
+      );
+      const data = await response.json();
+
+      if (data.success) {
+        setPricingContent(data.content);
+      }
+    } catch (error) {
+      console.error("Error fetching pricing content:", error);
+    } finally {
+      setIsLoadingPricingContent(false);
+    }
+  };
 
   useEffect(() => {
     setActiveToken(userToken);
@@ -463,316 +504,376 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
       >
         <DialogHeader className="mb-0">
           <DialogTitle className="text-3xl font-bold text-center">
-            Subscribe to {expertName}
+            {`Subscribe to ${expertName}`}
           </DialogTitle>
+          {pricingContent?.general?.subscription_page_description && (
+            <p className="text-center text-gray-600 mt-2">
+              {pricingContent.general.subscription_page_description}
+            </p>
+          )}
         </DialogHeader>
 
         {currentStep === "plan" ? (
           <div className="space-y-4 py-3">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-              {plans
-                .sort((a, b) => {
-                  // Sort order: Best Value (6-month) first, then Most Popular (3-month), then Most Flexible (monthly)
-                  const getOrder = (plan: Plan) => {
-                    if (plan.billing_interval_count === 6) return 1; // Best Value first
-                    if (plan.billing_interval_count === 3) return 2; // Most Popular second
-                    return 3; // Most Flexible (monthly) third
-                  };
-                  return getOrder(a) - getOrder(b);
-                })
-                .map((plan) => {
-                // Enhanced plan descriptions based on client requirements
-                const getEnhancedPlanInfo = (planName: string, price: number, billingIntervalCount?: number) => {
-                  const monthlyPrice = billingIntervalCount ? price / billingIntervalCount : price;
-
-                  if (billingIntervalCount === 6) {
-                    return {
-                      title: "AI Jeff 6 Month Plan",
-                      badge: "Best Value",
-                      subtitle: "Perfect for committed users who want the lowest price.",
-                      features: [
-                        "Full access to AI Jeff — your personalised Building Forensics assistant",
-                        "Jeff Charlton's c.40 years expert mind in your hands",
-                        "Unlimited expert-style responses from UK's #1 mould expert",
-                        "Personalised explanations to mould and fire damage questions",
-                        "Immediate responses: text or call",
-                        "24/7 availability",
-                        `${plan.message_limit || 'Unlimited'} text messages per month`,
-                        `${plan.minute_limit || 'Unlimited'} minutes of voice calls per month`
-                      ],
-                      whyChoose: [
-                        "Best long-term value",
-                        "6-month access at the best value monthly rate",
-                        "Ideal for consistent usage and professionals who want ongoing AI support"
-                      ]
+            {isLoadingPricingContent || isLoadingPlans ? (
+              <div className="flex flex-col items-center justify-center py-20 space-y-4">
+                <Loader2 className="h-10 w-10 animate-spin text-blue-600" />
+                <p className="text-gray-500 font-medium italic animate-pulse">
+                  Personalising your plans...
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                {/* Enhanced Plans Display */}
+                {plans
+                  .sort((a, b) => {
+                    // Sort order: Best Value (6-month) first, then Most Popular (3-month), then Most Flexible (monthly)
+                    const getOrder = (p: Plan) => {
+                      if (p.billing_interval_count === 6) return 1;
+                      if (p.billing_interval_count === 3) return 2;
+                      return 3;
                     };
-                  } else if (billingIntervalCount === 3) {
-                    return {
-                      title: "AI Jeff 3 Month Plan",
-                      badge: "Most Popular",
-                      subtitle: "Great for users who want flexibility without paying month-to-month.",
-                      features: [
-                        "Full access to AI Jeff with every feature included",
-                        "Automated analysis of your questions",
-                        "Personalised mould, bacteria and mycotoxin explanations",
-                        "Priority email support if required",
-                        "24/7 access",
-                        `${plan.message_limit || 'Unlimited'} text messages per month`,
-                        `${plan.minute_limit || 'Unlimited'} minutes of voice calls per month`
-                      ],
-                      whyChoose: [
-                        "Lower upfront investment than the 6-month plan",
-                        "A flexible middle option",
-                        "Best for testing AI Jeff over a longer period"
-                      ]
+                    return getOrder(a) - getOrder(b);
+                  })
+                  .map((plan: Plan) => {
+                    const getEnhancedPlanInfo = (p: Plan) => {
+                      const price = p.price;
+                      const billingIntervalCount = p.billing_interval_count || 1;
+
+                      // 1. Find the 1-month plan to use as the base price
+                      const oneMonthPlan = plans.find(plan =>
+                        plan.billing_interval === 'month' &&
+                        (plan.billing_interval_count === 1 || !plan.billing_interval_count)
+                      );
+
+                      const dynamicBaseMonthlyPrice = oneMonthPlan
+                        ? oneMonthPlan.price
+                        : parseFloat(pricingContent?.general?.base_monthly_price || '40');
+
+                      // If we have pricing content, use it
+                      if (pricingContent) {
+                        // 1. Try specific plan content first
+                        let planContent = pricingContent.plan_custom_content?.[p.id];
+
+                        const monthlyPrice = price / billingIntervalCount;
+                        const discountPercentage = (billingIntervalCount > 1 && dynamicBaseMonthlyPrice > 0)
+                          ? Math.max(0, Math.round((1 - (monthlyPrice / dynamicBaseMonthlyPrice)) * 100))
+                          : 0;
+
+                        const features = planContent?.features || [];
+
+                        return {
+                          title: planContent?.title || p.name || "AI Expert Plan",
+                          badge: planContent?.badge || p.name || "",
+                          subtitle: planContent?.subtitle || "Expert AI assistance plan",
+                          features: features,
+                          whyChoose: planContent?.perfect_for || ["Professional use", "Ongoing support"],
+                          discountPercentage: discountPercentage,
+                          baseMonthlyPrice: dynamicBaseMonthlyPrice
+                        };
+                      }
+
+                      // Fallback to hardcoded content if no dynamic content available
+                      const monthlyPrice = price / billingIntervalCount;
+
+                      if (billingIntervalCount === 6) {
+                        return {
+                          title: `${expertName} 6 Month Plan`,
+                          badge: "6 Month Plan",
+                          subtitle: "Perfect for committed users who want the lowest price.",
+                          features: [
+                            `Full access to ${expertName} — your personalised assistant`,
+                            "Expert knowledge in your hands",
+                            "Unlimited expert-style responses",
+                            "Personalised explanations to your questions",
+                            "Immediate responses: text or call",
+                            "24/7 availability",
+                          ],
+                          whyChoose: [
+                            "Best long-term value",
+                            "6-month access at the best value monthly rate",
+                            "Ideal for consistent usage and professionals who want ongoing AI support"
+                          ],
+                          discountPercentage: Math.round((1 - (monthlyPrice / dynamicBaseMonthlyPrice)) * 100),
+                          baseMonthlyPrice: dynamicBaseMonthlyPrice
+                        };
+                      } else if (billingIntervalCount === 3) {
+                        return {
+                          title: `${expertName} 3 Month Plan`,
+                          badge: "3 Month Plan",
+                          subtitle: "Great for users who want flexibility without paying month-to-month.",
+                          features: [
+                            `Full access to ${expertName} with every feature included`,
+                            "Automated analysis of your questions",
+                            "Personalised expert explanations",
+                            "Priority email support if required",
+                            "24/7 access",
+                          ],
+                          whyChoose: [
+                            "Lower upfront investment than the 6-month plan",
+                            "A flexible middle option",
+                            "Best for testing AI over a longer period"
+                          ],
+                          discountPercentage: Math.round((1 - (monthlyPrice / dynamicBaseMonthlyPrice)) * 100),
+                          baseMonthlyPrice: dynamicBaseMonthlyPrice
+                        };
+                      } else {
+                        return {
+                          title: `${expertName} Monthly Plan`,
+                          badge: "Monthly Plan",
+                          subtitle: "Ideal for those who want full flexibility with no long-term commitment.",
+                          features: [
+                            `Immediate access to the full use of ${expertName}`,
+                            "Explanations to your questions in plain English",
+                            "Generate expert-style responses",
+                            "Recommendations based on expert knowledge",
+                            "Cancel anytime",
+                          ],
+                          whyChoose: [
+                            "No commitment",
+                            "Cancel anytime",
+                            "Best for short-term or occasional use"
+                          ],
+                          discountPercentage: 0,
+                          baseMonthlyPrice: dynamicBaseMonthlyPrice
+                        };
+                      }
                     };
-                  } else {
-                    return {
-                      title: "AI Jeff Monthly Plan",
-                      badge: "Most Flexible",
-                      subtitle: "Ideal for those who want full flexibility with no long-term commitment.",
-                      features: [
-                        "Immediate access to the full use of AI Jeff",
-                        "Explanations to your questions on mould & fire damage findings in plain English",
-                        "Generate Building Forensics-style responses",
-                        "Recommendations based on Jeff's own expert knowledge",
-                        "Cancel anytime",
-                        `${plan.message_limit || 'Unlimited'} text messages per month`,
-                        `${plan.minute_limit || 'Unlimited'} minutes of voice calls per month`
-                      ],
-                      whyChoose: [
-                        "No commitment",
-                        "Cancel anytime",
-                        "Best for short-term or occasional use"
-                      ]
-                    };
-                  }
-                };
 
-                const enhancedInfo = getEnhancedPlanInfo(plan.name, plan.price, plan.billing_interval_count);
-                const isRecommended = plan.recommended || enhancedInfo.badge === "Most Popular";
-                const isBestValue = enhancedInfo.badge === "Best Value";
+                    const enhancedInfo = getEnhancedPlanInfo(plan);
+                    const billingIntervalCount = plan.billing_interval_count || 1;
+                    const isRecommended = plan.recommended || enhancedInfo.badge === "Most Popular";
+                    const isBestValue = enhancedInfo.badge === "Best Value";
 
-                return (
-                  <Card
-                    key={plan.id}
-                    className={`cursor-pointer transition-all duration-300 h-full flex flex-col relative ${selectedPlan?.id === plan.id
-                      ? "ring-4 ring-blue-500 ring-offset-2 border-blue-200 shadow-2xl"
-                      : isBestValue
-                        ? "border-2 border-green-200 shadow-lg bg-gradient-to-br from-green-50/30 to-white hover:shadow-2xl hover:border-green-300"
-                        : "border border-gray-200 hover:border-gray-300 hover:shadow-xl"
-                      }`}
-                    onClick={() => setSelectedPlan(plan)}
-                  >
-                    {/* Modern Badge Ribbon */}
-                    {enhancedInfo.badge && (
-                      <div className={`absolute -top-3 left-1/2 transform -translate-x-1/2 z-10 px-3 py-1 rounded-full text-xs font-bold shadow-lg ${enhancedInfo.badge === "Best Value"
-                        ? "bg-gradient-to-r from-green-500 to-green-600 text-white"
-                        : enhancedInfo.badge === "Most Popular"
-                          ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white"
-                          : "bg-gradient-to-r from-orange-500 to-orange-600 text-white"
-                        }`}>
-                        <Star className="w-3 h-3 mr-1 inline" />
-                        {enhancedInfo.badge}
-                      </div>
-                    )}
+                    return (
+                      <Card
+                        key={plan.id}
+                        className={`cursor-pointer transition-all duration-300 h-full flex flex-col relative ${selectedPlan?.id === plan.id
+                          ? "ring-4 ring-blue-500 ring-offset-2 border-blue-200 shadow-2xl"
+                          : isBestValue
+                            ? "border-2 border-green-200 shadow-lg bg-gradient-to-br from-green-50/30 to-white hover:shadow-2xl hover:border-green-300"
+                            : "border border-gray-200 hover:border-gray-300 hover:shadow-xl"
+                          }`}
+                        onClick={() => setSelectedPlan(plan)}
+                      >
+                        {/* Modern Badge Ribbon */}
+                        {enhancedInfo.badge && (
+                          <div className={`absolute -top-3 left-1/2 transform -translate-x-1/2 z-10 px-3 py-1 rounded-full text-xs font-bold shadow-lg ${enhancedInfo.badge === "Best Value"
+                            ? "bg-gradient-to-r from-green-500 to-green-600 text-white"
+                            : enhancedInfo.badge === "Most Popular"
+                              ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white"
+                              : "bg-gradient-to-r from-orange-500 to-orange-600 text-white"
+                            }`}>
+                            <Star className="w-3 h-3 mr-1 inline" />
+                            {enhancedInfo.badge}
+                          </div>
+                        )}
 
-                    <CardHeader className="pb-2 pt-3">
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex-1">
-                          <CardTitle className="text-lg font-bold text-gray-900 mb-2">
-                            {enhancedInfo.title}
-                          </CardTitle>
+                        <CardHeader className="pb-2 pt-3">
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex-1">
+                              <CardTitle className="text-lg font-bold text-gray-900 mb-2">
+                                {enhancedInfo.title}
+                              </CardTitle>
 
-                          {/* Enhanced Pricing Display with Toggle */}
-                          <div className="mb-2">
-                            {(plan.billing_interval_count && plan.billing_interval_count > 1) ? (
-                              <div className="space-y-1">
-                                {/* Toggle Switch for Multi-month Plans */}
-                                <div className="flex items-center justify-between">
-                                  <span className="text-xs text-gray-600">Show discount</span>
-                                  <button
-                                    onClick={() => setShowDiscountedPricing(prev => ({
-                                      ...prev,
-                                      [plan.id]: !prev[plan.id]
-                                    }))}
-                                    className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors ${
-                                      showDiscountedPricing[plan.id] !== false 
-                                        ? 'bg-blue-600' 
-                                        : 'bg-gray-300'
-                                    }`}
-                                  >
-                                    <span
-                                      className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${
-                                        showDiscountedPricing[plan.id] !== false 
-                                          ? 'translate-x-3.5' 
-                                          : 'translate-x-0.5'
-                                      }`}
-                                    />
-                                  </button>
-                                </div>
-                                
-                                {/* Pricing Display */}
-                                <div className="space-y-0.5">
-                                  {showDiscountedPricing[plan.id] !== false ? (
-                                    <>
-                                      {/* All pricing info on one line */}
-                                      <div className="flex items-baseline gap-2">
-                                        <div className="text-3xl font-bold text-gray-900">
-                                          £{(plan.price / plan.billing_interval_count).toFixed(0)}
-                                          <span className="text-base text-gray-500 font-medium">/month</span>
-                                        </div>
-                                        <span className="text-sm text-gray-500 line-through">£40/month</span>
-                                        <span className="text-xs font-bold text-green-600 bg-green-50 px-1.5 py-0.5 rounded">
-                                          Save {Math.round((1 - (plan.price / plan.billing_interval_count) / 40) * 100)}%
-                                        </span>
+                              {/* Enhanced Pricing Display with Toggle */}
+                              <div className="mb-2">
+                                {(plan.billing_interval_count && plan.billing_interval_count > 1) ? (
+                                  <div className="space-y-1">
+                                    {/* Toggle Switch for Multi-month Plans */}
+                                    {enhancedInfo.discountPercentage > 0 && (
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-xs text-gray-600">Show discount</span>
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            setShowDiscountedPricing(prev => ({
+                                              ...prev,
+                                              [plan.id]: !prev[plan.id]
+                                            }));
+                                          }}
+                                          className={`relative inline-flex h-4 w-7 items-center rounded-full transition-colors ${showDiscountedPricing[plan.id] !== false
+                                            ? 'bg-blue-600'
+                                            : 'bg-gray-300'
+                                            }`}
+                                        >
+                                          <span
+                                            className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${showDiscountedPricing[plan.id] !== false
+                                              ? 'translate-x-3.5'
+                                              : 'translate-x-0.5'
+                                              }`}
+                                          />
+                                        </button>
                                       </div>
-                                      <div className="text-xs text-gray-600 font-medium">
-                                        billed £{plan.price} upfront
-                                      </div>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <div className="text-3xl font-bold text-gray-900">
-                                        £40
-                                        <span className="text-base text-gray-500 font-medium">/month</span>
-                                      </div>
-                                      <div className="text-xs text-gray-600 font-medium">
-                                        regular monthly price
-                                      </div>
-                                    </>
-                                  )}
-                                </div>
+                                    )}
+
+                                    {/* Pricing Display */}
+                                    <div className="space-y-0.5">
+                                      {(showDiscountedPricing[plan.id] !== false && enhancedInfo.discountPercentage > 0) ? (
+                                        <>
+                                          {/* All pricing info on one line */}
+                                          <div className="flex items-baseline gap-2">
+                                            <div className="text-3xl font-bold text-gray-900">
+                                              £{(plan.price / (plan.billing_interval_count || 1)).toFixed(0)}
+                                              <span className="text-base text-gray-500 font-medium">/month</span>
+                                            </div>
+                                            <span className="text-sm text-gray-500 line-through">£{enhancedInfo.baseMonthlyPrice}/month</span>
+                                            <span className="text-xs font-bold text-green-600 bg-green-50 px-1.5 py-0.5 rounded">
+                                              Save {enhancedInfo.discountPercentage}%
+                                            </span>
+                                          </div>
+                                          <div className="text-xs text-gray-600 font-medium">
+                                            billed £{plan.price} upfront
+                                          </div>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <div className="text-3xl font-bold text-gray-900">
+                                            £{(plan.price / (plan.billing_interval_count || 1)).toFixed(0)}
+                                            <span className="text-base text-gray-500 font-medium">/month</span>
+                                          </div>
+                                          <div className="text-xs text-gray-600 font-medium">
+                                            {billingIntervalCount > 1 ? `billed £${plan.price} upfront` : 'regular monthly price'}
+                                          </div>
+                                        </>
+                                      )}
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="space-y-0.5">
+                                    <div className="text-3xl font-bold text-gray-900">
+                                      £{plan.price}
+                                      <span className="text-base text-gray-500 font-medium">
+                                        /{plan.billing_interval_count && plan.billing_interval_count > 1
+                                          ? `${plan.billing_interval_count} ${plan.billing_interval}s`
+                                          : plan.billing_interval === "year" ? "year" : "month"}
+                                      </span>
+                                    </div>
+                                    <div className="text-xs text-gray-600 font-medium">
+                                      {plan.billing_interval_count && plan.billing_interval_count > 1
+                                        ? `billed £${plan.price} upfront`
+                                        : "billed monthly"}
+                                    </div>
+                                    {/* Empty div to maintain consistent spacing with multi-month plans */}
+                                    <div className="h-4"></div>
+                                  </div>
+                                )}
                               </div>
-                            ) : (
-                              <div className="space-y-0.5">
-                                <div className="text-3xl font-bold text-gray-900">
-                                  £{plan.price}
-                                  <span className="text-base text-gray-500 font-medium">/month</span>
-                                </div>
-                                <div className="text-xs text-gray-600 font-medium">billed monthly</div>
-                                {/* Empty div to maintain consistent spacing with multi-month plans */}
-                                <div className="h-4"></div>
-                              </div>
+
+                              <p className="text-sm text-gray-600 leading-snug">
+                                {enhancedInfo.subtitle}
+                              </p>
+                            </div>
+
+                            {selectedPlan?.id === plan.id && (
+                              <CheckCircle2 className="w-6 h-6 text-blue-600 flex-shrink-0 mt-1" />
                             )}
                           </div>
-
-                          <p className="text-sm text-gray-600 leading-snug">
-                            {enhancedInfo.subtitle}
-                          </p>
-                        </div>
-
-                        {selectedPlan?.id === plan.id && (
-                          <CheckCircle2 className="w-6 h-6 text-blue-600 flex-shrink-0 mt-1" />
-                        )}
-                      </div>
-                    </CardHeader>
-                    <CardContent className="pt-0 flex-grow flex flex-col px-4 pb-3">
-                      {/* Usage Limits Section - Ultra Compact */}
-                      <div className="mb-1 p-0.5 pl-2 bg-blue-50 rounded border border-blue-100">
-                        <h4 className="font-semibold text-blue-900 mb-0.5 text-xs flex items-center gap-1">
-                          <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
-                          Usage Allowance
-                        </h4>
-                        <div className="flex gap-3 text-xs">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-0.5 mb-0.5">
-                              <MessageCircle className="w-2 h-2 text-gray-500" />
-                              <span className="text-gray-600 text-xs font-medium">Messages</span>
-                            </div>
-                            <div className="text-base font-bold text-gray-900">
-                              {plan.message_limit ? Math.floor(plan.message_limit / (plan.billing_interval_count || 1)) : '∞'}
-                            </div>
-                            <div className="text-xs text-gray-500 font-medium">
-                              per month
-                            </div>
-                            <div className="text-xs font-bold text-green-600 bg-green-50 px-1 py-0.5 rounded mt-0.5">
-                              {plan.message_limit ? `${plan.message_limit} total` : '∞ total'}
-                            </div>
-                          </div>
-                          <div className="flex-1">
-                            <div className="flex items-center gap-0.5 mb-0.5">
-                              <Phone className="w-2 h-2 text-gray-500" />
-                              <span className="text-gray-600 text-xs font-medium">Voice</span>
-                            </div>
-                            <div className="text-base font-bold text-gray-900">
-                              {plan.minute_limit ? Math.floor(plan.minute_limit / (plan.billing_interval_count || 1)) : '∞'}
-                            </div>
-                            <div className="text-xs text-gray-500 font-medium">
-                              minutes/month
-                            </div>
-                            <div className="text-xs font-bold text-green-600 bg-green-50 px-1 py-0.5 rounded mt-0.5">
-                              {plan.minute_limit ? `${plan.minute_limit} total` : '∞ total'}
+                        </CardHeader>
+                        <CardContent className="pt-0 flex-grow flex flex-col px-4 pb-3">
+                          {/* Usage Limits Section - Ultra Compact */}
+                          <div className="mb-1 p-0.5 pl-2 bg-blue-50 rounded border border-blue-100">
+                            <h4 className="font-semibold text-blue-900 mb-0.5 text-xs flex items-center gap-1">
+                              <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
+                              Usage Allowance
+                            </h4>
+                            <div className="flex gap-3 text-xs">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-0.5 mb-0.5">
+                                  <MessageCircle className="w-2 h-2 text-gray-500" />
+                                  <span className="text-gray-600 text-xs font-medium">Messages</span>
+                                </div>
+                                <div className="text-base font-bold text-gray-900">
+                                  {plan.message_limit ? Math.floor(plan.message_limit / (plan.billing_interval_count || 1)) : '∞'}
+                                </div>
+                                <div className="text-xs text-gray-500 font-medium">
+                                  per month
+                                </div>
+                                <div className="text-xs font-bold text-green-600 bg-green-50 px-1 py-0.5 rounded mt-0.5">
+                                  {plan.message_limit ? `${plan.message_limit} total` : '∞ total'}
+                                </div>
+                              </div>
+                              <div className="flex-1">
+                                <div className="flex items-center gap-0.5 mb-0.5">
+                                  <Phone className="w-2 h-2 text-gray-500" />
+                                  <span className="text-gray-600 text-xs font-medium">Voice</span>
+                                </div>
+                                <div className="text-base font-bold text-gray-900">
+                                  {plan.minute_limit ? Math.floor(plan.minute_limit / (plan.billing_interval_count || 1)) : '∞'}
+                                </div>
+                                <div className="text-xs text-gray-500 font-medium">
+                                  minutes/month
+                                </div>
+                                <div className="text-xs font-bold text-green-600 bg-green-50 px-1 py-0.5 rounded mt-0.5">
+                                  {plan.minute_limit ? `${plan.minute_limit} total` : '∞ total'}
+                                </div>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </div>
 
-                      {/* Key Features Section */}
-                      <div className="mb-3">
-                        <h4 className="font-semibold text-gray-900 mb-2 text-sm">What's included:</h4>
-                        <div className="space-y-1.5">
-                          {enhancedInfo.features.slice(0, 3).map((feature, index) => (
-                            <div key={index} className="flex items-start gap-2">
-                              <CheckCircle2 className="w-3.5 h-3.5 text-green-500 flex-shrink-0 mt-0.5" />
-                              <span className="text-gray-700 text-xs leading-snug">{feature}</span>
+                          {/* Key Features Section */}
+                          <div className="mb-3">
+                            <h4 className="font-semibold text-gray-900 mb-2 text-sm">What's included:</h4>
+                            <div className="space-y-1.5">
+                              {enhancedInfo.features.map((feature: string, index: number) => (
+                                <div key={index} className="flex items-start gap-2">
+                                  <CheckCircle2 className="w-3.5 h-3.5 text-green-500 flex-shrink-0 mt-0.5" />
+                                  <span className="text-gray-700 text-xs leading-snug">{feature}</span>
+                                </div>
+                              ))}
                             </div>
-                          ))}
+                          </div>
 
-                        </div>
-                      </div>
-
-                      {/* Why Choose Section */}
-                      <div className="mt-auto pt-2 border-t border-gray-100 mb-2">
-                        <h4 className="font-semibold text-gray-900 mb-1.5 text-xs">Perfect for:</h4>
-                        <div className="space-y-1">
-                          {enhancedInfo.whyChoose.slice(0, 2).map((reason, index) => (
-                            <div key={index} className="flex items-start gap-1.5">
-                              <div className="w-1 h-1 bg-blue-500 rounded-full flex-shrink-0 mt-1.5"></div>
-                              <span className="text-gray-600 text-xs">{reason}</span>
+                          {/* Why Choose Section */}
+                          <div className="mt-auto pt-2 border-t border-gray-100 mb-2">
+                            <h4 className="font-semibold text-gray-900 mb-1.5 text-xs">Perfect for:</h4>
+                            <div className="space-y-1">
+                              {enhancedInfo.whyChoose.map((reason: string, index: number) => (
+                                <div key={index} className="flex items-start gap-1.5">
+                                  <div className="w-1 h-1 bg-blue-500 rounded-full flex-shrink-0 mt-1.5"></div>
+                                  <span className="text-gray-600 text-xs">{reason}</span>
+                                </div>
+                              ))}
                             </div>
-                          ))}
-                        </div>
-                      </div>
+                          </div>
 
-                      {/* Select Plan Button */}
-                      <Button
-                        onClick={async () => {
-                          setSelectedPlan(plan);
+                          {/* Select Plan Button */}
+                          <Button
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              setSelectedPlan(plan);
 
-                          if (!activeToken) {
-                            setAccountError(null);
-                            setCurrentStep("account");
-                            return;
-                          }
+                              if (!activeToken) {
+                                setAccountError(null);
+                                setCurrentStep("account");
+                                return;
+                              }
 
-                          await processSubscription(activeToken);
-                        }}
-                        disabled={isRedirectingToStripe || (isAuthenticated && checkingPaymentMethods)}
-                        className={`w-full py-3 ${selectedPlan?.id === plan.id
-                          ? "bg-blue-600 hover:bg-blue-700 text-white"
-                          : "bg-blue-600 hover:bg-blue-700 text-white"
-                          }`}
-                      >
-                        {isAuthenticated && checkingPaymentMethods ? (
-                          <>
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            Loading...
-                          </>
-                        ) : isAuthenticated && hasExistingCard ? (
-                          <>
-                            <Zap className="h-4 w-4 mr-2" />
-                            Subscribe Now
-                          </>
-                        ) : (
-                          <>Get Started</>
-                        )}
-                      </Button>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
+                              await processSubscription(activeToken);
+                            }}
+                            disabled={isRedirectingToStripe || (isAuthenticated && checkingPaymentMethods)}
+                            className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white"
+                          >
+                            {isAuthenticated && checkingPaymentMethods ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                Loading...
+                              </>
+                            ) : isAuthenticated && hasExistingCard ? (
+                              <>
+                                <Zap className="h-4 w-4 mr-2" />
+                                Subscribe Now
+                              </>
+                            ) : (
+                              <>Get Started</>
+                            )}
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+              </div>
+            )}
 
 
 
@@ -788,7 +889,7 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
           <div className="py-3 max-w-md mx-auto space-y-2 -mt-4">
             <div className="rounded-lg border border-blue-200 bg-blue-50/40 p-3 space-y-1">
               <p className="text-sm text-gray-600">
-                Congratulations, you're subscribing to the <strong>{selectedPlan?.name}</strong> AI Jeff plan. 
+                Congratulations, you're subscribing to the <strong>{selectedPlan?.name}</strong> AI Jeff plan.
                 <button
                   type="button"
                   className="text-blue-600 hover:underline font-medium text-sm ml-1"
@@ -801,7 +902,7 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
                   Or go back and choose a different plan.
                 </button>
               </p>
-             
+
             </div>
 
             <form className="space-y-3" onSubmit={handleAccountSubmit}>

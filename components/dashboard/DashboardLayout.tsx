@@ -4,17 +4,18 @@ import React, { useState, useEffect, useRef } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import Sidebar from './Sidebar'
 import AvatarSettingsModal from './AvatarSettingsModal'
+import { ExpertProvider, useExpert } from '@/context/ExpertContext'
 import { useAppSelector, useAppDispatch } from '@/store/hooks'
 import { loadUserFromStorage, fetchCurrentUser, logout } from '@/store/slices/authSlice'
-import { 
-  Menu, 
-  X, 
-  User, 
-  Settings, 
-  FileText, 
-  Database, 
-  Zap, 
-  Loader2, 
+import {
+  Menu,
+  X,
+  User,
+  Settings,
+  FileText,
+  Database,
+  Zap,
+  Loader2,
   Shield,
   ChevronDown,
   LogOut,
@@ -49,13 +50,12 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, customHeade
   const router = useRouter()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [showProfileModal, setShowProfileModal] = useState(false)
-  const [knowledgeBaseStats, setKnowledgeBaseStats] = useState<KnowledgeBaseStats | null>(null)
+  const { expert, setExpert, kbStats, setKbStats, setIsLoadingExpert } = useExpert()
   const [loadingKBStats, setLoadingKBStats] = useState(false)
-  const [projectName, setProjectName] = useState<string>('Dashboard')
   const { user } = useAppSelector((state) => state.auth)
   const dispatch = useAppDispatch()
   const pathname = usePathname()
-  
+
   // Load user from localStorage, then refresh from API if token exists
   useEffect(() => {
     dispatch(loadUserFromStorage())
@@ -68,7 +68,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, customHeade
   const getUserInitials = () => {
     if (user?.full_name) {
       const names = user.full_name.split(' ')
-      return names.length > 1 
+      return names.length > 1
         ? `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase()
         : names[0][0].toUpperCase()
     }
@@ -81,34 +81,37 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, customHeade
     localStorage.removeItem('dilan_ai_user')
     router.push('/')
   }
-  
+
   // Extract projectId from URL if we're in a project context
   const projectId = React.useMemo(() => {
     const match = pathname?.match(/\/project\/([^\/]+)/)
     return match ? match[1] : undefined
   }, [pathname])
 
-  // Fetch project/expert name
-  const fetchProjectName = async () => {
+  // Fetch project/expert data
+  const fetchExpertData = async () => {
     if (!projectId) {
-      setProjectName('Dashboard')
+      setExpert(null)
       return
     }
-    
+
     try {
+      setIsLoadingExpert(true)
       const response = await fetchWithAuth(`${API_URL}/experts/${projectId}`, {
         headers: getAuthHeaders(),
       })
       const data = await response.json()
-      
+
       if (data.success && data.expert) {
-        setProjectName(data.expert.name || 'Project')
+        setExpert(data.expert)
       } else {
-        setProjectName('Project')
+        setExpert(null)
       }
     } catch (error) {
-      console.error('Error fetching project name:', error)
-      setProjectName('Project')
+      console.error('Error fetching expert data:', error)
+      setExpert(null)
+    } finally {
+      setIsLoadingExpert(false)
     }
   }
 
@@ -116,20 +119,20 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, customHeade
   const fetchKnowledgeBaseStats = async () => {
     try {
       setLoadingKBStats(true)
-      
+
       // Build query parameters
       const params = new URLSearchParams()
       if (projectId) {
         params.append('agent_id', projectId)
       }
-      
+
       const response = await fetchWithAuth(`${API_URL}/knowledge-base/knowledge-base-stats?${params.toString()}`, {
         headers: getAuthHeaders(),
       })
       const data = await response.json()
-      
+
       if (data.success) {
-        setKnowledgeBaseStats({
+        setKbStats({
           total_vectors: data.stats.total_vectors || 0,
           total_word_count: data.stats.total_word_count || 0,
           total_word_count_formatted: data.stats.total_word_count_formatted || '0',
@@ -142,27 +145,32 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, customHeade
           data_source: data.stats.data_source || 'pinecone_only'
         })
       } else {
-        setKnowledgeBaseStats(null)
+        setKbStats(null)
       }
     } catch (error) {
       console.error('Error fetching KB stats:', error)
-      setKnowledgeBaseStats(null)
+      setKbStats(null)
     } finally {
       setLoadingKBStats(false)
     }
   }
 
-  // Fetch project name and stats on mount and when projectId changes
+  // Fetch project and stats on mount and when projectId changes
   useEffect(() => {
-    fetchProjectName()
-    fetchKnowledgeBaseStats()
+    if (projectId) {
+      fetchExpertData()
+      fetchKnowledgeBaseStats()
+    } else {
+      setExpert(null)
+      setKbStats(null)
+    }
   }, [projectId])
 
   return (
     <div className="flex h-full bg-gray-50">
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
-        <div 
+        <div
           className="fixed inset-0 z-40 bg-black bg-opacity-50 lg:hidden"
           onClick={() => setSidebarOpen(false)}
         />
@@ -175,7 +183,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, customHeade
       `}>
         <Sidebar onClose={() => setSidebarOpen(false)} projectId={projectId} />
       </div>
-      
+
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden lg:ml-0">
         {/* Header */}
@@ -190,42 +198,42 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, customHeade
                 >
                   <Menu className="h-6 w-6" />
                 </button>
-                
+
                 <div className="flex items-center space-x-3">
                   {/* Knowledge Base Statistics - Show for all projects with data */}
-                  {knowledgeBaseStats && knowledgeBaseStats.total_vectors > 0 && (
+                  {kbStats && kbStats.total_vectors > 0 && (
                     <div className="flex items-center gap-3">
                       {/* Word Count Badge */}
-                      <div 
-                        className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 rounded-lg border border-blue-100 cursor-help hover:bg-blue-100 transition-colors" 
-                        title={`Total words: ${knowledgeBaseStats.total_word_count.toLocaleString()} words`}
+                      <div
+                        className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 rounded-lg border border-blue-100 cursor-help hover:bg-blue-100 transition-colors"
+                        title={`Total words: ${kbStats.total_word_count.toLocaleString()} words`}
                       >
                         <FileText className="h-4 w-4 text-blue-600" />
-                        <span className="text-blue-700 font-semibold text-sm">{knowledgeBaseStats.total_word_count_formatted}</span>
+                        <span className="text-blue-700 font-semibold text-sm">{kbStats.total_word_count_formatted}</span>
                         <span className="text-blue-600 text-xs font-medium">words</span>
                       </div>
-                      
+
                       {/* Memory Usage Badge */}
-                      <div 
-                        className="flex items-center gap-2 px-3 py-1.5 bg-purple-50 rounded-lg border border-purple-100 cursor-help hover:bg-purple-100 transition-colors" 
-                        title={`Storage: ${knowledgeBaseStats.memory_usage_formatted}`}
+                      <div
+                        className="flex items-center gap-2 px-3 py-1.5 bg-purple-50 rounded-lg border border-purple-100 cursor-help hover:bg-purple-100 transition-colors"
+                        title={`Storage: ${kbStats.memory_usage_formatted}`}
                       >
                         <Database className="h-4 w-4 text-purple-600" />
-                        <span className="text-purple-700 font-semibold text-sm">{knowledgeBaseStats.memory_usage_formatted}</span>
+                        <span className="text-purple-700 font-semibold text-sm">{kbStats.memory_usage_formatted}</span>
                       </div>
-                      
+
                       {/* Vector Count Badge */}
-                      <div 
-                        className="flex items-center gap-2 px-3 py-1.5 bg-green-50 rounded-lg border border-green-100 cursor-help hover:bg-green-100 transition-colors" 
-                        title={`Total vectors: ${knowledgeBaseStats.total_vectors.toLocaleString()} chunks`}
+                      <div
+                        className="flex items-center gap-2 px-3 py-1.5 bg-green-50 rounded-lg border border-green-100 cursor-help hover:bg-green-100 transition-colors"
+                        title={`Total vectors: ${kbStats.total_vectors.toLocaleString()} chunks`}
                       >
                         <Zap className="h-4 w-4 text-green-600" />
-                        <span className="text-green-700 font-semibold text-sm">{knowledgeBaseStats.total_vectors.toLocaleString()}</span>
+                        <span className="text-green-700 font-semibold text-sm">{kbStats.total_vectors.toLocaleString()}</span>
                         <span className="text-green-600 text-xs font-medium">vectors</span>
                       </div>
                     </div>
                   )}
-                  
+
                   {/* Loading indicator for KB stats */}
                   {loadingKBStats && (
                     <div className="hidden md:flex items-center space-x-2 text-sm text-gray-500">
@@ -246,7 +254,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, customHeade
                     </span>
                   </div>
                 )}
-                
+
                 {/* Profile Avatar and Settings */}
                 <div className="flex items-center gap-3">
                   {/* Avatar */}
@@ -259,14 +267,14 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, customHeade
                         fallbackClassName="w-8 h-8 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center"
                         fallbackIcon={
                           <span className="text-blue-600 text-sm font-semibold">
-                            {getUserInitials()}
+                            {(expert?.name?.charAt(0) || "P").toUpperCase()}
                           </span>
                         }
                       />
                     ) : (
                       <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center">
                         <span className="text-blue-600 text-sm font-semibold">
-                          {getUserInitials()}
+                          {(expert?.name?.charAt(0) || "P").toUpperCase()}
                         </span>
                       </div>
                     )}
@@ -288,7 +296,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, customHeade
             </div>
           </header>
         )}
-        
+
         {/* Custom Header */}
         {customHeader && (
           <header className="bg-white border-b border-gray-200 px-4 sm:px-6 py-6">
@@ -304,13 +312,13 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, customHeade
             </div>
           </header>
         )}
-        
+
         {/* Page Content */}
         <main className="flex-1 overflow-y-auto p-4 sm:p-6">
           {children}
         </main>
       </div>
-      
+
       {/* Profile Settings Modal */}
       <AvatarSettingsModal
         isOpen={showProfileModal}

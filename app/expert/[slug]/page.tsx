@@ -65,6 +65,7 @@ interface Publication {
   display_name: string;
   tagline: string;
   description: string;
+  cta_text: string | null;
   is_private: boolean;
   category: string;
   specialty: string;
@@ -754,7 +755,7 @@ const ClientExpertPage = () => {
             <p
               className={`text-sm mb-8 ${publication?.banner_url ? "text-gray-600" : "text-gray-500"}`}
             >
-             Ask a question by typing or speaking
+              {publication?.cta_text || "Ask a question by typing or speaking"}
             </p>
           )}
 

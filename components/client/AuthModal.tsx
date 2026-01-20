@@ -6,11 +6,11 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Separator } from '@/components/ui/separator'
-import { 
-  Loader2, 
-  AlertCircle, 
-  Mail, 
-  Lock, 
+import {
+  Loader2,
+  AlertCircle,
+  Mail,
+  Lock,
   User,
   MessageCircle,
   Phone,
@@ -44,12 +44,8 @@ const AuthModal: React.FC<AuthModalProps> = ({
   canSubscribe = false
 }) => {
   const handleSubscribeClick = () => {
-    if (!onRequestSubscription) return
     onClose()
-    // Slight delay to allow this modal to close before opening another
-    setTimeout(() => {
-      onRequestSubscription()
-    }, 150)
+    onRequestSubscription()
   }
 
   const [isLoginMode, setIsLoginMode] = useState(!showSignupInitially)
@@ -63,7 +59,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (isForgotPasswordMode) {
       if (!email) {
         setError('Please enter your email address')
@@ -159,7 +155,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
           <DialogTitle className="text-xl font-bold">
             {isForgotPasswordMode ? 'Reset Password' : isLoginMode ? 'Welcome Back' : 'Create Account'}
           </DialogTitle>
-          
+
           {sessionType && expertName && (
             <div className="flex items-center gap-2 text-gray-600 text-sm">
               {sessionType === 'chat' ? (
