@@ -889,7 +889,7 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
           <div className="py-3 max-w-md mx-auto space-y-2 -mt-4">
             <div className="rounded-lg border border-blue-200 bg-blue-50/40 p-3 space-y-1">
               <p className="text-sm text-gray-600">
-                Congratulations, you're subscribing to the <strong>{selectedPlan?.name}</strong> AI Jeff plan.
+                Congratulations, you're subscribing to the <strong>{selectedPlan?.name}</strong> {expertName} plan.
                 <button
                   type="button"
                   className="text-blue-600 hover:underline font-medium text-sm ml-1"

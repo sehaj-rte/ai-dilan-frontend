@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import LegalModal from './LegalModal';
 import { useLegal } from '@/contexts/LegalContext';
 import { useExpert } from '@/contexts/ExpertContext';
@@ -9,13 +10,14 @@ interface ExpertFooterProps {
   className?: string;
 }
 
-const ExpertFooter: React.FC<ExpertFooterProps> = ({ 
+const ExpertFooter: React.FC<ExpertFooterProps> = ({
   className = ''
 }) => {
   const { expertData } = useExpert();
+  const router = useRouter();
   const expertName = expertData.displayName || expertData.name;
   const primaryColor = expertData.primaryColor || '#3B82F6';
-  
+
   // Show expert name only if available
   const showExpertBranding = Boolean(expertName);
   const { contact } = useLegal();
@@ -29,7 +31,7 @@ const ExpertFooter: React.FC<ExpertFooterProps> = ({
     title: '',
   });
 
-  const openModal = (type: 'terms' | 'privacy' | 'dpa', title: string) => {
+  const handleLegalClick = (type: 'terms' | 'privacy' | 'dpa', title: string) => {
     setModalState({ isOpen: true, type, title });
   };
 
@@ -45,9 +47,9 @@ const ExpertFooter: React.FC<ExpertFooterProps> = ({
 
   return (
     <>
-      <footer 
+      <footer
         className={`bg-gradient-to-r from-white/95 to-gray-50/95 backdrop-blur-sm border-t shadow-lg ${className}`}
-        style={{ 
+        style={{
           borderTopColor: `${primaryColor}30`,
           borderTopWidth: '2px'
         }}
@@ -55,7 +57,7 @@ const ExpertFooter: React.FC<ExpertFooterProps> = ({
         <div className="max-w-7xl mx-auto py-4 px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col sm:flex-row justify-between items-center">
             <div className="text-center sm:text-left mb-3 sm:mb-0">
-             
+
               <p className="text-gray-500 text-xs">
                 © {new Date().getFullYear()} YOORZ.AI LIMITED. All rights reserved.
               </p>
@@ -64,7 +66,7 @@ const ExpertFooter: React.FC<ExpertFooterProps> = ({
               {legalLinks.map((link) => (
                 <button
                   key={link.type}
-                  onClick={() => openModal(link.type, link.title)}
+                  onClick={() => handleLegalClick(link.type, link.title)}
                   className="text-gray-400 hover:text-gray-600 text-xs transition-colors duration-200 hover:underline"
                   onMouseEnter={(e) => {
                     e.currentTarget.style.color = primaryColor;

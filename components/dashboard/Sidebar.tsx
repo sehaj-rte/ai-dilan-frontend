@@ -102,7 +102,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, projectId }) => {
               icon: MessageSquare,
             },
             {
-              title: "Subscribers Conversations",
+              title: "Subscriber Conversations",
               href: `/project/${projectId}/conversations`,
               icon: MessageSquare,
             },

@@ -5,6 +5,7 @@ import React, { createContext, useContext, useState, ReactNode } from 'react';
 interface ExpertData {
   name?: string;
   displayName?: string;
+  slug?: string;
   primaryColor?: string;
   secondaryColor?: string;
 }

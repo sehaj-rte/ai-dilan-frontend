@@ -1300,6 +1300,120 @@ const ExpertPreviewManagerPage = () => {
                           ))}
                         </div>
                       </div>
+
+                      {/* Modern Pastel */}
+                      <div>
+                        <p className="text-sm font-medium text-gray-700 mb-2">
+                          Modern Pastel
+                        </p>
+                        <div className="grid grid-cols-10 gap-2">
+                          {[
+                            { color: "#FEE2E2", name: "Soft Red" },
+                            { color: "#FFEDD5", name: "Soft Orange" },
+                            { color: "#FEF3C7", name: "Soft Amber" },
+                            { color: "#ECFCCB", name: "Soft Lime" },
+                            { color: "#D1FAE5", name: "Soft Emerald" },
+                            { color: "#D1FAF9", name: "Soft Cyan" },
+                            { color: "#DBEAFE", name: "Soft Blue" },
+                            { color: "#E0E7FF", name: "Soft Indigo" },
+                            { color: "#EDE9FE", name: "Soft Purple" },
+                            { color: "#FAE8FF", name: "Soft Fuchsia" },
+                          ].map((colorOption) => (
+                            <button
+                              key={colorOption.color}
+                              type="button"
+                              onClick={() =>
+                                setPublishForm((prev) => ({
+                                  ...prev,
+                                  primary_color: colorOption.color,
+                                }))
+                              }
+                              className={`w-8 h-8 rounded-lg border-2 hover:scale-110 transition-transform ${publishForm.primary_color === colorOption.color
+                                ? "border-gray-800 scale-110"
+                                : "border-gray-300"
+                                }`}
+                              style={{ backgroundColor: colorOption.color }}
+                              title={colorOption.name}
+                            />
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Earthy & Warm */}
+                      <div>
+                        <p className="text-sm font-medium text-gray-700 mb-2">
+                          Earthy & Warm
+                        </p>
+                        <div className="grid grid-cols-10 gap-2">
+                          {[
+                            { color: "#451a03", name: "Deep Brown" },
+                            { color: "#78350f", name: "Amber Brown" },
+                            { color: "#92400e", name: "Terracotta" },
+                            { color: "#b45309", name: "Ochre" },
+                            { color: "#d97706", name: "Golden" },
+                            { color: "#064e3b", name: "Deep Forest" },
+                            { color: "#065f46", name: "Emerald Forest" },
+                            { color: "#0f766e", name: "Teal Forest" },
+                            { color: "#115e59", name: "Deep Teal" },
+                            { color: "#134e4a", name: "Midnight Teal" },
+                          ].map((colorOption) => (
+                            <button
+                              key={colorOption.color}
+                              type="button"
+                              onClick={() =>
+                                setPublishForm((prev) => ({
+                                  ...prev,
+                                  primary_color: colorOption.color,
+                                }))
+                              }
+                              className={`w-8 h-8 rounded-lg border-2 hover:scale-110 transition-transform ${publishForm.primary_color === colorOption.color
+                                ? "border-gray-800 scale-110"
+                                : "border-gray-300"
+                                }`}
+                              style={{ backgroundColor: colorOption.color }}
+                              title={colorOption.name}
+                            />
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Luxury */}
+                      <div>
+                        <p className="text-sm font-medium text-gray-700 mb-2">
+                          Luxury
+                        </p>
+                        <div className="grid grid-cols-10 gap-2">
+                          {[
+                            { color: "#D4AF37", name: "Gold" },
+                            { color: "#C0C0C0", name: "Silver" },
+                            { color: "#B87333", name: "Copper" },
+                            { color: "#E5E4E2", name: "Platinum" },
+                            { color: "#FFD700", name: "Pure Gold" },
+                            { color: "#722F37", name: "Wine" },
+                            { color: "#4B0082", name: "Indigo" },
+                            { color: "#000080", name: "Navy" },
+                            { color: "#1A1A1A", name: "Jet Black" },
+                            { color: "#F5F5F5", name: "White Smoke" },
+                          ].map((colorOption) => (
+                            <button
+                              key={colorOption.color}
+                              type="button"
+                              onClick={() =>
+                                setPublishForm((prev) => ({
+                                  ...prev,
+                                  primary_color: colorOption.color,
+                                }))
+                              }
+                              className={`w-8 h-8 rounded-lg border-2 hover:scale-110 transition-transform ${publishForm.primary_color === colorOption.color
+                                ? "border-gray-800 scale-110"
+                                : "border-gray-300"
+                                }`}
+                              style={{ backgroundColor: colorOption.color }}
+                              title={colorOption.name}
+                            />
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   </div>
 

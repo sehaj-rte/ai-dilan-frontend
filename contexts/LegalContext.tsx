@@ -1,6 +1,7 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { API_URL } from '@/lib/config';
 
 interface ContactInfo {
   company: {
@@ -56,43 +57,82 @@ export const LegalProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [currentRoute, setCurrentRoute] = useState<string>('');
+  const fetchingDocs = useRef<Set<string>>(new Set());
+  const cache = useRef<Record<string, string>>({});
 
-  const loadDocument = async (type: 'terms' | 'privacy' | 'dpa'): Promise<string> => {
+  const loadDocument = useCallback(async (type: 'terms' | 'privacy' | 'dpa'): Promise<string> => {
     const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
     const isExpertRoute = currentPath.startsWith('/expert');
     const routeKey = isExpertRoute ? 'expert' : 'main';
-    
+
     // Clear cache if route changed
     if (currentRoute !== routeKey) {
+      cache.current = {};
       setTerms(null);
       setPrivacy(null);
       setDpa(null);
       setCurrentRoute(routeKey);
     }
-    
-    // Return cached version if available
-    if (type === 'terms' && terms) return terms;
-    if (type === 'privacy' && privacy) return privacy;
-    if (type === 'dpa' && dpa) return dpa;
 
+    // Return cached version if available
+    if (cache.current[type]) return cache.current[type];
+
+    // Prevent concurrent duplicate requests
+    if (fetchingDocs.current.has(type)) {
+      return cache.current[type] || '';
+    }
+
+    fetchingDocs.current.add(type);
     setLoading(true);
     setError(null);
 
+    console.log(`[LegalContext] Starting fetch for ${type}...`);
+    const startTime = Date.now();
+
     try {
-      const legalPath = isExpertRoute ? `/legal/expert/${type}.html` : `/legal/${type}.html`;
-      
-      const response = await fetch(legalPath);
-      if (!response.ok) {
-        throw new Error(`Failed to load ${type} document`);
+      let content = '';
+      let isFetchedFromAPI = false;
+
+      // If it's an expert route, try to fetch from the database first
+      if (isExpertRoute) {
+        const segments = currentPath.split('/').filter(Boolean);
+        if (segments[0] === 'expert' && segments[1]) {
+          const slug = segments[1];
+          try {
+            console.log(`[LegalContext] Fetching ${type} from API for slug: ${slug}`);
+            const apiResp = await fetch(`${API_URL}/publishing/public/expert/${slug}/legal/${type}`);
+            if (apiResp.ok) {
+              const data = await apiResp.json();
+              if (data.success && data.content) {
+                content = data.content;
+                isFetchedFromAPI = true;
+                console.log(`[LegalContext] Successfully fetched ${type} from API in ${Date.now() - startTime}ms`);
+              }
+            }
+          } catch (apiErr) {
+            console.warn(`Failed to fetch expert ${type} from API, falling back to static:`, apiErr);
+          }
+        }
       }
-      
-      const content = await response.text();
-      
-      // Cache the content
+
+      // Fallback to static file if not fetched from API
+      if (!isFetchedFromAPI) {
+        const legalPath = isExpertRoute ? `/legal/expert/${type}.html` : `/legal/${type}.html`;
+        console.log(`[LegalContext] Fetching ${type} from static path: ${legalPath}`);
+        const response = await fetch(legalPath);
+        if (!response.ok) {
+          throw new Error(`Failed to load ${type} document`);
+        }
+        content = await response.text();
+        console.log(`[LegalContext] Successfully fetched ${type} from static in ${Date.now() - startTime}ms`);
+      }
+
+      // Cache the content in ref and state
+      cache.current[type] = content;
       if (type === 'terms') setTerms(content);
       if (type === 'privacy') setPrivacy(content);
       if (type === 'dpa') setDpa(content);
-      
+
       return content;
     } catch (err) {
       const errorMessage = `Error loading ${type}: ${err instanceof Error ? err.message : 'Unknown error'}`;
@@ -100,8 +140,9 @@ export const LegalProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       throw new Error(errorMessage);
     } finally {
       setLoading(false);
+      fetchingDocs.current.delete(type);
     }
-  };
+  }, [currentRoute]);
 
   // Load contact info on mount and route changes
   useEffect(() => {
@@ -110,7 +151,7 @@ export const LegalProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         // Check if we're on an expert route
         const isExpertRoute = typeof window !== 'undefined' && window.location.pathname.startsWith('/expert');
         const contactPath = isExpertRoute ? '/legal/expert/contact.json' : '/legal/contact.json';
-        
+
         const response = await fetch(contactPath);
         if (response.ok) {
           const contactData = await response.json();
@@ -122,12 +163,12 @@ export const LegalProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
 
     loadContact();
-    
+
     // Listen for route changes
     const handleRouteChange = () => {
       loadContact();
     };
-    
+
     if (typeof window !== 'undefined') {
       window.addEventListener('popstate', handleRouteChange);
       return () => window.removeEventListener('popstate', handleRouteChange);

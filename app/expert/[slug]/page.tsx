@@ -81,6 +81,9 @@ interface Publication {
   template_category: string;
   banner_url?: string | null;
   expert_id: string;
+  privacy_policy?: string | null;
+  dpa?: string | null;
+  terms_conditions?: string | null;
 }
 
 interface ContentSection {
@@ -214,6 +217,7 @@ const ClientExpertPage = () => {
       setExpertData({
         name: expert.name,
         displayName: publication.display_name,
+        slug: publication.slug,
         primaryColor: publication.primary_color,
         secondaryColor: publication.secondary_color,
       });
@@ -854,6 +858,7 @@ const ClientExpertPage = () => {
         </div>
       </div>
 
+
       {/* Payment Success Modal */}
       {showPaymentSuccess && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
@@ -874,7 +879,7 @@ const ClientExpertPage = () => {
                 onClick={() => {
                   console.log("🔍 Continue button clicked");
                   setShowPaymentSuccess(false);
-                  setPaymentSuccessMessage('');
+                  setPaymentSuccessMessage("");
                 }}
                 className="text-white"
                 style={{ backgroundColor: primaryColor }}
@@ -892,7 +897,7 @@ const ClientExpertPage = () => {
         onOpenChange={(open) => {
           setShowPaymentSuccess(open);
           if (!open) {
-            setPaymentSuccessMessage('');
+            setPaymentSuccessMessage("");
           }
         }}
       >
@@ -912,7 +917,7 @@ const ClientExpertPage = () => {
             <Button
               onClick={() => {
                 setShowPaymentSuccess(false);
-                setPaymentSuccessMessage('');
+                setPaymentSuccessMessage("");
               }}
               className="mt-4 text-white"
               style={{ backgroundColor: primaryColor }}
