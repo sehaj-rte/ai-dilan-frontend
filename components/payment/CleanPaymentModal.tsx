@@ -555,7 +555,9 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
                         // 1. Try specific plan content first
                         let planContent = pricingContent.plan_custom_content?.[p.id];
 
-                        const monthlyPrice = price / billingIntervalCount;
+                        const monthlyPrice = plan.billing_interval === 'year' 
+                          ? price / ((billingIntervalCount || 1) * 12)
+                          : price / (billingIntervalCount || 1);
                         const discountPercentage = (billingIntervalCount > 1 && dynamicBaseMonthlyPrice > 0)
                           ? Math.max(0, Math.round((1 - (monthlyPrice / dynamicBaseMonthlyPrice)) * 100))
                           : 0;
@@ -574,7 +576,9 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
                       }
 
                       // Fallback to hardcoded content if no dynamic content available
-                      const monthlyPrice = price / billingIntervalCount;
+                      const monthlyPrice = plan.billing_interval === 'year' 
+                        ? price / ((billingIntervalCount || 1) * 12)
+                        : price / (billingIntervalCount || 1);
 
                       if (billingIntervalCount === 6) {
                         return {
@@ -714,7 +718,13 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
                                           {/* All pricing info on one line */}
                                           <div className="flex items-baseline gap-2">
                                             <div className="text-3xl font-bold text-gray-900">
-                                              £{(plan.price / (plan.billing_interval_count || 1)).toFixed(0)}
+                                              £{(() => {
+                                                // Calculate monthly equivalent based on billing interval
+                                                const totalMonths = plan.billing_interval === 'year' 
+                                                  ? (plan.billing_interval_count || 1) * 12 
+                                                  : (plan.billing_interval_count || 1);
+                                                return (plan.price / totalMonths).toFixed(0);
+                                              })()}
                                               <span className="text-base text-gray-500 font-medium">/month</span>
                                             </div>
                                             <span className="text-sm text-gray-500 line-through">£{enhancedInfo.baseMonthlyPrice}/month</span>
@@ -729,7 +739,13 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
                                       ) : (
                                         <>
                                           <div className="text-3xl font-bold text-gray-900">
-                                            £{(plan.price / (plan.billing_interval_count || 1)).toFixed(0)}
+                                            £{(() => {
+                                              // Calculate monthly equivalent based on billing interval
+                                              const totalMonths = plan.billing_interval === 'year' 
+                                                ? (plan.billing_interval_count || 1) * 12 
+                                                : (plan.billing_interval_count || 1);
+                                              return (plan.price / totalMonths).toFixed(0);
+                                            })()}
                                             <span className="text-base text-gray-500 font-medium">/month</span>
                                           </div>
                                           <div className="text-xs text-gray-600 font-medium">
@@ -742,16 +758,18 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
                                 ) : (
                                   <div className="space-y-0.5">
                                     <div className="text-3xl font-bold text-gray-900">
-                                      £{plan.price}
-                                      <span className="text-base text-gray-500 font-medium">
-                                        /{plan.billing_interval_count && plan.billing_interval_count > 1
-                                          ? `${plan.billing_interval_count} ${plan.billing_interval}s`
-                                          : plan.billing_interval === "year" ? "year" : "month"}
-                                      </span>
+                                      £{(() => {
+                                        // Calculate monthly equivalent based on billing interval
+                                        const totalMonths = plan.billing_interval === 'year' 
+                                          ? (plan.billing_interval_count || 1) * 12 
+                                          : (plan.billing_interval_count || 1);
+                                        return (plan.price / totalMonths).toFixed(2);
+                                      })()}
+                                      <span className="text-base text-gray-500 font-medium">/month</span>
                                     </div>
                                     <div className="text-xs text-gray-600 font-medium">
-                                      {plan.billing_interval_count && plan.billing_interval_count > 1
-                                        ? `billed £${plan.price} upfront`
+                                      {plan.billing_interval === 'year' || (plan.billing_interval_count && plan.billing_interval_count > 1)
+                                        ? `billed £${plan.price} upfront for ${plan.billing_interval_count || 1} ${plan.billing_interval}${(plan.billing_interval_count || 1) > 1 ? 's' : ''}`
                                         : "billed monthly"}
                                     </div>
                                     {/* Empty div to maintain consistent spacing with multi-month plans */}
@@ -784,7 +802,13 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
                                   <span className="text-gray-600 text-xs font-medium">Messages</span>
                                 </div>
                                 <div className="text-base font-bold text-gray-900">
-                                  {plan.message_limit ? Math.floor(plan.message_limit / (plan.billing_interval_count || 1)) : '∞'}
+                                  {plan.message_limit ? (() => {
+                                    // Calculate monthly equivalent based on billing interval
+                                    const totalMonths = plan.billing_interval === 'year' 
+                                      ? (plan.billing_interval_count || 1) * 12 
+                                      : (plan.billing_interval_count || 1);
+                                    return Math.floor(plan.message_limit / totalMonths);
+                                  })() : '∞'}
                                 </div>
                                 <div className="text-xs text-gray-500 font-medium">
                                   per month
@@ -799,7 +823,13 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
                                   <span className="text-gray-600 text-xs font-medium">Voice</span>
                                 </div>
                                 <div className="text-base font-bold text-gray-900">
-                                  {plan.minute_limit ? Math.floor(plan.minute_limit / (plan.billing_interval_count || 1)) : '∞'}
+                                  {plan.minute_limit ? (() => {
+                                    // Calculate monthly equivalent based on billing interval
+                                    const totalMonths = plan.billing_interval === 'year' 
+                                      ? (plan.billing_interval_count || 1) * 12 
+                                      : (plan.billing_interval_count || 1);
+                                    return Math.floor(plan.minute_limit / totalMonths);
+                                  })() : '∞'}
                                 </div>
                                 <div className="text-xs text-gray-500 font-medium">
                                   minutes/month

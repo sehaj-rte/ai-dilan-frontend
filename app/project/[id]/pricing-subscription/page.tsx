@@ -1070,11 +1070,22 @@ const PricingSubscriptionManagerPage = () => {
                         </div>
                         <div className="mt-2">
                           <p className="text-2xl font-bold text-gray-900">
-                            £{plan.price}
+                            £{(() => {
+                              // Calculate monthly equivalent based on billing interval
+                              const totalMonths = plan.billing_interval === 'year' 
+                                ? (plan.billing_interval_count || 1) * 12 
+                                : (plan.billing_interval_count || 1);
+                              return (plan.price / totalMonths).toFixed(2);
+                            })()}
                             <span className="text-sm font-normal text-gray-600">
-                              /{plan.billing_interval}
+                              /month
                             </span>
                           </p>
+                          {(plan.billing_interval === 'year' || plan.billing_interval_count > 1) && (
+                            <p className="text-sm text-orange-600 font-medium">
+                              £{plan.price} total for {plan.billing_interval_count} {plan.billing_interval}{plan.billing_interval_count > 1 ? 's' : ''}
+                            </p>
+                          )}
                           {/* Display message and minute limits if they exist */}
                           {(plan.message_limit || plan.minute_limit) && (
                             <div className="mt-2 text-sm text-gray-600">
@@ -1119,7 +1130,7 @@ const PricingSubscriptionManagerPage = () => {
               <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
                 <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-gray-900">
+                    <h3 className="text-xl font-bold text-gray-900">
                       {isEditingPlan ? "Edit Plan" : "Create New Plan"}
                     </h3>
                     <Button
@@ -1165,7 +1176,7 @@ const PricingSubscriptionManagerPage = () => {
 
                   <div className="space-y-4">
                     <div>
-                      <Label className="block text-sm font-medium text-gray-700 mb-2">
+                      <Label className="block text-sm font-bold text-gray-700 mb-2">
                         Plan Name
                       </Label>
                       <Input
@@ -1189,7 +1200,7 @@ const PricingSubscriptionManagerPage = () => {
                     </div>
 
                     <div>
-                      <Label className="block text-sm font-medium text-gray-700 mb-2">
+                      <Label className="block text-sm font-bold text-gray-700 mb-2">
                         Total Price (GBP)
                       </Label>
                       <div className="relative">
@@ -1215,7 +1226,7 @@ const PricingSubscriptionManagerPage = () => {
 
                     {/* Billing Period Selection */}
                     <div>
-                      <Label className="block text-sm font-medium text-gray-700 mb-2">
+                      <Label className="block text-sm font-bold text-gray-700 mb-2">
                         Billing Period
                       </Label>
                       <select
@@ -1239,6 +1250,7 @@ const PricingSubscriptionManagerPage = () => {
                         <option value="3-month">Quarterly (3 Months)</option>
                         <option value="6-month">Bi-Annually (6 Months)</option>
                         <option value="1-year">Yearly (1 Year)</option>
+                        <option value="3-year">3 Years (3 Years)</option>
                       </select>
                     </div>
 
@@ -1255,7 +1267,7 @@ const PricingSubscriptionManagerPage = () => {
 
                     {/* Message Limit Field */}
                     <div>
-                      <Label className="block text-sm font-medium text-gray-700 mb-2">
+                      <Label className="block text-sm font-bold text-gray-700 mb-2">
                         Message Limit (max {calculateMaxLimits(createPlanForm.billingInterval, createPlanForm.billingIntervalCount).messages})
                       </Label>
                       <Input
@@ -1288,7 +1300,7 @@ const PricingSubscriptionManagerPage = () => {
 
                     {/* Minute Limit Field */}
                     <div>
-                      <Label className="block text-sm font-medium text-gray-700 mb-2">
+                      <Label className="block text-sm font-bold text-gray-700 mb-2">
                         Voice Call Minutes (max {calculateMaxLimits(createPlanForm.billingInterval, createPlanForm.billingIntervalCount).minutes})
                       </Label>
                       <Input
@@ -1327,134 +1339,161 @@ const PricingSubscriptionManagerPage = () => {
                     </div>
 
                     {/* Plan Display Content Section */}
-                    <div className="pt-4 border-t space-y-4">
-                      <h4 className="font-medium text-gray-900">Plan Display Content</h4>
-                      <p className="text-sm text-gray-500">How this plan will appear in the payment modal</p>
-
+                    <div className="pt-4 border-t space-y-6">
                       <div>
-                        <Label className="block text-sm font-medium text-gray-700 mb-2">
-                          Display Title (optional)
-                        </Label>
-                        <Input
-                          value={createPlanForm.contentTitle}
-                          onChange={(e) =>
-                            setCreatePlanForm({
-                              ...createPlanForm,
-                              contentTitle: e.target.value,
-                            })
-                          }
-                          placeholder="e.g., Premium Growth Plan"
-                        />
+                        <h4 className="font-bold text-gray-900 text-lg mb-2">Plan Display Content</h4>
+                        <p className="text-sm text-gray-500">How this plan will appear in the payment modal</p>
                       </div>
 
-                      <div>
-                        <Label className="block text-sm font-medium text-gray-700 mb-2">
-                          Subtitle / Description
-                        </Label>
-                        <textarea
-                          value={createPlanForm.contentSubtitle}
-                          onChange={(e) =>
-                            setCreatePlanForm({
-                              ...createPlanForm,
-                              contentSubtitle: e.target.value,
-                            })
-                          }
-                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          rows={2}
-                          placeholder="Perfect for users who need..."
-                        />
-                      </div>
-
-                      <div>
-                        <Label className="block text-sm font-medium text-gray-700 mb-2">
-                          Display Badge (optional)
-                        </Label>
-                        <Input
-                          value={createPlanForm.contentBadge}
-                          onChange={(e) =>
-                            setCreatePlanForm({
-                              ...createPlanForm,
-                              contentBadge: e.target.value,
-                            })
-                          }
-                          placeholder="e.g., Best Value"
-                        />
-                      </div>
-
-                      <div>
-                        <Label className="block text-sm font-medium text-gray-700 mb-2">
-                          Key Features
-                        </Label>
-                        {createPlanForm.contentFeatures.map((feature, index) => (
-                          <div key={index} className="flex gap-2 mb-2">
-                            <Input
-                              value={feature}
-                              onChange={(e) => {
-                                const newFeatures = [...createPlanForm.contentFeatures];
-                                newFeatures[index] = e.target.value;
-                                setCreatePlanForm({ ...createPlanForm, contentFeatures: newFeatures });
-                              }}
-                              placeholder={`Feature ${index + 1}`}
-                            />
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                const newFeatures = createPlanForm.contentFeatures.filter((_, i) => i !== index);
-                                setCreatePlanForm({ ...createPlanForm, contentFeatures: newFeatures });
-                              }}
-                            >
-                              <Minus className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        ))}
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setCreatePlanForm({ ...createPlanForm, contentFeatures: [...createPlanForm.contentFeatures, ""] })}
-                        >
-                          <Plus className="h-4 w-4 mr-1" /> Add Feature
-                        </Button>
+                      {/* Basic Information */}
+                      <div className="space-y-4">
+                        <h5 className="font-semibold text-gray-800 text-base border-b pb-1">Basic Information</h5>
+                        
                         <div>
-                          <Label className="block text-sm font-medium text-gray-700 mb-2">
-                            "Perfect For" Items
+                          <Label className="block text-sm font-bold text-gray-700 mb-2">
+                            Display Title (optional)
                           </Label>
-                          {createPlanForm.contentPerfectFor.map((item, index) => (
-                            <div key={index} className="flex gap-2 mb-2">
-                              <Input
-                                value={item}
-                                onChange={(e) => {
-                                  const newItems = [...createPlanForm.contentPerfectFor];
-                                  newItems[index] = e.target.value;
-                                  setCreatePlanForm({ ...createPlanForm, contentPerfectFor: newItems });
-                                }}
-                                placeholder={`Item ${index + 1}`}
-                              />
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => {
-                                  const newItems = createPlanForm.contentPerfectFor.filter((_, i) => i !== index);
-                                  setCreatePlanForm({ ...createPlanForm, contentPerfectFor: newItems });
-                                }}
-                              >
-                                <Minus className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          ))}
+                          <Input
+                            value={createPlanForm.contentTitle}
+                            onChange={(e) =>
+                              setCreatePlanForm({
+                                ...createPlanForm,
+                                contentTitle: e.target.value,
+                              })
+                            }
+                            placeholder="e.g., Premium Growth Plan"
+                          />
+                        </div>
+
+                        <div>
+                          <Label className="block text-sm font-bold text-gray-700 mb-2">
+                            Subtitle / Description
+                          </Label>
+                          <textarea
+                            value={createPlanForm.contentSubtitle}
+                            onChange={(e) =>
+                              setCreatePlanForm({
+                                ...createPlanForm,
+                                contentSubtitle: e.target.value,
+                              })
+                            }
+                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            rows={2}
+                            placeholder="Perfect for users who need..."
+                          />
+                        </div>
+
+                        <div>
+                          <Label className="block text-sm font-bold text-gray-700 mb-2">
+                            Display Badge (optional)
+                          </Label>
+                          <Input
+                            value={createPlanForm.contentBadge}
+                            onChange={(e) =>
+                              setCreatePlanForm({
+                                ...createPlanForm,
+                                contentBadge: e.target.value,
+                              })
+                            }
+                            placeholder="e.g., Best Value"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Key Features */}
+                      <div className="space-y-4">
+                        <h5 className="font-semibold text-gray-800 text-base border-b pb-1">Key Features</h5>
+                        <div>
+                          <Label className="block text-sm font-bold text-gray-700 mb-3">
+                            What's Included in This Plan
+                          </Label>
+                          <div className="space-y-2">
+                            {createPlanForm.contentFeatures.map((feature, index) => (
+                              <div key={index} className="flex gap-2">
+                                <Input
+                                  value={feature}
+                                  onChange={(e) => {
+                                    const newFeatures = [...createPlanForm.contentFeatures];
+                                    newFeatures[index] = e.target.value;
+                                    setCreatePlanForm({ ...createPlanForm, contentFeatures: newFeatures });
+                                  }}
+                                  placeholder={`Feature ${index + 1}`}
+                                  className="flex-1"
+                                />
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    const newFeatures = createPlanForm.contentFeatures.filter((_, i) => i !== index);
+                                    setCreatePlanForm({ ...createPlanForm, contentFeatures: newFeatures });
+                                  }}
+                                  className="text-red-500 hover:text-red-600"
+                                >
+                                  <Minus className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setCreatePlanForm({ ...createPlanForm, contentFeatures: [...createPlanForm.contentFeatures, ""] })}
+                            className="mt-2"
+                          >
+                            <Plus className="h-4 w-4 mr-1" /> Add Feature
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Perfect For Section */}
+                      <div className="space-y-4">
+                        <h5 className="font-semibold text-gray-800 text-base border-b pb-1">Perfect For</h5>
+                        <div>
+                          <Label className="block text-sm font-bold text-gray-700 mb-3">
+                            Who Should Choose This Plan
+                          </Label>
+                          <div className="space-y-2">
+                            {createPlanForm.contentPerfectFor.map((item, index) => (
+                              <div key={index} className="flex gap-2">
+                                <Input
+                                  value={item}
+                                  onChange={(e) => {
+                                    const newItems = [...createPlanForm.contentPerfectFor];
+                                    newItems[index] = e.target.value;
+                                    setCreatePlanForm({ ...createPlanForm, contentPerfectFor: newItems });
+                                  }}
+                                  placeholder={`Perfect for ${index + 1}`}
+                                  className="flex-1"
+                                />
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    const newItems = createPlanForm.contentPerfectFor.filter((_, i) => i !== index);
+                                    setCreatePlanForm({ ...createPlanForm, contentPerfectFor: newItems });
+                                  }}
+                                  className="text-red-500 hover:text-red-600"
+                                >
+                                  <Minus className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            ))}
+                          </div>
                           <Button
                             type="button"
                             variant="outline"
                             size="sm"
                             onClick={() => setCreatePlanForm({ ...createPlanForm, contentPerfectFor: [...createPlanForm.contentPerfectFor, ""] })}
+                            className="mt-2"
                           >
                             <Plus className="h-4 w-4 mr-1" /> Add Item
                           </Button>
                         </div>
                       </div>
+                    </div>
 
                       <div className="flex gap-3 pt-4 border-t">
                         <Button
@@ -1526,20 +1565,18 @@ const PricingSubscriptionManagerPage = () => {
                 </div>
               </div>
             )}
-
-            {/* Delete Plan Confirmation Modal */}
-            <ConfirmDeleteDialog
-              open={deleteModal.open}
-              onClose={() =>
-                setDeleteModal({ open: false, planId: "", planName: "" })
-              }
-              onConfirm={handleDeletePlan}
-              title="Delete Plan"
-              description={`Are you sure you want to delete the plan "${deleteModal.planName}"? This action cannot be undone.`}
-              loading={loading}
-            />
           </CardContent>
         </Card>
+
+        {/* Delete Plan Confirmation Modal */}
+        <ConfirmDeleteDialog
+          open={deleteModal.open}
+          onClose={() => setDeleteModal({ open: false, planId: "", planName: "" })}
+          onConfirm={handleDeletePlan}
+          title="Delete Plan"
+          description={`Are you sure you want to delete the plan "${deleteModal.planName}"? This action cannot be undone.`}
+          loading={loading}
+        />
 
         {/* Content Editor Modal */}
         {showContentEditor && (
@@ -1824,7 +1861,7 @@ const PricingSubscriptionManagerPage = () => {
           />
         )}
       </div>
-    </DashboardLayout >
+    </DashboardLayout>
   );
 };
 
