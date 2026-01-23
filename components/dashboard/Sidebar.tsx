@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
@@ -8,26 +8,17 @@ import { useAppSelector, useAppDispatch } from "@/store/hooks";
 import {
   logout,
   loadUserFromStorage,
-  fetchCurrentUser,
 } from "@/store/slices/authSlice";
-import { API_URL } from "@/lib/config";
-import { fetchWithAuth, getAuthHeaders } from "@/lib/api-client";
 import { useExpert } from "@/context/ExpertContext";
 import {
-  Home,
   MessageSquare,
-  Users,
-  Settings,
   Brain,
   Mic,
   BarChart3,
   LogOut,
   User,
-  Plus,
   BookOpen,
   Mic2,
-  Share2,
-  TestTube,
   TrendingUp,
   Eye,
   CreditCard,
@@ -74,30 +65,31 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, projectId }) => {
   const { user } = useAppSelector((state) => state.auth);
   const { expert } = useExpert();
 
+  // Use state to handle hydration safely
+  const [mounted, setMounted] = React.useState(false);
+  
   const projectName = expert?.name || "";
   const expertOwnerId = expert?.user_id || null;
 
   // Ensure we have user from storage if needed
   useEffect(() => {
     dispatch(loadUserFromStorage());
+    setMounted(true);
   }, [dispatch]);
 
 
   // Create dynamic sidebar items based on context
   const dynamicSidebarItems = React.useMemo(() => {
     if (projectId) {
-      // Check if super admin viewing someone else's expert
-      const isAdminViewing =
-        user?.role === "super_admin" &&
-        expertOwnerId &&
-        expertOwnerId !== user.id;
-
+      // Always return sections structure for project pages, but use safe fallbacks when not mounted
+      const safeProjectName = mounted ? (projectName || "AI Persona") : "AI Persona";
+      
       const sections = [
         {
           title: "Persona",
           items: [
             {
-              title: `Talk to ${projectName || "AI Persona"}`,
+              title: `Talk to ${safeProjectName}`,
               href: `/project/${projectId}/chat`,
               icon: MessageSquare,
             },
@@ -147,12 +139,12 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, projectId }) => {
           title: "Publish Manager",
           items: [
             {
-              title: "AI Persona Preview Manager",
+              title: "AI Persona Preview",
               href: `/project/${projectId}/expert-preview`,
               icon: Eye,
             },
             {
-              title: "Pricing & Subscription Manager",
+              title: "Pricing & Subscription",
               href: `/project/${projectId}/pricing-subscription`,
               icon: CreditCard,
             },
@@ -168,7 +160,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, projectId }) => {
       return sections;
     }
     return sidebarItems;
-  }, [projectId, user, expertOwnerId]);
+  }, [projectId, projectName, mounted]);
 
   const handleLogout = () => {
     dispatch(logout());
@@ -222,12 +214,12 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, projectId }) => {
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
               <span className="text-white font-semibold text-sm">
-                {(projectName?.charAt(0) || "A").toUpperCase()}
+                {((mounted ? projectName : "AI Persona")?.charAt(0) || "A").toUpperCase()}
               </span>
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-gray-900 truncate">
-                {projectName || "AI Persona"}
+                {mounted ? (projectName || "AI Persona") : "AI Persona"}
               </p>
             </div>
           </div>
@@ -243,7 +235,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, projectId }) => {
               key={section.title}
               className={sectionIndex > 0 ? "mt-6" : ""}
             >
-              <h3 className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              <h3 className="px-3 py-2 text-sm font-bold text-gray-700 uppercase tracking-wider">
                 {section.title}
               </h3>
               <div className="mt-1 space-y-1">
