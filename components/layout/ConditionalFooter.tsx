@@ -10,8 +10,9 @@ interface ConditionalFooterProps {
 const ConditionalFooter: React.FC<ConditionalFooterProps> = ({ className }) => {
   const pathname = usePathname();
 
-  // Don't show footer on expert pages or dashboard pages as they have their own footers or layout
-  if (pathname?.startsWith('/expert') || pathname?.startsWith('/project')) {
+  // Don't show footer on expert pages as they have their own footers or layout
+  // Show footer on project pages
+  if (pathname?.startsWith('/expert')) {
     return null;
   }
 
