@@ -1072,8 +1072,8 @@ const PricingSubscriptionManagerPage = () => {
                           <p className="text-2xl font-bold text-gray-900">
                             £{(() => {
                               // Calculate monthly equivalent based on billing interval
-                              const totalMonths = plan.billing_interval === 'year' 
-                                ? (plan.billing_interval_count || 1) * 12 
+                              const totalMonths = plan.billing_interval === 'year'
+                                ? (plan.billing_interval_count || 1) * 12
                                 : (plan.billing_interval_count || 1);
                               return (plan.price / totalMonths).toFixed(2);
                             })()}
@@ -1125,743 +1125,745 @@ const PricingSubscriptionManagerPage = () => {
               </div>
             )}
 
-            {/* Create Plan Modal */}
-            {showCreatePlan && (
-              <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-xl font-bold text-gray-900">
-                      {isEditingPlan ? "Edit Plan" : "Create New Plan"}
-                    </h3>
-                    <Button
-                      type="button"
-                      onClick={() => {
-                        setShowCreatePlan(false);
-                        setIsEditingPlan(false);
-                        setEditingPlanId(null);
-                        setCreatePlanForm({
-                          name: "",
-                          price: "",
-                          messageLimit: "700",
-                          minuteLimit: "70",
-                          billingInterval: "month",
-                          billingIntervalCount: 1,
-                          freeTrialEnabled: false,
-                          trialCoupon: "",
-                          trialMessageLimit: "",
-                          trialMinuteLimit: "",
-                          contentTitle: "",
-                          contentSubtitle: "Ideal for those who want full flexibility with no long-term commitment.",
-                          contentFeatures: [
-                            `Immediate access to the full use of ${expert?.name || 'AI Expert'}`,
-                            "Explanations to your questions in plain English",
-                            "Generate expert-style responses",
-                            "Recommendations based on expert knowledge",
-                            "Cancel anytime"
-                          ],
-                          contentPerfectFor: [
-                            "No commitment",
-                            "Cancel anytime",
-                            "Best for short-term or occasional use"
-                          ],
-                          contentBadge: "",
-                        });
-                      }}
-                      variant="outline"
-                      size="sm"
-                    >
-                      ×
-                    </Button>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div>
-                      <Label className="block text-sm font-bold text-gray-700 mb-2">
-                        Plan Name
-                      </Label>
-                      <Input
-                        value={createPlanForm.name}
-                        onChange={(e) => {
-                          const newName = e.target.value;
-                          const currentTitle = createPlanForm.contentTitle;
-                          // Update title if it's empty or was mirroring the name
-                          const shouldUpdateTitle = !currentTitle || currentTitle === createPlanForm.name;
-
-                          setCreatePlanForm({
-                            ...createPlanForm,
-                            name: newName,
-                            contentTitle: shouldUpdateTitle ? newName : currentTitle
-                          });
-                        }}
-                        placeholder="e.g., Monthly Pro"
-                        className="w-full"
-                        required
-                      />
-                    </div>
-
-                    <div>
-                      <Label className="block text-sm font-bold text-gray-700 mb-2">
-                        Total Price (GBP)
-                      </Label>
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">
-                          £
-                        </span>
-                        <Input
-                          type="number"
-                          min="1"
-                          step="0.01"
-                          value={createPlanForm.price}
-                          onChange={(e) =>
-                            setCreatePlanForm({
-                              ...createPlanForm,
-                              price: e.target.value,
-                            })
-                          }
-                          placeholder="120.00"
-                          className="w-full pl-8"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Billing Period Selection */}
-                    <div>
-                      <Label className="block text-sm font-bold text-gray-700 mb-2">
-                        Billing Period
-                      </Label>
-                      <select
-                        value={`${createPlanForm.billingIntervalCount}-${createPlanForm.billingInterval}`}
-                        onChange={(e) => {
-                          const [countStr, interval] = e.target.value.split("-");
-                          const count = parseInt(countStr);
-                          const limits = calculateMaxLimits(interval, count);
-
-                          setCreatePlanForm({
-                            ...createPlanForm,
-                            billingIntervalCount: count,
-                            billingInterval: interval,
-                            messageLimit: limits.messages.toString(),
-                            minuteLimit: limits.minutes.toString(),
-                          });
-                        }}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="1-month">Monthly (1 Month)</option>
-                        <option value="3-month">Quarterly (3 Months)</option>
-                        <option value="6-month">Bi-Annually (6 Months)</option>
-                        <option value="1-year">Yearly (1 Year)</option>
-                        <option value="3-year">3 Years (3 Years)</option>
-                      </select>
-                    </div>
-
-                    {/* Pricing Preview */}
-                    {createPlanForm.price && createPlanForm.billingIntervalCount > 1 && (
-                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                        <h4 className="font-medium text-blue-900 mb-1">Pricing Preview</h4>
-                        <div className="text-sm text-blue-800">
-                          <p><strong>Display to customers:</strong> £{(parseFloat(createPlanForm.price) / createPlanForm.billingIntervalCount).toFixed(2)}/month</p>
-                          <p><strong>Actual billing:</strong> £{createPlanForm.price} every {createPlanForm.billingIntervalCount} {createPlanForm.billingInterval}{createPlanForm.billingIntervalCount > 1 ? 's' : ''}</p>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Message Limit Field */}
-                    <div>
-                      <Label className="block text-sm font-bold text-gray-700 mb-2">
-                        Message Limit (max {calculateMaxLimits(createPlanForm.billingInterval, createPlanForm.billingIntervalCount).messages})
-                      </Label>
-                      <Input
-                        type="number"
-                        min="1"
-                        value={createPlanForm.messageLimit}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          const num = parseInt(val);
-                          const max = calculateMaxLimits(createPlanForm.billingInterval, createPlanForm.billingIntervalCount).messages;
-
-                          if (num > max) {
-                            warning(`Message limit cannot exceed ${max} for this billing period`);
-                            return;
-                          }
-
-                          setCreatePlanForm({
-                            ...createPlanForm,
-                            messageLimit: val,
-                          });
-                        }}
-                        placeholder={`e.g., ${calculateMaxLimits(createPlanForm.billingInterval, createPlanForm.billingIntervalCount).messages}`}
-                        className="w-full"
-                      />
-                      <p className="text-xs text-gray-500 mt-1">
-                        Number of messages user can interact with AI per
-                        billing period
-                      </p>
-                    </div>
-
-                    {/* Minute Limit Field */}
-                    <div>
-                      <Label className="block text-sm font-bold text-gray-700 mb-2">
-                        Voice Call Minutes (max {calculateMaxLimits(createPlanForm.billingInterval, createPlanForm.billingIntervalCount).minutes})
-                      </Label>
-                      <Input
-                        type="number"
-                        min="1"
-                        value={createPlanForm.minuteLimit}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          const num = parseInt(val);
-                          const max = calculateMaxLimits(createPlanForm.billingInterval, createPlanForm.billingIntervalCount).minutes;
-
-                          if (num > max) {
-                            warning(`Voice minutes cannot exceed ${max} for this billing period`);
-                            return;
-                          }
-
-                          setCreatePlanForm({
-                            ...createPlanForm,
-                            minuteLimit: val,
-                          });
-                        }}
-                        placeholder={`e.g., ${calculateMaxLimits(createPlanForm.billingInterval, createPlanForm.billingIntervalCount).minutes}`}
-                        className="w-full"
-                      />
-                      <p className="text-xs text-gray-500 mt-1">
-                        Number of voice call minutes user can use per
-                        billing period
-                      </p>
-                    </div>
-
-                    <div className="bg-blue-50 p-3 rounded-lg">
-                      <p className="text-sm text-blue-800">
-                        💡 This will create a Stripe product with the same
-                        name for subscription billing.
-                      </p>
-                    </div>
-
-                    {/* Plan Display Content Section */}
-                    <div className="pt-4 border-t space-y-6">
-                      <div>
-                        <h4 className="font-bold text-gray-900 text-lg mb-2">Plan Display Content</h4>
-                        <p className="text-sm text-gray-500">How this plan will appear in the payment modal</p>
-                      </div>
-
-                      {/* Basic Information */}
-                      <div className="space-y-4">
-                        <h5 className="font-semibold text-gray-800 text-base border-b pb-1">Basic Information</h5>
-                        
-                        <div>
-                          <Label className="block text-sm font-bold text-gray-700 mb-2">
-                            Display Title (optional)
-                          </Label>
-                          <Input
-                            value={createPlanForm.contentTitle}
-                            onChange={(e) =>
-                              setCreatePlanForm({
-                                ...createPlanForm,
-                                contentTitle: e.target.value,
-                              })
-                            }
-                            placeholder="e.g., Premium Growth Plan"
-                          />
-                        </div>
-
-                        <div>
-                          <Label className="block text-sm font-bold text-gray-700 mb-2">
-                            Subtitle / Description
-                          </Label>
-                          <textarea
-                            value={createPlanForm.contentSubtitle}
-                            onChange={(e) =>
-                              setCreatePlanForm({
-                                ...createPlanForm,
-                                contentSubtitle: e.target.value,
-                              })
-                            }
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            rows={2}
-                            placeholder="Perfect for users who need..."
-                          />
-                        </div>
-
-                        <div>
-                          <Label className="block text-sm font-bold text-gray-700 mb-2">
-                            Display Badge (optional)
-                          </Label>
-                          <Input
-                            value={createPlanForm.contentBadge}
-                            onChange={(e) =>
-                              setCreatePlanForm({
-                                ...createPlanForm,
-                                contentBadge: e.target.value,
-                              })
-                            }
-                            placeholder="e.g., Best Value"
-                          />
-                        </div>
-                      </div>
-
-                      {/* Key Features */}
-                      <div className="space-y-4">
-                        <h5 className="font-semibold text-gray-800 text-base border-b pb-1">Key Features</h5>
-                        <div>
-                          <Label className="block text-sm font-bold text-gray-700 mb-3">
-                            What's Included in This Plan
-                          </Label>
-                          <div className="space-y-2">
-                            {createPlanForm.contentFeatures.map((feature, index) => (
-                              <div key={index} className="flex gap-2">
-                                <Input
-                                  value={feature}
-                                  onChange={(e) => {
-                                    const newFeatures = [...createPlanForm.contentFeatures];
-                                    newFeatures[index] = e.target.value;
-                                    setCreatePlanForm({ ...createPlanForm, contentFeatures: newFeatures });
-                                  }}
-                                  placeholder={`Feature ${index + 1}`}
-                                  className="flex-1"
-                                />
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => {
-                                    const newFeatures = createPlanForm.contentFeatures.filter((_, i) => i !== index);
-                                    setCreatePlanForm({ ...createPlanForm, contentFeatures: newFeatures });
-                                  }}
-                                  className="text-red-500 hover:text-red-600"
-                                >
-                                  <Minus className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            ))}
-                          </div>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setCreatePlanForm({ ...createPlanForm, contentFeatures: [...createPlanForm.contentFeatures, ""] })}
-                            className="mt-2"
-                          >
-                            <Plus className="h-4 w-4 mr-1" /> Add Feature
-                          </Button>
-                        </div>
-                      </div>
-
-                      {/* Perfect For Section */}
-                      <div className="space-y-4">
-                        <h5 className="font-semibold text-gray-800 text-base border-b pb-1">Perfect For</h5>
-                        <div>
-                          <Label className="block text-sm font-bold text-gray-700 mb-3">
-                            Who Should Choose This Plan
-                          </Label>
-                          <div className="space-y-2">
-                            {createPlanForm.contentPerfectFor.map((item, index) => (
-                              <div key={index} className="flex gap-2">
-                                <Input
-                                  value={item}
-                                  onChange={(e) => {
-                                    const newItems = [...createPlanForm.contentPerfectFor];
-                                    newItems[index] = e.target.value;
-                                    setCreatePlanForm({ ...createPlanForm, contentPerfectFor: newItems });
-                                  }}
-                                  placeholder={`Perfect for ${index + 1}`}
-                                  className="flex-1"
-                                />
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => {
-                                    const newItems = createPlanForm.contentPerfectFor.filter((_, i) => i !== index);
-                                    setCreatePlanForm({ ...createPlanForm, contentPerfectFor: newItems });
-                                  }}
-                                  className="text-red-500 hover:text-red-600"
-                                >
-                                  <Minus className="h-4 w-4" />
-                                </Button>
-                              </div>
-                            ))}
-                          </div>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setCreatePlanForm({ ...createPlanForm, contentPerfectFor: [...createPlanForm.contentPerfectFor, ""] })}
-                            className="mt-2"
-                          >
-                            <Plus className="h-4 w-4 mr-1" /> Add Item
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-
-                      <div className="flex gap-3 pt-4 border-t">
-                        <Button
-                          type="button"
-                          onClick={() => {
-                            setShowCreatePlan(false);
-                            setIsEditingPlan(false);
-                            setEditingPlanId(null);
-                            setCreatePlanForm({
-                              name: "",
-                              price: "",
-                              messageLimit: "700",
-                              minuteLimit: "70",
-                              billingInterval: "month",
-                              billingIntervalCount: 1,
-                              freeTrialEnabled: false,
-                              trialCoupon: "",
-                              trialMessageLimit: "",
-                              trialMinuteLimit: "",
-                              contentTitle: "",
-                              contentSubtitle: "Ideal for those who want full flexibility with no long-term commitment.",
-                              contentFeatures: [
-                                `Immediate access to the full use of ${expert?.name || 'AI Expert'}`,
-                                "Explanations to your questions in plain English",
-                                "Generate expert-style responses",
-                                "Recommendations based on expert knowledge",
-                                "Cancel anytime"
-                              ],
-                              contentPerfectFor: [
-                                "No commitment",
-                                "Cancel anytime",
-                                "Best for short-term or occasional use"
-                              ],
-                              contentBadge: "",
-                            });
-                          }}
-                          variant="outline"
-                          className="flex-1"
-                        >
-                          Cancel
-                        </Button>
-                        <Button
-                          type="button"
-                          onClick={handleCreatePlan}
-                          disabled={
-                            isCreatingPlan ||
-                            !createPlanForm.name ||
-                            !createPlanForm.price ||
-                            (createPlanForm.freeTrialEnabled && (
-                              !createPlanForm.trialCoupon ||
-                              !createPlanForm.trialMessageLimit ||
-                              !createPlanForm.trialMinuteLimit
-                            ))
-                          }
-                          className="flex-1 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white font-medium"
-                        >
-                          {isCreatingPlan ? (
-                            <>
-                              <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                              {isEditingPlan ? "Updating..." : "Creating..."}
-                            </>
-                          ) : (
-                            isEditingPlan ? "Update Plan" : "Create Plan"
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
           </CardContent>
         </Card>
 
-        {/* Delete Plan Confirmation Modal */}
-        <ConfirmDeleteDialog
-          open={deleteModal.open}
-          onClose={() => setDeleteModal({ open: false, planId: "", planName: "" })}
-          onConfirm={handleDeletePlan}
-          title="Delete Plan"
-          description={`Are you sure you want to delete the plan "${deleteModal.planName}"? This action cannot be undone.`}
-          loading={loading}
-        />
+        {/* Create Plan Modal */}
+        {showCreatePlan && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-xl font-bold text-gray-900">
+                  {isEditingPlan ? "Edit Plan" : "Create New Plan"}
+                </h3>
+                <Button
+                  type="button"
+                  onClick={() => {
+                    setShowCreatePlan(false);
+                    setIsEditingPlan(false);
+                    setEditingPlanId(null);
+                    setCreatePlanForm({
+                      name: "",
+                      price: "",
+                      messageLimit: "700",
+                      minuteLimit: "70",
+                      billingInterval: "month",
+                      billingIntervalCount: 1,
+                      freeTrialEnabled: false,
+                      trialCoupon: "",
+                      trialMessageLimit: "",
+                      trialMinuteLimit: "",
+                      contentTitle: "",
+                      contentSubtitle: "Ideal for those who want full flexibility with no long-term commitment.",
+                      contentFeatures: [
+                        `Immediate access to the full use of ${expert?.name || 'AI Expert'}`,
+                        "Explanations to your questions in plain English",
+                        "Generate expert-style responses",
+                        "Recommendations based on expert knowledge",
+                        "Cancel anytime"
+                      ],
+                      contentPerfectFor: [
+                        "No commitment",
+                        "Cancel anytime",
+                        "Best for short-term or occasional use"
+                      ],
+                      contentBadge: "",
+                    });
+                  }}
+                  variant="outline"
+                  size="sm"
+                >
+                  ×
+                </Button>
+              </div>
 
-        {/* Content Editor Modal */}
-        {showContentEditor && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-xl font-semibold text-gray-900">
-                    Edit Pricing Content
-                  </h3>
-                  <Button
-                    onClick={() => setShowContentEditor(false)}
-                    variant="outline"
-                    size="sm"
-                  >
-                    ×
-                  </Button>
+              <div className="space-y-4">
+                <div>
+                  <Label className="block text-sm font-bold text-gray-700 mb-2">
+                    Plan Name
+                  </Label>
+                  <Input
+                    value={createPlanForm.name}
+                    onChange={(e) => {
+                      const newName = e.target.value;
+                      const currentTitle = createPlanForm.contentTitle;
+                      // Update title if it's empty or was mirroring the name
+                      const shouldUpdateTitle = !currentTitle || currentTitle === createPlanForm.name;
+
+                      setCreatePlanForm({
+                        ...createPlanForm,
+                        name: newName,
+                        contentTitle: shouldUpdateTitle ? newName : currentTitle
+                      });
+                    }}
+                    placeholder="e.g., Monthly Pro"
+                    className="w-full"
+                    required
+                  />
                 </div>
 
-                <div className="space-y-6">
-                  {/* General Settings */}
-                  <div className="p-4 border rounded-lg">
-                    <h4 className="font-semibold text-gray-900 mb-4">General Settings</h4>
-                    <div className="space-y-4">
-                      <div>
-                        <Label className="block text-sm font-medium text-gray-700 mb-2">
-                          Subscription Page Title
-                        </Label>
-                        <Input
-                          value={contentForm.general.subscription_page_title}
-                          onChange={(e) =>
-                            setContentForm(prev => ({
-                              ...prev,
-                              general: { ...prev.general, subscription_page_title: e.target.value }
-                            }))
-                          }
-                          placeholder="Subscribe to AI Expert"
-                        />
-                      </div>
-                      <div>
-                        <Label className="block text-sm font-medium text-gray-700 mb-2">
-                          Subscription Page Description
-                        </Label>
-                        <Input
-                          value={contentForm.general.subscription_page_description}
-                          onChange={(e) =>
-                            setContentForm(prev => ({
-                              ...prev,
-                              general: { ...prev.general, subscription_page_description: e.target.value }
-                            }))
-                          }
-                          placeholder="Choose the perfect plan to access expert assistance"
-                        />
-                      </div>
-                      <div>
-                        <Label className="block text-sm font-medium text-gray-700 mb-2">
-                          Base Monthly Price (for discount calculations)
-                        </Label>
-                        <Input
-                          value={contentForm.general.base_monthly_price}
-                          onChange={(e) =>
-                            setContentForm(prev => ({
-                              ...prev,
-                              general: { ...prev.general, base_monthly_price: e.target.value }
-                            }))
-                          }
-                          placeholder="40"
-                        />
-                        <p className="text-xs text-gray-500 mt-1">
-                          This is used to calculate discount percentages for multi-month plans
-                        </p>
-                      </div>
+                <div>
+                  <Label className="block text-sm font-bold text-gray-700 mb-2">
+                    Total Price (GBP)
+                  </Label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">
+                      £
+                    </span>
+                    <Input
+                      type="number"
+                      min="1"
+                      step="0.01"
+                      value={createPlanForm.price}
+                      onChange={(e) =>
+                        setCreatePlanForm({
+                          ...createPlanForm,
+                          price: e.target.value,
+                        })
+                      }
+                      placeholder="120.00"
+                      className="w-full pl-8"
+                    />
+                  </div>
+                </div>
+
+                {/* Billing Period Selection */}
+                <div>
+                  <Label className="block text-sm font-bold text-gray-700 mb-2">
+                    Billing Period
+                  </Label>
+                  <select
+                    value={`${createPlanForm.billingIntervalCount}-${createPlanForm.billingInterval}`}
+                    onChange={(e) => {
+                      const [countStr, interval] = e.target.value.split("-");
+                      const count = parseInt(countStr);
+                      const limits = calculateMaxLimits(interval, count);
+
+                      setCreatePlanForm({
+                        ...createPlanForm,
+                        billingIntervalCount: count,
+                        billingInterval: interval,
+                        messageLimit: limits.messages.toString(),
+                        minuteLimit: limits.minutes.toString(),
+                      });
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="1-month">Monthly (1 Month)</option>
+                    <option value="3-month">Quarterly (3 Months)</option>
+                    <option value="6-month">Bi-Annually (6 Months)</option>
+                    <option value="1-year">Yearly (1 Year)</option>
+                    <option value="3-year">3 Years (3 Years)</option>
+                  </select>
+                </div>
+
+                {/* Pricing Preview */}
+                {createPlanForm.price && createPlanForm.billingIntervalCount > 1 && (
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <h4 className="font-medium text-blue-900 mb-1">Pricing Preview</h4>
+                    <div className="text-sm text-blue-800">
+                      <p><strong>Display to customers:</strong> £{(parseFloat(createPlanForm.price) / createPlanForm.billingIntervalCount).toFixed(2)}/month</p>
+                      <p><strong>Actual billing:</strong> £{createPlanForm.price} every {createPlanForm.billingIntervalCount} {createPlanForm.billingInterval}{createPlanForm.billingIntervalCount > 1 ? 's' : ''}</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Message Limit Field */}
+                <div>
+                  <Label className="block text-sm font-bold text-gray-700 mb-2">
+                    Message Limit (max {calculateMaxLimits(createPlanForm.billingInterval, createPlanForm.billingIntervalCount).messages})
+                  </Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={createPlanForm.messageLimit}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const num = parseInt(val);
+                      const max = calculateMaxLimits(createPlanForm.billingInterval, createPlanForm.billingIntervalCount).messages;
+
+                      if (num > max) {
+                        warning(`Message limit cannot exceed ${max} for this billing period`);
+                        return;
+                      }
+
+                      setCreatePlanForm({
+                        ...createPlanForm,
+                        messageLimit: val,
+                      });
+                    }}
+                    placeholder={`e.g., ${calculateMaxLimits(createPlanForm.billingInterval, createPlanForm.billingIntervalCount).messages}`}
+                    className="w-full"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Number of messages user can interact with AI per
+                    billing period
+                  </p>
+                </div>
+
+                {/* Minute Limit Field */}
+                <div>
+                  <Label className="block text-sm font-bold text-gray-700 mb-2">
+                    Voice Call Minutes (max {calculateMaxLimits(createPlanForm.billingInterval, createPlanForm.billingIntervalCount).minutes})
+                  </Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={createPlanForm.minuteLimit}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const num = parseInt(val);
+                      const max = calculateMaxLimits(createPlanForm.billingInterval, createPlanForm.billingIntervalCount).minutes;
+
+                      if (num > max) {
+                        warning(`Voice minutes cannot exceed ${max} for this billing period`);
+                        return;
+                      }
+
+                      setCreatePlanForm({
+                        ...createPlanForm,
+                        minuteLimit: val,
+                      });
+                    }}
+                    placeholder={`e.g., ${calculateMaxLimits(createPlanForm.billingInterval, createPlanForm.billingIntervalCount).minutes}`}
+                    className="w-full"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Number of voice call minutes user can use per
+                    billing period
+                  </p>
+                </div>
+
+                <div className="bg-blue-50 p-3 rounded-lg">
+                  <p className="text-sm text-blue-800">
+                    💡 This will create a Stripe product with the same
+                    name for subscription billing.
+                  </p>
+                </div>
+
+                {/* Plan Display Content Section */}
+                <div className="pt-4 border-t space-y-6">
+                  <div>
+                    <h4 className="font-bold text-gray-900 text-lg mb-2">Plan Display Content</h4>
+                    <p className="text-sm text-gray-500">How this plan will appear in the payment modal</p>
+                  </div>
+
+                  {/* Basic Information */}
+                  <div className="space-y-4">
+                    <h5 className="font-semibold text-gray-800 text-base border-b pb-1">Basic Information</h5>
+
+                    <div>
+                      <Label className="block text-sm font-bold text-gray-700 mb-2">
+                        Display Title (optional)
+                      </Label>
+                      <Input
+                        value={createPlanForm.contentTitle}
+                        onChange={(e) =>
+                          setCreatePlanForm({
+                            ...createPlanForm,
+                            contentTitle: e.target.value,
+                          })
+                        }
+                        placeholder="e.g., Premium Growth Plan"
+                      />
+                    </div>
+
+                    <div>
+                      <Label className="block text-sm font-bold text-gray-700 mb-2">
+                        Subtitle / Description
+                      </Label>
+                      <textarea
+                        value={createPlanForm.contentSubtitle}
+                        onChange={(e) =>
+                          setCreatePlanForm({
+                            ...createPlanForm,
+                            contentSubtitle: e.target.value,
+                          })
+                        }
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        rows={2}
+                        placeholder="Perfect for users who need..."
+                      />
+                    </div>
+
+                    <div>
+                      <Label className="block text-sm font-bold text-gray-700 mb-2">
+                        Display Badge (optional)
+                      </Label>
+                      <Input
+                        value={createPlanForm.contentBadge}
+                        onChange={(e) =>
+                          setCreatePlanForm({
+                            ...createPlanForm,
+                            contentBadge: e.target.value,
+                          })
+                        }
+                        placeholder="e.g., Best Value"
+                      />
                     </div>
                   </div>
 
-                  {/* Plan Content Editors */}
-                  {/* Specific Plan Editors */}
-                  {plans.length > 0 && (
-                    <div className="pt-4 border-t">
-                      <h4 className="font-bold text-gray-900 mb-4">Specific Plan Customization</h4>
-                      <div className="space-y-6">
-                        {plans.map((plan) => {
-                          const planKey = plan.id;
-                          const currentContent = contentForm.plan_custom_content[planKey] || {
-                            title: "",
-                            subtitle: "",
-                            features: [""],
-                            perfect_for: [""],
-                            badge: ""
-                          };
-
-                          const updateField = (field: string, value: any) => {
-                            setContentForm(prev => ({
-                              ...prev,
-                              plan_custom_content: {
-                                ...prev.plan_custom_content,
-                                [planKey]: { ...currentContent, [field]: value }
-                              }
-                            }));
-                          };
-
-                          return (
-                            <div key={planKey} className="p-4 border border-blue-100 rounded-lg bg-blue-50/30">
-                              <div className="flex items-center gap-2 mb-4">
-                                <div className="h-2 w-2 bg-blue-500 rounded-full"></div>
-                                <h5 className="font-semibold text-blue-900">
-                                  Plan: {plan.name} (£{plan.price}/{plan.billing_interval})
-                                </h5>
-                              </div>
-
-                              <div className="space-y-4">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                  <div>
-                                    <Label className="block text-sm font-medium text-gray-700 mb-2">Plan Title</Label>
-                                    <Input
-                                      value={currentContent.title}
-                                      onChange={(e) => updateField('title', e.target.value)}
-                                      placeholder={`e.g. ${plan.name} Plan`}
-                                    />
-                                  </div>
-                                  <div>
-                                    <Label className="block text-sm font-medium text-gray-700 mb-2">Badge Text</Label>
-                                    <Input
-                                      value={currentContent.badge}
-                                      onChange={(e) => updateField('badge', e.target.value)}
-                                      placeholder="e.g. Recommended"
-                                    />
-                                  </div>
-                                </div>
-
-                                <div>
-                                  <Label className="block text-sm font-medium text-gray-700 mb-2">Subtitle / Description</Label>
-                                  <Input
-                                    value={currentContent.subtitle}
-                                    onChange={(e) => updateField('subtitle', e.target.value)}
-                                    placeholder="Brief description for this specific plan"
-                                  />
-                                </div>
-
-                                {/* Features List for Specific Plan */}
-                                <div>
-                                  <div className="flex items-center justify-between mb-2">
-                                    <Label className="text-sm font-medium text-gray-700">What's Included</Label>
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => updateField('features', [...currentContent.features, ""])}
-                                      className="h-7 px-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                                    >
-                                      <Plus className="h-3.5 w-3.5 mr-1" /> Add Feature
-                                    </Button>
-                                  </div>
-                                  <div className="space-y-2">
-                                    {currentContent.features.map((feature: string, idx: number) => (
-                                      <div key={idx} className="flex gap-2">
-                                        <Input
-                                          value={feature}
-                                          onChange={(e) => {
-                                            const newFeatures = [...currentContent.features];
-                                            newFeatures[idx] = e.target.value;
-                                            updateField('features', newFeatures);
-                                          }}
-                                          placeholder={`Feature ${idx + 1}`}
-                                          className="flex-1"
-                                        />
-                                        <Button
-                                          type="button"
-                                          variant="ghost"
-                                          size="sm"
-                                          onClick={() => {
-                                            const newFeatures = currentContent.features.filter((_: any, i: number) => i !== idx);
-                                            updateField('features', newFeatures.length ? newFeatures : [""]);
-                                          }}
-                                          className="h-10 w-10 p-0 text-red-500 hover:text-red-600 hover:bg-red-50"
-                                        >
-                                          <Minus className="h-4 w-4" />
-                                        </Button>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-
-                                {/* Perfect For List for Specific Plan */}
-                                <div>
-                                  <div className="flex items-center justify-between mb-2">
-                                    <Label className="text-sm font-medium text-gray-700">Perfect For</Label>
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => updateField('perfect_for', [...currentContent.perfect_for, ""])}
-                                      className="h-7 px-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                                    >
-                                      <Plus className="h-3.5 w-3.5 mr-1" /> Add Item
-                                    </Button>
-                                  </div>
-                                  <div className="space-y-2">
-                                    {currentContent.perfect_for.map((item: string, idx: number) => (
-                                      <div key={idx} className="flex gap-2">
-                                        <Input
-                                          value={item}
-                                          onChange={(e) => {
-                                            const newItems = [...currentContent.perfect_for];
-                                            newItems[idx] = e.target.value;
-                                            updateField('perfect_for', newItems);
-                                          }}
-                                          placeholder={`Perfect for item ${idx + 1}`}
-                                          className="flex-1"
-                                        />
-                                        <Button
-                                          type="button"
-                                          variant="ghost"
-                                          size="sm"
-                                          onClick={() => {
-                                            const newItems = currentContent.perfect_for.filter((_: any, i: number) => i !== idx);
-                                            updateField('perfect_for', newItems.length ? newItems : [""]);
-                                          }}
-                                          className="h-10 w-10 p-0 text-red-500 hover:text-red-600 hover:bg-red-50"
-                                        >
-                                          <Minus className="h-4 w-4" />
-                                        </Button>
-                                      </div>
-                                    ))}
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
+                  {/* Key Features */}
+                  <div className="space-y-4">
+                    <h5 className="font-semibold text-gray-800 text-base border-b pb-1">Key Features</h5>
+                    <div>
+                      <Label className="block text-sm font-bold text-gray-700 mb-3">
+                        What's Included in This Plan
+                      </Label>
+                      <div className="space-y-2">
+                        {createPlanForm.contentFeatures.map((feature, index) => (
+                          <div key={index} className="flex gap-2">
+                            <Input
+                              value={feature}
+                              onChange={(e) => {
+                                const newFeatures = [...createPlanForm.contentFeatures];
+                                newFeatures[index] = e.target.value;
+                                setCreatePlanForm({ ...createPlanForm, contentFeatures: newFeatures });
+                              }}
+                              placeholder={`Feature ${index + 1}`}
+                              className="flex-1"
+                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                const newFeatures = createPlanForm.contentFeatures.filter((_, i) => i !== index);
+                                setCreatePlanForm({ ...createPlanForm, contentFeatures: newFeatures });
+                              }}
+                              className="text-red-500 hover:text-red-600"
+                            >
+                              <Minus className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))}
                       </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCreatePlanForm({ ...createPlanForm, contentFeatures: [...createPlanForm.contentFeatures, ""] })}
+                        className="mt-2"
+                      >
+                        <Plus className="h-4 w-4 mr-1" /> Add Feature
+                      </Button>
                     </div>
-                  )}
-
-                  {plans.length === 0 && (
-                    <div className="p-8 border-2 border-dashed rounded-lg text-center bg-gray-50">
-                      <p className="text-gray-600 mb-2">No active pricing plans found.</p>
-                      <p className="text-sm text-gray-500">Create a plan down below first to customize its content here.</p>
-                    </div>
-                  )}
-
-                  <div className="flex gap-3 pt-4">
-                    <Button
-                      onClick={() => setShowContentEditor(false)}
-                      variant="outline"
-                      className="flex-1"
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      onClick={updatePricingContent}
-                      disabled={isLoadingContent}
-                      className="flex-1 bg-blue-600 hover:bg-blue-700"
-                    >
-                      {isLoadingContent ? (
-                        <>
-                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                          Saving...
-                        </>
-                      ) : (
-                        "Save Changes"
-                      )}
-                    </Button>
                   </div>
+
+                  {/* Perfect For Section */}
+                  <div className="space-y-4">
+                    <h5 className="font-semibold text-gray-800 text-base border-b pb-1">Perfect For</h5>
+                    <div>
+                      <Label className="block text-sm font-bold text-gray-700 mb-3">
+                        Who Should Choose This Plan
+                      </Label>
+                      <div className="space-y-2">
+                        {createPlanForm.contentPerfectFor.map((item, index) => (
+                          <div key={index} className="flex gap-2">
+                            <Input
+                              value={item}
+                              onChange={(e) => {
+                                const newItems = [...createPlanForm.contentPerfectFor];
+                                newItems[index] = e.target.value;
+                                setCreatePlanForm({ ...createPlanForm, contentPerfectFor: newItems });
+                              }}
+                              placeholder={`Perfect for ${index + 1}`}
+                              className="flex-1"
+                            />
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                const newItems = createPlanForm.contentPerfectFor.filter((_, i) => i !== index);
+                                setCreatePlanForm({ ...createPlanForm, contentPerfectFor: newItems });
+                              }}
+                              className="text-red-500 hover:text-red-600"
+                            >
+                              <Minus className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCreatePlanForm({ ...createPlanForm, contentPerfectFor: [...createPlanForm.contentPerfectFor, ""] })}
+                        className="mt-2"
+                      >
+                        <Plus className="h-4 w-4 mr-1" /> Add Item
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex gap-3 pt-4 border-t">
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      setShowCreatePlan(false);
+                      setIsEditingPlan(false);
+                      setEditingPlanId(null);
+                      setCreatePlanForm({
+                        name: "",
+                        price: "",
+                        messageLimit: "700",
+                        minuteLimit: "70",
+                        billingInterval: "month",
+                        billingIntervalCount: 1,
+                        freeTrialEnabled: false,
+                        trialCoupon: "",
+                        trialMessageLimit: "",
+                        trialMinuteLimit: "",
+                        contentTitle: "",
+                        contentSubtitle: "Ideal for those who want full flexibility with no long-term commitment.",
+                        contentFeatures: [
+                          `Immediate access to the full use of ${expert?.name || 'AI Expert'}`,
+                          "Explanations to your questions in plain English",
+                          "Generate expert-style responses",
+                          "Recommendations based on expert knowledge",
+                          "Cancel anytime"
+                        ],
+                        contentPerfectFor: [
+                          "No commitment",
+                          "Cancel anytime",
+                          "Best for short-term or occasional use"
+                        ],
+                        contentBadge: "",
+                      });
+                    }}
+                    variant="outline"
+                    className="flex-1"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    type="button"
+                    onClick={handleCreatePlan}
+                    disabled={
+                      isCreatingPlan ||
+                      !createPlanForm.name ||
+                      !createPlanForm.price ||
+                      (createPlanForm.freeTrialEnabled && (
+                        !createPlanForm.trialCoupon ||
+                        !createPlanForm.trialMessageLimit ||
+                        !createPlanForm.trialMinuteLimit
+                      ))
+                    }
+                    className="flex-1 bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 text-white font-medium"
+                  >
+                    {isCreatingPlan ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        {isEditingPlan ? "Updating..." : "Creating..."}
+                      </>
+                    ) : (
+                      isEditingPlan ? "Update Plan" : "Create Plan"
+                    )}
+                  </Button>
                 </div>
               </div>
             </div>
           </div>
-        )}
+             
+            )}
 
-        {/* Real-Time Subscription Preview */}
-        {showPreview && (
-          <CleanPaymentModal
-            isOpen={showPreview}
-            onClose={() => setShowPreview(false)}
-            plans={plans}
-            expertName={expert?.name || "AI Expert"}
-            expertSlug={expert?.slug}
-            expertId={projectId}
-            onPaymentSuccess={() => { }}
-            userToken=""
-          />
-        )}
-      </div>
-    </DashboardLayout>
+
+      {/* Delete Plan Confirmation Modal */}
+      <ConfirmDeleteDialog
+        open={deleteModal.open}
+        onClose={() => setDeleteModal({ open: false, planId: "", planName: "" })}
+        onConfirm={handleDeletePlan}
+        title="Delete Plan"
+        description={`Are you sure you want to delete the plan "${deleteModal.planName}"? This action cannot be undone.`}
+        loading={loading}
+      />
+
+      {/* Content Editor Modal */}
+      {showContentEditor && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-xl font-semibold text-gray-900">
+                  Edit Pricing Content
+                </h3>
+                <Button
+                  onClick={() => setShowContentEditor(false)}
+                  variant="outline"
+                  size="sm"
+                >
+                  ×
+                </Button>
+              </div>
+
+              <div className="space-y-6">
+                {/* General Settings */}
+                <div className="p-4 border rounded-lg">
+                  <h4 className="font-semibold text-gray-900 mb-4">General Settings</h4>
+                  <div className="space-y-4">
+                    <div>
+                      <Label className="block text-sm font-medium text-gray-700 mb-2">
+                        Subscription Page Title
+                      </Label>
+                      <Input
+                        value={contentForm.general.subscription_page_title}
+                        onChange={(e) =>
+                          setContentForm(prev => ({
+                            ...prev,
+                            general: { ...prev.general, subscription_page_title: e.target.value }
+                          }))
+                        }
+                        placeholder="Subscribe to AI Expert"
+                      />
+                    </div>
+                    <div>
+                      <Label className="block text-sm font-medium text-gray-700 mb-2">
+                        Subscription Page Description
+                      </Label>
+                      <Input
+                        value={contentForm.general.subscription_page_description}
+                        onChange={(e) =>
+                          setContentForm(prev => ({
+                            ...prev,
+                            general: { ...prev.general, subscription_page_description: e.target.value }
+                          }))
+                        }
+                        placeholder="Choose the perfect plan to access expert assistance"
+                      />
+                    </div>
+                    <div>
+                      <Label className="block text-sm font-medium text-gray-700 mb-2">
+                        Base Monthly Price (for discount calculations)
+                      </Label>
+                      <Input
+                        value={contentForm.general.base_monthly_price}
+                        onChange={(e) =>
+                          setContentForm(prev => ({
+                            ...prev,
+                            general: { ...prev.general, base_monthly_price: e.target.value }
+                          }))
+                        }
+                        placeholder="40"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        This is used to calculate discount percentages for multi-month plans
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Plan Content Editors */}
+                {/* Specific Plan Editors */}
+                {plans.length > 0 && (
+                  <div className="pt-4 border-t">
+                    <h4 className="font-bold text-gray-900 mb-4">Specific Plan Customization</h4>
+                    <div className="space-y-6">
+                      {plans.map((plan) => {
+                        const planKey = plan.id;
+                        const currentContent = contentForm.plan_custom_content[planKey] || {
+                          title: "",
+                          subtitle: "",
+                          features: [""],
+                          perfect_for: [""],
+                          badge: ""
+                        };
+
+                        const updateField = (field: string, value: any) => {
+                          setContentForm(prev => ({
+                            ...prev,
+                            plan_custom_content: {
+                              ...prev.plan_custom_content,
+                              [planKey]: { ...currentContent, [field]: value }
+                            }
+                          }));
+                        };
+
+                        return (
+                          <div key={planKey} className="p-4 border border-blue-100 rounded-lg bg-blue-50/30">
+                            <div className="flex items-center gap-2 mb-4">
+                              <div className="h-2 w-2 bg-blue-500 rounded-full"></div>
+                              <h5 className="font-semibold text-blue-900">
+                                Plan: {plan.name} (£{plan.price}/{plan.billing_interval})
+                              </h5>
+                            </div>
+
+                            <div className="space-y-4">
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                  <Label className="block text-sm font-medium text-gray-700 mb-2">Plan Title</Label>
+                                  <Input
+                                    value={currentContent.title}
+                                    onChange={(e) => updateField('title', e.target.value)}
+                                    placeholder={`e.g. ${plan.name} Plan`}
+                                  />
+                                </div>
+                                <div>
+                                  <Label className="block text-sm font-medium text-gray-700 mb-2">Badge Text</Label>
+                                  <Input
+                                    value={currentContent.badge}
+                                    onChange={(e) => updateField('badge', e.target.value)}
+                                    placeholder="e.g. Recommended"
+                                  />
+                                </div>
+                              </div>
+
+                              <div>
+                                <Label className="block text-sm font-medium text-gray-700 mb-2">Subtitle / Description</Label>
+                                <Input
+                                  value={currentContent.subtitle}
+                                  onChange={(e) => updateField('subtitle', e.target.value)}
+                                  placeholder="Brief description for this specific plan"
+                                />
+                              </div>
+
+                              {/* Features List for Specific Plan */}
+                              <div>
+                                <div className="flex items-center justify-between mb-2">
+                                  <Label className="text-sm font-medium text-gray-700">What's Included</Label>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => updateField('features', [...currentContent.features, ""])}
+                                    className="h-7 px-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                  >
+                                    <Plus className="h-3.5 w-3.5 mr-1" /> Add Feature
+                                  </Button>
+                                </div>
+                                <div className="space-y-2">
+                                  {currentContent.features.map((feature: string, idx: number) => (
+                                    <div key={idx} className="flex gap-2">
+                                      <Input
+                                        value={feature}
+                                        onChange={(e) => {
+                                          const newFeatures = [...currentContent.features];
+                                          newFeatures[idx] = e.target.value;
+                                          updateField('features', newFeatures);
+                                        }}
+                                        placeholder={`Feature ${idx + 1}`}
+                                        className="flex-1"
+                                      />
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => {
+                                          const newFeatures = currentContent.features.filter((_: any, i: number) => i !== idx);
+                                          updateField('features', newFeatures.length ? newFeatures : [""]);
+                                        }}
+                                        className="h-10 w-10 p-0 text-red-500 hover:text-red-600 hover:bg-red-50"
+                                      >
+                                        <Minus className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+
+                              {/* Perfect For List for Specific Plan */}
+                              <div>
+                                <div className="flex items-center justify-between mb-2">
+                                  <Label className="text-sm font-medium text-gray-700">Perfect For</Label>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => updateField('perfect_for', [...currentContent.perfect_for, ""])}
+                                    className="h-7 px-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                  >
+                                    <Plus className="h-3.5 w-3.5 mr-1" /> Add Item
+                                  </Button>
+                                </div>
+                                <div className="space-y-2">
+                                  {currentContent.perfect_for.map((item: string, idx: number) => (
+                                    <div key={idx} className="flex gap-2">
+                                      <Input
+                                        value={item}
+                                        onChange={(e) => {
+                                          const newItems = [...currentContent.perfect_for];
+                                          newItems[idx] = e.target.value;
+                                          updateField('perfect_for', newItems);
+                                        }}
+                                        placeholder={`Perfect for item ${idx + 1}`}
+                                        className="flex-1"
+                                      />
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => {
+                                          const newItems = currentContent.perfect_for.filter((_: any, i: number) => i !== idx);
+                                          updateField('perfect_for', newItems.length ? newItems : [""]);
+                                        }}
+                                        className="h-10 w-10 p-0 text-red-500 hover:text-red-600 hover:bg-red-50"
+                                      >
+                                        <Minus className="h-4 w-4" />
+                                      </Button>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {plans.length === 0 && (
+                  <div className="p-8 border-2 border-dashed rounded-lg text-center bg-gray-50">
+                    <p className="text-gray-600 mb-2">No active pricing plans found.</p>
+                    <p className="text-sm text-gray-500">Create a plan down below first to customize its content here.</p>
+                  </div>
+                )}
+
+                <div className="flex gap-3 pt-4">
+                  <Button
+                    onClick={() => setShowContentEditor(false)}
+                    variant="outline"
+                    className="flex-1"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={updatePricingContent}
+                    disabled={isLoadingContent}
+                    className="flex-1 bg-blue-600 hover:bg-blue-700"
+                  >
+                    {isLoadingContent ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                        Saving...
+                      </>
+                    ) : (
+                      "Save Changes"
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Real-Time Subscription Preview */}
+      {showPreview && (
+        <CleanPaymentModal
+          isOpen={showPreview}
+          onClose={() => setShowPreview(false)}
+          plans={plans}
+          expertName={expert?.name || "AI Expert"}
+          expertSlug={expert?.slug}
+          expertId={projectId}
+          onPaymentSuccess={() => { }}
+          userToken=""
+        />
+      )}
+    </div>
+    </DashboardLayout >
   );
 };
 
