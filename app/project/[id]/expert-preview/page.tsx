@@ -846,9 +846,12 @@ const ExpertPreviewManagerPage = () => {
 
               {/* Slug */}
               <div>
-                <Label className="block text-sm font-medium text-gray-700 mb-2">
-                  Public URL Slug *
-                </Label>
+                <div className="mb-3">
+                  <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                    <Globe className="h-5 w-5 text-blue-600" />
+                    Public URL Slug
+                  </h3>
+                </div>
                 <div className="flex items-center flex-1">
                   <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 bg-gray-50 text-gray-500 text-sm">
                     /persona/
@@ -947,13 +950,17 @@ const ExpertPreviewManagerPage = () => {
                 </div>
               </div>
 
-              {/* Visibility Radio Buttons */}
-              <div>
-                <Label className="block text-sm font-medium text-gray-700 mb-3">
-                  Visibility
-                </Label>
+              {/* Visibility Radio Buttons - COMMENTED OUT FOR NOW */}
+              {/*
+              <div className="pt-6 border-t">
+                <div className="mb-3">
+                  <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                    <Globe className="h-5 w-5 text-blue-600" />
+                    Visibility
+                  </h3>
+                </div>
                 <div className="space-y-3">
-                  {/* Public Option */}
+                  Public Option
                   <div
                     className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${!publishForm.is_private
                       ? "border-green-500 bg-green-50"
@@ -1001,7 +1008,7 @@ const ExpertPreviewManagerPage = () => {
                     </div>
                   </div>
 
-                  {/* Private Option */}
+                  Private Option
                   <div
                     className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${publishForm.is_private
                       ? "border-blue-500 bg-blue-50"
@@ -1050,16 +1057,20 @@ const ExpertPreviewManagerPage = () => {
                   </div>
                 </div>
               </div>
+              */}
 
               {/* Call-to-Action Text */}
-              <div>
-                <Label className="block text-sm font-medium text-gray-700 mb-3">
-                  Call-to-Action Text
-                </Label>
-                <div className="space-y-4">
+              <div className="pt-6 border-t">
+                <div className="mb-3">
+                  <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                    <MessageCircle className="h-5 w-5 text-blue-600" />
+                    Call-to-Action Text
+                  </h3>
                   <p className="text-sm text-gray-600">
                     Customize the text that appears below your expert name on the public page.
                   </p>
+                </div>
+                <div className="space-y-4">
                   <Input
                     value={publishForm.cta_text}
                     onChange={(e) => setPublishForm({ ...publishForm, cta_text: e.target.value })}
@@ -1074,14 +1085,17 @@ const ExpertPreviewManagerPage = () => {
               </div>
 
               {/* Background Image Upload */}
-              <div>
-                <Label className="block text-sm font-medium text-gray-700 mb-3">
-                  Background Image
-                </Label>
-                <div className="space-y-4">
+              <div className="pt-6 border-t">
+                <div className="mb-3">
+                  <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                    <ImageIcon className="h-5 w-5 text-blue-600" />
+                    Wallpaper | Background Image
+                  </h3>
                   <p className="text-sm text-gray-600">
                     Upload an image for the background of your AI PERSONA this will appear as the wallpaper of its public profile.
                   </p>
+                </div>
+                <div className="space-y-4">
 
                   {backgroundImagePreview ? (
                     <div className="relative">
@@ -1157,16 +1171,19 @@ const ExpertPreviewManagerPage = () => {
               </div>
 
               {/* Button Color Picker */}
-              <div>
-                <Label className="block text-sm font-medium text-gray-700 mb-3">
-                  Button Color
-                </Label>
-                <div className="space-y-4">
+              <div className="pt-6 border-t">
+                <div className="mb-3">
+                  <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                    <div className="w-5 h-5 rounded bg-gradient-to-r from-blue-500 to-purple-500"></div>
+                    Button Colour
+                  </h3>
                   <p className="text-sm text-gray-600">
                     Choose a colour for the chat/type and call/speak buttons that appear on your AI PERSONA
                     <br />
                     NOTE: the colour chosen by the owner, needs to be consistent in BOTH the USER and OWNERS view.
                   </p>
+                </div>
+                <div className="space-y-4">
 
                   <div className="space-y-4">
                     {/* Custom Color Picker */}
@@ -1182,11 +1199,11 @@ const ExpertPreviewManagerPage = () => {
                             }))
                           }
                           className="w-12 h-12 rounded-lg border border-gray-300 cursor-pointer"
-                          title="Choose button color"
+                          title="Choose button colour"
                         />
                         <div className="text-sm">
                           <p className="font-medium text-gray-900">
-                            Selected Color
+                            Selected Colour
                           </p>
                           <p className="text-gray-600 font-mono text-xs">
                             {publishForm.primary_color}
@@ -1194,7 +1211,7 @@ const ExpertPreviewManagerPage = () => {
                         </div>
                       </div>
 
-                      {/* Color Preview Buttons */}
+                      {/* Colour Preview Buttons */}
                       <div className="flex gap-2">
                         <Button
                           type="button"
@@ -1223,12 +1240,12 @@ const ExpertPreviewManagerPage = () => {
                       </div>
                     </div>
 
-                    {/* Predefined Color Options */}
+                    {/* Predefined Colour Options */}
                     <div className="space-y-4">
                       {/* Popular Colors */}
                       <div>
                         <p className="text-sm font-medium text-gray-700 mb-2">
-                          Popular Colors
+                          Popular Colours
                         </p>
                         <div className="grid grid-cols-10 gap-2">
                           {[
@@ -1418,7 +1435,7 @@ const ExpertPreviewManagerPage = () => {
                   </div>
 
                   <p className="text-xs text-gray-500">
-                    This color will be applied to Chat, Call, Billing, and
+                    This colour will be applied to Chat, Call, Billing, and
                     Logout buttons across all expert pages.
                   </p>
                 </div>

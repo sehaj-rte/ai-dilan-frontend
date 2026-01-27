@@ -558,7 +558,7 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
                         const monthlyPrice = plan.billing_interval === 'year' 
                           ? price / ((billingIntervalCount || 1) * 12)
                           : price / (billingIntervalCount || 1);
-                        const discountPercentage = (billingIntervalCount > 1 && dynamicBaseMonthlyPrice > 0)
+                        const discountPercentage = ((billingIntervalCount > 1 || plan.billing_interval === 'year') && dynamicBaseMonthlyPrice > 0)
                           ? Math.max(0, Math.round((1 - (monthlyPrice / dynamicBaseMonthlyPrice)) * 100))
                           : 0;
 
@@ -617,6 +617,26 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
                             "Lower upfront investment than the 6-month plan",
                             "A flexible middle option",
                             "Best for testing AI over a longer period"
+                          ],
+                          discountPercentage: Math.round((1 - (monthlyPrice / dynamicBaseMonthlyPrice)) * 100),
+                          baseMonthlyPrice: dynamicBaseMonthlyPrice
+                        };
+                      } else if (plan.billing_interval === 'year' || billingIntervalCount === 12) {
+                        return {
+                          title: `${expertName} 1 year plan`,
+                          badge: "1 year plan",
+                          subtitle: "Ideal for those who want full flexibility with no long-term commitment.",
+                          features: [
+                            `Immediate access to the full use of ${expertName}`,
+                            "Explanations to your questions in plain English",
+                            "Generate expert-style responses",
+                            "Recommendations based on expert knowledge",
+                            "Cancel anytime",
+                          ],
+                          whyChoose: [
+                            "No commitment",
+                            "Cancel anytime",
+                            "Best for short-term or occasional use"
                           ],
                           discountPercentage: Math.round((1 - (monthlyPrice / dynamicBaseMonthlyPrice)) * 100),
                           baseMonthlyPrice: dynamicBaseMonthlyPrice
@@ -682,7 +702,7 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
 
                               {/* Enhanced Pricing Display with Toggle */}
                               <div className="mb-2">
-                                {(plan.billing_interval_count && plan.billing_interval_count > 1) ? (
+                                {(plan.billing_interval_count && plan.billing_interval_count > 1) || plan.billing_interval === 'year' ? (
                                   <div className="space-y-1">
                                     {/* Toggle Switch for Multi-month Plans */}
                                     {enhancedInfo.discountPercentage > 0 && (
@@ -723,7 +743,7 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
                                                 const totalMonths = plan.billing_interval === 'year' 
                                                   ? (plan.billing_interval_count || 1) * 12 
                                                   : (plan.billing_interval_count || 1);
-                                                return (plan.price / totalMonths).toFixed(0);
+                                                return (plan.price / totalMonths).toFixed(2);
                                               })()}
                                               <span className="text-base text-gray-500 font-medium">/month</span>
                                             </div>
@@ -744,12 +764,12 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
                                               const totalMonths = plan.billing_interval === 'year' 
                                                 ? (plan.billing_interval_count || 1) * 12 
                                                 : (plan.billing_interval_count || 1);
-                                              return (plan.price / totalMonths).toFixed(0);
+                                              return (plan.price / totalMonths).toFixed(2);
                                             })()}
                                             <span className="text-base text-gray-500 font-medium">/month</span>
                                           </div>
                                           <div className="text-xs text-gray-600 font-medium">
-                                            {billingIntervalCount > 1 ? `billed £${plan.price} upfront` : 'regular monthly price'}
+                                            {billingIntervalCount > 1 || plan.billing_interval === 'year' ? `billed £${plan.price} upfront` : 'regular monthly price'}
                                           </div>
                                         </>
                                       )}
