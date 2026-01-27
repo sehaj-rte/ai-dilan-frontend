@@ -527,11 +527,12 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
                 {/* Enhanced Plans Display */}
                 {plans
                   .sort((a, b) => {
-                    // Sort order: Best Value (6-month) first, then Most Popular (3-month), then Most Flexible (monthly)
+                    // Sort order: Best Value (6-month) first, then Most Popular (3-month), then 1-year, then Most Flexible (monthly)
                     const getOrder = (p: Plan) => {
                       if (p.billing_interval_count === 6) return 1;
                       if (p.billing_interval_count === 3) return 2;
-                      return 3;
+                      if (p.billing_interval === 'year' || p.billing_interval_count === 12) return 3;
+                      return 4; // Monthly plans
                     };
                     return getOrder(a) - getOrder(b);
                   })
