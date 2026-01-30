@@ -43,6 +43,20 @@ interface Publication {
   banner_url?: string | null;
 }
 
+const LANGUAGES = [
+  { code: "en", name: "English" },
+  { code: "es", name: "Spanish" },
+  { code: "fr", name: "French" },
+  { code: "de", name: "German" },
+  { code: "it", name: "Italian" },
+  { code: "pt", name: "Portuguese" },
+  { code: "hi", name: "Hindi" },
+  { code: "ar", name: "Arabic" },
+  { code: "zh", name: "Chinese" },
+  { code: "ja", name: "Japanese" },
+  { code: "ko", name: "Korean" },
+];
+
 const ClientCallPage = () => {
   const params = useParams();
   const searchParams = useSearchParams();
@@ -76,6 +90,7 @@ const ClientCallPage = () => {
     boolean | null
   >(null);
   const [authLoaded, setAuthLoaded] = useState(false);
+  const [selectedLanguage, setSelectedLanguage] = useState("en");
 
   // Plan limitations state
   const [showLimitReachedModal, setShowLimitReachedModal] = useState(false);
@@ -1147,8 +1162,8 @@ const ClientCallPage = () => {
                       {/* Microphone button */}
                       <button
                         className={`relative z-10 w-16 h-16 rounded-full flex items-center justify-center shadow-lg transition-all ${state.isListening
-                            ? "bg-gray-700 scale-110"
-                            : "bg-gray-200 hover:bg-gray-300"
+                          ? "bg-gray-700 scale-110"
+                          : "bg-gray-200 hover:bg-gray-300"
                           }`}
                       >
                         <svg
