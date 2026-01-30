@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { API_URL } from "@/lib/config";
 import { uploadFilesToS3, S3UploadedFile } from "@/lib/s3-upload";
+import { compressImage } from "@/lib/image-compression";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import OptimizedImage from "@/components/ui/OptimizedImage";
@@ -191,6 +192,7 @@ const ClientChatPage = () => {
   const [previewFiles, setPreviewFiles] = useState<FileAttachment[]>([]);
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const userMenuTriggerRef = useRef<HTMLButtonElement>(null);
 
   // Speech Recognition States
@@ -1268,15 +1270,27 @@ const ClientChatPage = () => {
     setIsUploadingFiles(true);
 
     try {
+      console.log("📤 Processing files for upload...");
+
+      // Compress images before upload
+      const processedFiles = await Promise.all(
+        files.map(async (file) => {
+          if (file.type.startsWith('image/')) {
+            return await compressImage(file);
+          }
+          return file;
+        })
+      );
+
       console.log("📤 Uploading files to S3...");
 
       // Upload all files to S3 in parallel
-      const s3Files = await uploadFilesToS3(files);
+      const s3Files = await uploadFilesToS3(processedFiles);
 
       console.log("✅ Files uploaded to S3:", s3Files);
 
-      // Store S3 file metadata (not the File objects)
-      setUploadedFiles((prev) => [...prev, ...files]);
+      // Store processed files (not the original File objects)
+      setUploadedFiles((prev) => [...prev, ...processedFiles]);
 
       // Store S3 URLs separately for sending to backend
       const s3FileData = s3Files.map((f) => ({
@@ -1306,6 +1320,62 @@ const ClientChatPage = () => {
       // Reset file input so same file can be selected again
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
+      }
+    }
+  };
+
+  const handleCameraCapture = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    // Show uploading state
+    setIsUploadingFiles(true);
+
+    try {
+      console.log("📷 Processing camera capture...");
+
+      // Compress images before upload
+      const processedFiles = await Promise.all(
+        files.map(async (file) => {
+          if (file.type.startsWith('image/')) {
+            return await compressImage(file);
+          }
+          return file;
+        })
+      );
+
+      console.log("📤 Uploading camera photos to S3...");
+
+      // Upload all files to S3 in parallel
+      const s3Files = await uploadFilesToS3(processedFiles);
+
+      console.log("✅ Camera photos uploaded to S3:", s3Files);
+
+      // Store processed files
+      setUploadedFiles((prev) => [...prev, ...processedFiles]);
+
+      // Store S3 URLs separately for sending to backend
+      const s3FileData = s3Files.map((f) => ({
+        name: f.name,
+        type: f.type,
+        url: f.url,
+        s3_key: f.s3_key,
+        size: f.size,
+      }));
+
+      // Append to existing S3 files
+      const existingS3Files = (window as any).__s3UploadedFiles || [];
+      (window as any).__s3UploadedFiles = [...existingS3Files, ...s3FileData];
+
+      console.log("✅ Camera photos ready to send");
+    } catch (error) {
+      console.error("❌ Camera capture upload failed:", error);
+      alert("Failed to upload photos. Please try again.");
+    } finally {
+      setIsUploadingFiles(false);
+      // Reset camera input
+      if (cameraInputRef.current) {
+        cameraInputRef.current.value = "";
       }
     }
   };
@@ -3296,28 +3366,60 @@ const ClientChatPage = () => {
                   type="file"
                   multiple
                   accept="image/*,.pdf,.doc,.docx,.txt"
+                  capture="environment"
                   onChange={handleFileSelect}
                   className="hidden"
                   aria-label="Upload files"
                 />
-                <Button
-                  onClick={() => fileInputRef.current?.click()}
-                  size="icon"
-                  variant="ghost"
-                  className="rounded-xl h-8 w-8 sm:h-10 sm:w-10 flex-shrink-0 hover:bg-gray-100 transition-colors"
-                  title="Attach files"
-                  disabled={
-                    isWaitingForResponse ||
-                    isUploadingFiles ||
-                    (isAuthenticated && !checkCanSendMessage())
-                  }
-                >
-                  {isUploadingFiles ? (
-                    <div className="animate-spin rounded-full h-4 w-4 sm:h-5 sm:w-5 border-2 border-gray-400 border-t-transparent"></div>
-                  ) : (
-                    <Paperclip className="h-4 w-4 sm:h-5 sm:w-5 text-gray-500" />
-                  )}
-                </Button>
+                
+                {/* Mobile Camera Button */}
+                <input
+                  ref={cameraInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  onChange={handleCameraCapture}
+                  className="hidden"
+                  aria-label="Take photo"
+                />
+                
+                {/* Show camera button on mobile, file button on desktop */}
+                <div className="flex space-x-1">
+                  <Button
+                    onClick={() => fileInputRef.current?.click()}
+                    size="icon"
+                    variant="ghost"
+                    className="rounded-xl h-8 w-8 sm:h-10 sm:w-10 flex-shrink-0 hover:bg-gray-100 transition-colors"
+                    title="Attach files"
+                    disabled={
+                      isWaitingForResponse ||
+                      isUploadingFiles ||
+                      (isAuthenticated && !checkCanSendMessage())
+                    }
+                  >
+                    {isUploadingFiles ? (
+                      <div className="animate-spin rounded-full h-4 w-4 sm:h-5 sm:w-5 border-2 border-gray-400 border-t-transparent"></div>
+                    ) : (
+                      <Paperclip className="h-4 w-4 sm:h-5 sm:w-5 text-gray-500" />
+                    )}
+                  </Button>
+                  
+                  {/* Camera button for mobile */}
+                  <Button
+                    onClick={() => cameraInputRef.current?.click()}
+                    size="icon"
+                    variant="ghost"
+                    className="rounded-xl h-8 w-8 sm:h-10 sm:w-10 flex-shrink-0 hover:bg-gray-100 transition-colors sm:hidden"
+                    title="Take photo"
+                    disabled={
+                      isWaitingForResponse ||
+                      isUploadingFiles ||
+                      (isAuthenticated && !checkCanSendMessage())
+                    }
+                  >
+                    <ImageIcon className="h-4 w-4 text-gray-500" />
+                  </Button>
+                </div>
 
                 {/* Textarea */}
                 <div className="flex-1 px-1 sm:px-2 flex items-center">
@@ -3368,12 +3470,17 @@ const ClientChatPage = () => {
                           if (files.length > 0) {
                             console.log("📋 Pasting", files.length, "image(s)");
                             
+                            // Compress images before upload
+                            const compressedFiles = await Promise.all(
+                              files.map(file => compressImage(file))
+                            );
+                            
                             // Upload to S3
-                            const s3Files = await uploadFilesToS3(files);
+                            const s3Files = await uploadFilesToS3(compressedFiles);
                             console.log("✅ Pasted images uploaded to S3:", s3Files);
                             
                             // Add to uploaded files
-                            setUploadedFiles((prev) => [...prev, ...files]);
+                            setUploadedFiles((prev) => [...prev, ...compressedFiles]);
                             
                             // Store S3 URLs
                             const s3FileData = s3Files.map((f) => ({

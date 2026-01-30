@@ -2900,6 +2900,7 @@ const ExpertChatPage = () => {
                   type="file"
                   multiple
                   accept="image/*,.pdf,.doc,.docx,.txt"
+                  capture="environment"
                   onChange={handleFileSelect}
                   className="hidden"
                   aria-label="Upload files"
