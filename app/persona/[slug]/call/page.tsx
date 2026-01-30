@@ -5,30 +5,14 @@ import { useParams, useRouter } from 'next/navigation'
 import { useSelector, useDispatch } from 'react-redux'
 import { Button } from '@/components/ui/button'
 import { API_URL } from '@/lib/config'
-import { ArrowLeft, Phone, PhoneOff, User, LogIn, LogOut, MessageSquare, Languages } from 'lucide-react'
+import { ArrowLeft, Phone, PhoneOff, User, LogIn, LogOut, MessageSquare } from 'lucide-react'
 import { useVoiceConversation } from '@/hooks/useVoiceConversation'
 import { RootState } from '@/store/store'
 import { logout, loadUserFromStorage } from '@/store/slices/authSlice'
 import { usePlanLimitations } from '@/hooks/usePlanLimitations'
 import { UsageStatusBar } from '@/components/usage/UsageStatusBar'
 import { LimitReachedModal } from '@/components/usage/LimitReachedModal'
-import LanguageSelector from '@/components/ui/LanguageSelector'
 
-// Language options for display
-const LANGUAGES = [
-  { code: "en", name: "English", flag: "🇺🇸" },
-  { code: "es", name: "Spanish", flag: "🇪🇸" },
-  { code: "fr", name: "French", flag: "🇫🇷" },
-  { code: "de", name: "German", flag: "🇩🇪" },
-  { code: "it", name: "Italian", flag: "🇮🇹" },
-  { code: "pt", name: "Portuguese", flag: "🇵🇹" },
-  { code: "ru", name: "Russian", flag: "🇷🇺" },
-  { code: "ja", name: "Japanese", flag: "🇯🇵" },
-  { code: "ko", name: "Korean", flag: "🇰🇷" },
-  { code: "zh", name: "Chinese", flag: "🇨🇳" },
-  { code: "ar", name: "Arabic", flag: "🇸🇦" },
-  { code: "hi", name: "Hindi", flag: "🇮🇳" },
-]
 
 interface Expert {
   id: string
@@ -70,7 +54,6 @@ const ExpertCallPage = () => {
   const [usageTrackingInterval, setUsageTrackingInterval] = useState<NodeJS.Timeout | null>(null)
   const [lastTrackedMinute, setLastTrackedMinute] = useState(0)
   const [showLimitReachedModal, setShowLimitReachedModal] = useState(false)
-  const [selectedLanguage, setSelectedLanguage] = useState("en")
 
   // Plan limitations hook
   const {
@@ -119,14 +102,6 @@ const ExpertCallPage = () => {
     dispatch(loadUserFromStorage())
   }, [])
 
-  // Load saved language preference
-  useEffect(() => {
-    const savedLanguage = localStorage.getItem("preferred_language");
-    if (savedLanguage) {
-      setSelectedLanguage(savedLanguage);
-    }
-  }, [])
-
   useEffect(() => {
     fetchExpertData()
   }, [slug])
@@ -155,13 +130,13 @@ const ExpertCallPage = () => {
         }
       })
       const data = await response.json()
-      
+
       if (data.success && data.expert) {
         setExpert({
           ...data.expert,
           avatar_url: data.expert?.avatar_url ? convertS3UrlToProxy(data.expert.avatar_url) : null
         })
-        
+
         // Check if current user is the expert owner
         if (user && data.expert && String(data.expert.user_id) === String(user.id)) {
           setIsExpertOwner(true);
@@ -169,7 +144,7 @@ const ExpertCallPage = () => {
         } else {
           setIsExpertOwner(false);
         }
-        
+
         // Set default publication data for styling
         setPublication({
           id: data.expert.id,
@@ -193,33 +168,33 @@ const ExpertCallPage = () => {
 
   const handleStartCall = async () => {
     if (!expert) return
-    
+
     // Check if user can make calls using plan limitations
     if (isAuthenticated && !checkCanMakeCall(1)) {
       console.log("🚫 Call blocked - showing limit modal");
       setShowLimitReachedModal(true);
       return;
     }
-    
+
     try {
       // Check for microphone permission first
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         setError('Your browser does not support microphone access. Please use a modern browser.')
         return
       }
-      
+
       await startConversation()
-      
+
       // Reset tracking state
       setCallDuration(0)
       setLastTrackedMinute(0)
-      
+
       // Start timer
       const interval = setInterval(() => {
         setCallDuration(prev => prev + 1)
       }, 1000)
       setTimerInterval(interval)
-      
+
       // Start real-time usage tracking (every 30 seconds)
       const usageInterval = setInterval(() => {
         trackRealTimeUsage();
@@ -243,7 +218,7 @@ const ExpertCallPage = () => {
   const handleEndCall = async () => {
     try {
       await endConversation()
-      
+
       // Stop all timers first
       if (timerInterval) {
         clearInterval(timerInterval)
@@ -253,17 +228,17 @@ const ExpertCallPage = () => {
         clearInterval(usageTrackingInterval)
         setUsageTrackingInterval(null)
       }
-      
+
       // Calculate total minutes used (round up partial minutes for billing)
       const totalMinutes = Math.ceil(callDuration / 60);
-      
+
       console.log(`📞 Call ended: ${callDuration} seconds -> billing ${totalMinutes} minute(s)`);
-      
+
       // Track final usage - only track remaining minutes not already tracked
       if (isAuthenticated && expert?.id && totalMinutes > lastTrackedMinute) {
         const remainingMinutes = totalMinutes - lastTrackedMinute;
         console.log(`📞 Tracking final ${remainingMinutes} minutes for call (total: ${totalMinutes}, already tracked: ${lastTrackedMinute})`);
-        
+
         try {
           await trackUsage({
             expert_id: expert.id,
@@ -271,7 +246,7 @@ const ExpertCallPage = () => {
             quantity: remainingMinutes,
           });
           console.log("📊 Final call usage tracked successfully");
-          
+
           // Refresh usage data after tracking
           setTimeout(() => {
             refreshUsage().catch((err) =>
@@ -282,7 +257,7 @@ const ExpertCallPage = () => {
           console.error('Failed to track final call minutes:', error);
         }
       }
-      
+
       // Reset state
       setLastTrackedMinute(0);
     } catch (error) {
@@ -302,37 +277,13 @@ const ExpertCallPage = () => {
     dispatch(logout())
   }
 
-  const handleLanguageChange = async (languageCode: string) => {
-    setSelectedLanguage(languageCode);
-    localStorage.setItem("preferred_language", languageCode);
-    
-    // Simple API call to update ElevenLabs agent language
-    if (expert?.id && languageCode !== "en") {
-      try {
-        const response = await fetch(`${API_URL}/conversation/update-language/${expert.id}?language=${languageCode}`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('dilan_ai_token')}`,
-            'Content-Type': 'application/json'
-          }
-        });
-        
-        if (response.ok) {
-          console.log(`✅ Language updated to ${languageCode}`);
-        } else {
-          console.log(`❌ Failed to update language`);
-        }
-      } catch (error) {
-        console.log(`❌ Error updating language:`, error);
-      }
-    }
-  }
+
 
   const formatCallDuration = (seconds: number): string => {
     const hrs = Math.floor(seconds / 3600)
     const mins = Math.floor((seconds % 3600) / 60)
     const secs = seconds % 60
-    
+
     if (hrs > 0) {
       return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
     }
@@ -344,36 +295,36 @@ const ExpertCallPage = () => {
     if (!isAuthenticated || !expert?.id || callDuration === 0) return;
 
     const currentMinutes = Math.ceil(callDuration / 60);
-    
+
     // Only track if we've crossed into a new minute
     if (currentMinutes > lastTrackedMinute) {
       const minutesToTrack = currentMinutes - lastTrackedMinute;
-      
+
       console.log(`📊 Real-time tracking: ${minutesToTrack} minute(s) (total: ${currentMinutes}, last tracked: ${lastTrackedMinute})`);
-      
+
       try {
         await trackUsage({
           expert_id: expert.id,
           event_type: "minutes_used",
           quantity: minutesToTrack,
         });
-        
+
         setLastTrackedMinute(currentMinutes);
-        
+
         // Refresh usage data to get updated limits
         await refreshUsage();
-        
+
         // Check if user is running low on time or out of minutes
         const remainingUsage = getRemainingUsage();
         console.log(`📊 After tracking - remaining minutes: ${remainingUsage.minutes}`);
-        
+
         // If no minutes remaining, end the call gracefully
         if (remainingUsage.minutes !== null && remainingUsage.minutes <= 0) {
           console.log(`🚫 No minutes remaining - ending call gracefully`);
           await handleEndCall();
           setShowLimitReachedModal(true);
         }
-        
+
       } catch (error) {
         console.error("Failed to track real-time usage:", error);
       }
@@ -449,7 +400,7 @@ const ExpertCallPage = () => {
                 <span className="font-semibold text-gray-900 truncate text-sm sm:text-base">{expert?.name}</span>
               </div>
             </div>
-            
+
             {/* User Profile / Login */}
             <div className="flex items-center space-x-1 sm:space-x-3 flex-shrink-0">
               {/* Chat Button */}
@@ -460,7 +411,7 @@ const ExpertCallPage = () => {
               >
                 <MessageSquare className="h-4 w-4" />
               </Button>
-              
+
               {/* Mobile Chat Button */}
               <Button
                 onClick={handleGoToChat}
@@ -478,9 +429,9 @@ const ExpertCallPage = () => {
                   {/* Mobile: Show only avatar */}
                   <div className="sm:hidden">
                     {user.avatar_url ? (
-                      <img 
-                        src={user.avatar_url.startsWith('http') ? user.avatar_url : `${API_URL}${user.avatar_url}`} 
-                        className="w-8 h-8 rounded-full object-cover border-2 border-gray-200" 
+                      <img
+                        src={user.avatar_url.startsWith('http') ? user.avatar_url : `${API_URL}${user.avatar_url}`}
+                        className="w-8 h-8 rounded-full object-cover border-2 border-gray-200"
                         alt={user.username}
                         onError={(e) => {
                           e.currentTarget.style.display = 'none'
@@ -495,9 +446,9 @@ const ExpertCallPage = () => {
                   {/* Desktop: Show full profile */}
                   <div className="hidden sm:block">
                     {user.avatar_url ? (
-                      <img 
-                        src={user.avatar_url.startsWith('http') ? user.avatar_url : `${API_URL}${user.avatar_url}`} 
-                        className="w-10 h-10 rounded-full object-cover border-2 border-gray-200" 
+                      <img
+                        src={user.avatar_url.startsWith('http') ? user.avatar_url : `${API_URL}${user.avatar_url}`}
+                        className="w-10 h-10 rounded-full object-cover border-2 border-gray-200"
                         alt={user.username}
                         onError={(e) => {
                           e.currentTarget.style.display = 'none'
@@ -627,7 +578,7 @@ const ExpertCallPage = () => {
                 animation: vibrate-ripple 1.5s ease-out infinite;
               }
             `}</style>
-            
+
             {/* Thin rotating ring when thinking/listening */}
             {state.isConnected && !state.isSpeaking && (
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
@@ -646,7 +597,7 @@ const ExpertCallPage = () => {
                 </svg>
               </div>
             )}
-            
+
             {/* Vibrating ripple rings when AI is talking */}
             {state.isConnected && state.isSpeaking && (
               <>
@@ -654,29 +605,29 @@ const ExpertCallPage = () => {
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none vibrate-ripple">
                   <div className="w-48 h-48 rounded-full border-2 border-orange-400"></div>
                 </div>
-                
+
                 {/* Ripple 2 */}
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none vibrate-ripple" style={{ animationDelay: '0.3s' }}>
                   <div className="w-48 h-48 rounded-full border-2 border-orange-400"></div>
                 </div>
-                
+
                 {/* Ripple 3 */}
                 <div className="absolute inset-0 flex items-center justify-center pointer-events-none vibrate-ripple" style={{ animationDelay: '0.6s' }}>
                   <div className="w-48 h-48 rounded-full border-2 border-orange-400"></div>
                 </div>
-                
+
                 {/* Outer pulsing glow */}
                 <div className="absolute inset-0 flex items-center justify-center pulse-glow pointer-events-none">
                   <div className="w-72 h-72 rounded-full bg-orange-400 blur-2xl opacity-20"></div>
                 </div>
-                
+
                 {/* Middle pulsing glow */}
                 <div className="absolute inset-0 flex items-center justify-center pulse-glow pointer-events-none" style={{ animationDelay: '0.3s' }}>
                   <div className="w-64 h-64 rounded-full bg-orange-400 blur-xl opacity-25"></div>
                 </div>
               </>
             )}
-            
+
             {expert?.avatar_url ? (
               <img
                 src={expert.avatar_url}
@@ -696,17 +647,7 @@ const ExpertCallPage = () => {
             {expert?.name}
           </h1>
 
-          {/* Language Selector - Centered like the Hindi text */}
-          {!state.isConnected && (
-            <div className="mb-4 flex justify-center">
-              <LanguageSelector
-                selectedLanguage={selectedLanguage}
-                onLanguageChange={handleLanguageChange}
-                compact={false}
-                className=""
-              />
-            </div>
-          )}
+
 
           {/* Status Text */}
           {state.isConnected && (
@@ -760,7 +701,7 @@ const ExpertCallPage = () => {
                   <PhoneOff className="mr-2 h-5 w-5" />
                   End Call
                 </Button>
-                
+
                 {/* Microphone Button with Ripple Effect */}
                 <div className="mt-8 flex justify-center">
                   <div className="relative inline-flex items-center justify-center">
@@ -783,7 +724,7 @@ const ExpertCallPage = () => {
                         animation: ripple 1.5s ease-out infinite;
                       }
                     `}</style>
-                    
+
                     {/* Ripple rings when user is listening/talking */}
                     {state.isListening && (
                       <>
@@ -792,18 +733,17 @@ const ExpertCallPage = () => {
                         <div className="absolute inset-0 rounded-full bg-gray-400 ripple-effect" style={{ animationDelay: '1s' }}></div>
                       </>
                     )}
-                    
+
                     {/* Microphone button */}
                     <button
-                      className={`relative z-10 w-16 h-16 rounded-full flex items-center justify-center shadow-lg transition-all ${
-                        state.isListening 
-                          ? 'bg-gray-700 scale-110' 
+                      className={`relative z-10 w-16 h-16 rounded-full flex items-center justify-center shadow-lg transition-all ${state.isListening
+                          ? 'bg-gray-700 scale-110'
                           : 'bg-gray-200 hover:bg-gray-300'
-                      }`}
+                        }`}
                     >
-                      <svg 
+                      <svg
                         className={`w-6 h-6 ${state.isListening ? 'text-white' : 'text-gray-700'}`}
-                        fill="currentColor" 
+                        fill="currentColor"
                         viewBox="0 0 20 20"
                       >
                         <path d="M7 4a3 3 0 016 0v6a3 3 0 11-6 0V4z" />
@@ -819,17 +759,17 @@ const ExpertCallPage = () => {
           {/* Browser Compatibility Banner */}
           <div className="mb-8">
             <div className="inline-flex items-center px-6 py-3 rounded-full  border border-200 text-800 text-sm font-medium shadow-sm">
-              <svg 
-                className="w-4 h-4 mr-2" 
-                fill="none" 
-                stroke="currentColor" 
+              <svg
+                className="w-4 h-4 mr-2"
+                fill="none"
+                stroke="currentColor"
                 viewBox="0 0 24 24"
               >
-                <path 
-                  strokeLinecap="round" 
-                  strokeLinejoin="round" 
-                  strokeWidth={2} 
-                  d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" 
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
                 />
               </svg>
               Best experience with Chrome or Safari
