@@ -11,6 +11,7 @@ import {
   getAuthHeaders,
   getAuthHeadersForFormData,
 } from "@/lib/api-client";
+import { useExpert } from "@/context/ExpertContext";
 import DocumentContentViewer from "./DocumentContentViewer";
 import AddContentModal from "./AddContentModal";
 import FolderSidebar from "./FolderSidebar";
@@ -104,14 +105,6 @@ interface StatusOption {
   dotColor: string;
 }
 
-interface StatusStats {
-  queued: number;
-  processing: number;
-  completed: number;
-  failed: number;
-  total: number;
-}
-
 interface KnowledgeBaseStats {
   total_vectors: number;
   total_word_count: number;
@@ -133,6 +126,7 @@ const EnhancedKnowledgeBase = ({
   projectId,
 }: EnhancedKnowledgeBaseProps = {}) => {
   const router = useRouter();
+  const { statusStats, setStatusStats } = useExpert();
   const [files, setFiles] = useState<UploadedFile[]>([]);
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(
     null,
@@ -147,13 +141,6 @@ const EnhancedKnowledgeBase = ({
   const [selectedStatusFilter, setSelectedStatusFilter] =
     useState<StatusFilter>("all");
   const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
-  const [statusStats, setStatusStats] = useState<StatusStats>({
-    queued: 0,
-    processing: 0,
-    completed: 0,
-    failed: 0,
-    total: 0,
-  });
   const [knowledgeBaseStats, setKnowledgeBaseStats] =
     useState<KnowledgeBaseStats | null>(null);
   const [isLoadingKBStats, setIsLoadingKBStats] = useState(false);
@@ -264,8 +251,8 @@ const EnhancedKnowledgeBase = ({
         setFiles(files.filter((file) => file.id !== deleteConfirm.fileId));
         // Only refresh folder counts after successful deletion
         setFolderRefreshTrigger((prev) => prev + 1);
-        // Also refresh status stats after deletion
-        fetchStatusStats();
+        // Also refresh TOTAL status stats after deletion (for header)
+        fetchTotalStatusStats();
         // Refresh KB stats after deletion
         fetchKnowledgeBaseStats();
         showToast("File deleted successfully", "success");
@@ -284,7 +271,7 @@ const EnhancedKnowledgeBase = ({
 
   useEffect(() => {
     fetchFiles();
-    fetchStatusStats();
+    fetchTotalStatusStats(); // Use total stats for header on initial load
     fetchKnowledgeBaseStats();
 
     // Cleanup timers on unmount
@@ -332,7 +319,7 @@ const EnhancedKnowledgeBase = ({
     // Reset to first page when changing folders
     setPagination((prev) => ({ ...prev, currentPage: 1 }));
     fetchFiles(selectedFolderFilterId, 1, searchQuery, selectedStatusFilter);
-    fetchStatusStats(selectedFolderFilterId);
+    fetchTotalStatusStats(); // Always update total stats for header
   }, [selectedFolderFilterId]); // Only depend on selectedFolderFilterId
 
   // Status filter effect
@@ -353,9 +340,9 @@ const EnhancedKnowledgeBase = ({
 
     // Only poll if there are processing files
     if (!hasProcessingFiles) {
-      // Still poll status stats every 10 seconds for general updates
+      // Still poll total status stats every 10 seconds for general updates
       const statsInterval = setInterval(() => {
-        fetchStatusStats(selectedFolderFilterId);
+        fetchTotalStatusStats(); // Always poll total stats for header
       }, 10000);
       return () => clearInterval(statsInterval);
     }
@@ -363,7 +350,7 @@ const EnhancedKnowledgeBase = ({
     // Poll every 3 seconds when files are processing
     const interval = setInterval(() => {
       console.log("🔄 Polling: Refreshing files and stats...");
-      fetchStatusStats(selectedFolderFilterId);
+      fetchTotalStatusStats(); // Always poll total stats for header
       fetchFiles(
         selectedFolderFilterId,
         pagination.currentPage,
@@ -627,8 +614,8 @@ const EnhancedKnowledgeBase = ({
     // Manually trigger folder refresh only after successful uploads
     if (successCount > 0) {
       setFolderRefreshTrigger((prev) => prev + 1);
-      // Also refresh status stats after successful uploads
-      fetchStatusStats();
+      // Also refresh TOTAL status stats after successful uploads (for header)
+      fetchTotalStatusStats();
       // Refresh KB stats after successful uploads
       fetchKnowledgeBaseStats();
     }
@@ -699,7 +686,48 @@ const EnhancedKnowledgeBase = ({
     }
   };
 
-  // Fetch status statistics
+  // Fetch status statistics for the header (total across all folders)
+  const fetchTotalStatusStats = async () => {
+    try {
+      // Build query parameters - NO folder filter for total stats
+      const params = new URLSearchParams();
+
+      // Add agent_id for agent isolation
+      if (projectId) {
+        params.append("agent_id", projectId);
+      }
+
+      console.log("📊 Fetching TOTAL status stats with params:", params.toString());
+
+      const response = await fetchWithAuth(
+        `${API_URL}/knowledge-base/files/stats?${params.toString()}`,
+        {
+          headers: getAuthHeaders(),
+        },
+      );
+      const data = await response.json();
+
+      console.log("📈 TOTAL Status stats API response:", data);
+
+      if (data.success) {
+        const newStats = {
+          queued: data.stats.queued || 0,
+          processing: data.stats.processing || 0,
+          completed: data.stats.completed || 0,
+          failed: data.stats.failed || 0,
+          total: data.total || 0,
+        };
+        // Update the shared context stats (used by header)
+        setStatusStats(newStats);
+      } else {
+        console.error("Failed to fetch total status stats:", data.error);
+      }
+    } catch (error) {
+      console.error("Error fetching total status stats:", error);
+    }
+  };
+
+  // Fetch status statistics for local display (can be filtered by folder)
   const fetchStatusStats = async (
     folderId: string | null = selectedFolderFilterId,
   ) => {
@@ -716,7 +744,7 @@ const EnhancedKnowledgeBase = ({
         params.append("agent_id", projectId);
       }
 
-      console.log("📊 Fetching status stats with params:", params.toString());
+      console.log("📊 Fetching folder status stats with params:", params.toString());
 
       const response = await fetchWithAuth(
         `${API_URL}/knowledge-base/files/stats?${params.toString()}`,
@@ -726,16 +754,19 @@ const EnhancedKnowledgeBase = ({
       );
       const data = await response.json();
 
-      console.log("📈 Status stats API response:", data);
+      console.log("📈 Folder Status stats API response:", data);
 
       if (data.success) {
-        setStatusStats({
+        const newStats = {
           queued: data.stats.queued || 0,
           processing: data.stats.processing || 0,
           completed: data.stats.completed || 0,
           failed: data.stats.failed || 0,
           total: data.total || 0,
-        });
+        };
+        // For now, we'll update the shared stats, but in the future we might want
+        // separate local stats for the component display vs header display
+        setStatusStats(newStats);
       } else {
         console.error("Failed to fetch status stats:", data.error);
       }

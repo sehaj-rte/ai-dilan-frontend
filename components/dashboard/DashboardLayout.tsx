@@ -20,7 +20,8 @@ import {
   ChevronDown,
   LogOut,
   CreditCard,
-  HelpCircle
+  HelpCircle,
+  Files
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { API_URL } from '@/lib/config'
@@ -50,8 +51,9 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, customHeade
   const router = useRouter()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [showProfileModal, setShowProfileModal] = useState(false)
-  const { expert, setExpert, kbStats, setKbStats, setIsLoadingExpert } = useExpert()
+  const { expert, setExpert, kbStats, setKbStats, statusStats, setStatusStats, setIsLoadingExpert } = useExpert()
   const [loadingKBStats, setLoadingKBStats] = useState(false)
+  const [loadingStatusStats, setLoadingStatusStats] = useState(false)
   const { user } = useAppSelector((state) => state.auth)
   const dispatch = useAppDispatch()
   const pathname = usePathname()
@@ -155,14 +157,79 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, customHeade
     }
   }
 
+  // Fetch status statistics for document count
+  const fetchStatusStats = async () => {
+    if (!projectId) {
+      setStatusStats({
+        queued: 0,
+        processing: 0,
+        completed: 0,
+        failed: 0,
+        total: 0,
+      })
+      return
+    }
+
+    try {
+      setLoadingStatusStats(true)
+
+      // Build query parameters
+      const params = new URLSearchParams()
+      params.append('agent_id', projectId)
+
+      const response = await fetchWithAuth(`${API_URL}/knowledge-base/files/stats?${params.toString()}`, {
+        headers: getAuthHeaders(),
+      })
+      const data = await response.json()
+
+      if (data.success) {
+        setStatusStats({
+          queued: data.stats.queued || 0,
+          processing: data.stats.processing || 0,
+          completed: data.stats.completed || 0,
+          failed: data.stats.failed || 0,
+          total: data.total || 0,
+        })
+      } else {
+        console.error('Failed to fetch status stats:', data.error)
+        setStatusStats({
+          queued: 0,
+          processing: 0,
+          completed: 0,
+          failed: 0,
+          total: 0,
+        })
+      }
+    } catch (error) {
+      console.error('Error fetching status stats:', error)
+      setStatusStats({
+        queued: 0,
+        processing: 0,
+        completed: 0,
+        failed: 0,
+        total: 0,
+      })
+    } finally {
+      setLoadingStatusStats(false)
+    }
+  }
+
   // Fetch project and stats on mount and when projectId changes
   useEffect(() => {
     if (projectId) {
       fetchExpertData()
       fetchKnowledgeBaseStats()
+      fetchStatusStats()
     } else {
       setExpert(null)
       setKbStats(null)
+      setStatusStats({
+        queued: 0,
+        processing: 0,
+        completed: 0,
+        failed: 0,
+        total: 0,
+      })
     }
   }, [projectId])
 
@@ -203,6 +270,16 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, customHeade
                   {/* Knowledge Base Statistics - Show for all projects with data */}
                   {kbStats && kbStats.total_vectors > 0 && (
                     <div className="flex items-center gap-3">
+                      {/* Document Count Badge */}
+                      <div
+                        className="flex items-center gap-2 px-3 py-1.5 bg-orange-50 rounded-lg border border-orange-100 cursor-help hover:bg-orange-100 transition-colors"
+                        title={`Total documents: ${statusStats.completed.toLocaleString()} completed documents`}
+                      >
+                        <Files className="h-4 w-4 text-orange-600" />
+                        <span className="text-orange-700 font-semibold text-sm">{statusStats.completed.toLocaleString()}</span>
+                        <span className="text-orange-600 text-xs font-medium">documents</span>
+                      </div>
+
                       {/* Word Count Badge */}
                       <div
                         className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 rounded-lg border border-blue-100 cursor-help hover:bg-blue-100 transition-colors"
@@ -235,7 +312,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, customHeade
                   )}
 
                   {/* Loading indicator for KB stats */}
-                  {loadingKBStats && (
+                  {(loadingKBStats || loadingStatusStats) && (
                     <div className="hidden md:flex items-center space-x-2 text-sm text-gray-500">
                       <div className="h-6 w-px bg-gray-300"></div>
                       <Loader2 className="h-3 w-3 animate-spin" />
