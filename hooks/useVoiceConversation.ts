@@ -24,13 +24,14 @@ export interface VoiceConversationState {
 export interface UseVoiceConversationOptions {
   expertId: string
   userId?: string  // Add userId for expert owner tracking
+  language?: string  // Add language parameter
   onMessage?: (message: VoiceMessage) => void
   onError?: (error: string) => void
   onStatusChange?: (status: 'connected' | 'connecting' | 'disconnected') => void
 }
 
 export const useVoiceConversation = (options: UseVoiceConversationOptions) => {
-  const { expertId, userId, onMessage, onError, onStatusChange } = options
+  const { expertId, userId, language, onMessage, onError, onStatusChange } = options
   
   const [state, setState] = useState<VoiceConversationState>({
     isConnected: false,
@@ -52,9 +53,19 @@ export const useVoiceConversation = (options: UseVoiceConversationOptions) => {
   
   const getSignedUrl = useCallback(async (): Promise<string> => {
     try {
-      const url = userId 
-        ? `${API_URL}/conversation/signed-url/${expertId}?user_id=${userId}`
-        : `${API_URL}/conversation/signed-url/${expertId}`
+      let url = `${API_URL}/conversation/signed-url/${expertId}`
+      const params = new URLSearchParams()
+      
+      if (userId) {
+        params.append('user_id', userId)
+      }
+      if (language && language !== 'en') {
+        params.append('language', language)
+      }
+      
+      if (params.toString()) {
+        url += `?${params.toString()}`
+      }
       
       const response = await fetch(url, {
         headers: {
@@ -73,7 +84,7 @@ export const useVoiceConversation = (options: UseVoiceConversationOptions) => {
       const errorMessage = error instanceof Error ? error.message : 'Failed to get signed URL'
       throw new Error(errorMessage)
     }
-  }, [expertId, userId])
+  }, [expertId, userId, language])
   
   const startConversation = useCallback(async () => {
     if (conversationRef.current || state.isConnecting) {

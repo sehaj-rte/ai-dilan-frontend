@@ -41,6 +41,7 @@ import {
 } from "@/components/ui/dialog";
 import { useExpert } from "@/context/ExpertContext";
 import CleanPaymentModal from "@/components/payment/CleanPaymentModal";
+import MultipleTrialConfigs from "@/components/pricing/MultipleTrialConfigs";
 
 interface ConfirmDeleteDialogProps {
   open: boolean;
@@ -256,35 +257,66 @@ const PricingSubscriptionManagerPage = () => {
       if (data.success && data.content) {
         setPricingContent(data.content);
 
-        // Populate form with existing content
+        // Populate form with existing content - with safe null checks
         setContentForm({
           monthly_plan: {
-            title: data.content.monthly_plan.title || "",
-            subtitle: data.content.monthly_plan.subtitle || "",
-            features: data.content.monthly_plan.features || [""],
-            perfect_for: data.content.monthly_plan.perfect_for || [""],
+            title: data.content.monthly_plan?.title || "",
+            subtitle: data.content.monthly_plan?.subtitle || "",
+            features: data.content.monthly_plan?.features || [""],
+            perfect_for: data.content.monthly_plan?.perfect_for || [""],
             badge: ""
           },
           three_month_plan: {
-            title: data.content.three_month_plan.title || "",
-            subtitle: data.content.three_month_plan.subtitle || "",
-            features: data.content.three_month_plan.features || [""],
-            perfect_for: data.content.three_month_plan.perfect_for || [""],
-            badge: data.content.three_month_plan.badge || "Most Popular"
+            title: data.content.three_month_plan?.title || "",
+            subtitle: data.content.three_month_plan?.subtitle || "",
+            features: data.content.three_month_plan?.features || [""],
+            perfect_for: data.content.three_month_plan?.perfect_for || [""],
+            badge: data.content.three_month_plan?.badge || "Most Popular"
           },
           six_month_plan: {
-            title: data.content.six_month_plan.title || "",
-            subtitle: data.content.six_month_plan.subtitle || "",
-            features: data.content.six_month_plan.features || [""],
-            perfect_for: data.content.six_month_plan.perfect_for || [""],
-            badge: data.content.six_month_plan.badge || "Best Value"
+            title: data.content.six_month_plan?.title || "",
+            subtitle: data.content.six_month_plan?.subtitle || "",
+            features: data.content.six_month_plan?.features || [""],
+            perfect_for: data.content.six_month_plan?.perfect_for || [""],
+            badge: data.content.six_month_plan?.badge || "Best Value"
           },
           general: {
-            subscription_page_title: data.content.general.subscription_page_title || "",
-            subscription_page_description: data.content.general.subscription_page_description || "",
-            base_monthly_price: data.content.general.base_monthly_price || "40"
+            subscription_page_title: data.content.general?.subscription_page_title || "",
+            subscription_page_description: data.content.general?.subscription_page_description || "",
+            base_monthly_price: data.content.general?.base_monthly_price || "40"
           },
           plan_custom_content: data.content.plan_custom_content || {}
+        });
+      } else {
+        // Initialize with default values if no content exists
+        setContentForm({
+          monthly_plan: {
+            title: "",
+            subtitle: "",
+            features: [""],
+            perfect_for: [""],
+            badge: ""
+          },
+          three_month_plan: {
+            title: "",
+            subtitle: "",
+            features: [""],
+            perfect_for: [""],
+            badge: "Most Popular"
+          },
+          six_month_plan: {
+            title: "",
+            subtitle: "",
+            features: [""],
+            perfect_for: [""],
+            badge: "Best Value"
+          },
+          general: {
+            subscription_page_title: "",
+            subscription_page_description: "",
+            base_monthly_price: "40"
+          },
+          plan_custom_content: {}
         });
       }
     } catch (error) {
@@ -713,276 +745,7 @@ const PricingSubscriptionManagerPage = () => {
           </Button>
         </div>
 
-        {/* Free Trial Configuration */}
-        <Card className="shadow-lg mb-6">
-          <CardHeader>
-            <CardTitle className="flex items-center text-xl">
-              <Gift className="h-5 w-5 mr-2 text-purple-600" />
-              Free Trial Configuration
-            </CardTitle>
-            <CardDescription>
-              Offer a 7-day free trial to attract new users with limited usage
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <p className="text-sm text-gray-600">
-                Offer a 7-day free trial to attract new users. Users can access your expert with limited usage during the trial period.
-              </p>
-
-              {/* Trial Toggle */}
-              <div className="flex items-center justify-between p-4 border rounded-lg">
-                <div className="flex-1">
-                  <h4 className="text-sm font-medium text-gray-900">
-                    Enable Free Trial
-                  </h4>
-                  <p className="text-xs text-gray-500 mt-1">
-                    Allow users to try your expert for free with usage limits
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  {isUpdatingTrial && (
-                    <Loader2 className="h-4 w-4 animate-spin text-blue-600" />
-                  )}
-                  <Switch
-                    checked={expert?.free_trial_enabled || false}
-                    disabled={isUpdatingTrial}
-                    onCheckedChange={(enabled) => {
-                      // Update UI immediately for better UX
-                      setExpert({ ...expert, free_trial_enabled: enabled });
-
-                      // Make API call in background
-                      (async () => {
-                        try {
-                          setIsUpdatingTrial(true);
-
-                          const response = await fetchWithAuth(
-                            `${API_URL}/experts/${projectId}`,
-                            {
-                              method: "PUT",
-                              headers: {
-                                ...getAuthHeaders(),
-                                "Content-Type": "application/json",
-                              },
-                              body: JSON.stringify({
-                                free_trial_enabled: enabled,
-                                trial_message_limit: enabled ? 10 : null,
-                                trial_minute_limit: enabled ? 5 : null,
-                              }),
-                            }
-                          );
-
-                          const data = await response.json();
-
-                          if (data.success) {
-                            setExpert({
-                              ...expert,
-                              ...data.expert
-                            });
-                            success(enabled ? "Free trial enabled!" : "Free trial disabled!");
-                          } else {
-                            // Revert UI change on error
-                            setExpert({ ...expert, free_trial_enabled: !enabled });
-                            error("Failed to update trial settings: " + (data.error || data.detail || "Unknown error"));
-                          }
-                        } catch (err) {
-                          console.error("Error updating trial settings:", err);
-                          // Revert UI change on error
-                          setExpert({ ...expert, free_trial_enabled: !enabled });
-                          error("Error updating trial settings");
-                        } finally {
-                          setIsUpdatingTrial(false);
-                        }
-                      })();
-                    }}
-                  />
-                </div>
-              </div>
-
-              {/* Trial Configuration - Only show when enabled */}
-              {expert?.free_trial_enabled && (
-                <div className="space-y-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <h4 className="text-sm font-medium text-blue-900">
-                    Trial Configuration
-                  </h4>
-
-                  {/* Trial Coupon Code */}
-                  <div>
-                    <Label className="block text-xs font-medium text-blue-800 mb-1">
-                      Trial Coupon Code
-                    </Label>
-                    <div className="flex items-center gap-2">
-                      <Input
-                        value={localTrialConfig.coupon}
-                        onChange={(e) => {
-                          setLocalTrialConfig(prev => ({ ...prev, coupon: e.target.value.toUpperCase() }));
-                        }}
-                        className="bg-white text-sm font-mono"
-                        placeholder="Enter coupon code (e.g., TRIAL123)"
-                        maxLength={20}
-                        disabled={isUpdatingTrial}
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          if (!localTrialConfig.coupon) {
-                            const newCoupon = generateTrialCoupon();
-                            setLocalTrialConfig(prev => ({ ...prev, coupon: newCoupon }));
-                          }
-                        }}
-                        className="shrink-0"
-                        disabled={isUpdatingTrial}
-                      >
-                        Generate
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => copyToClipboard(localTrialConfig.coupon)}
-                        className="shrink-0"
-                        disabled={!localTrialConfig.coupon}
-                      >
-                        {isCopied ? (
-                          <Check className="h-4 w-4 text-green-500" />
-                        ) : (
-                          <Copy className="h-4 w-4" />
-                        )}
-                      </Button>
-                    </div>
-                    <p className="text-xs text-blue-600 mt-1">
-                      Users enter this code during subscription to get 7-day free trial
-                    </p>
-                  </div>
-
-                  {/* Trial Limits */}
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label className="block text-xs font-medium text-blue-800 mb-1">
-                          Message Limit
-                        </Label>
-                        <Input
-                          type="number"
-                          value={localTrialConfig.message_limit || ""}
-                          onChange={(e) => {
-                            const value = parseInt(e.target.value) || 0;
-                            setLocalTrialConfig(prev => ({ ...prev, message_limit: value }));
-                          }}
-                          className="bg-white text-sm"
-                          placeholder="10"
-                          min="1"
-                          disabled={isUpdatingTrial}
-                        />
-                        <p className="text-xs text-blue-600 mt-1">
-                          Max messages during trial
-                        </p>
-                      </div>
-
-                      <div>
-                        <Label className="block text-xs font-medium text-blue-800 mb-1">
-                          Voice Minutes Limit
-                        </Label>
-                        <Input
-                          type="number"
-                          value={localTrialConfig.minute_limit || ""}
-                          onChange={(e) => {
-                            const value = parseInt(e.target.value) || 0;
-                            setLocalTrialConfig(prev => ({ ...prev, minute_limit: value }));
-                          }}
-                          className="bg-white text-sm"
-                          placeholder="5"
-                          min="1"
-                          disabled={isUpdatingTrial}
-                        />
-                        <p className="text-xs text-blue-600 mt-1">
-                          Max voice call minutes during trial
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Save Button */}
-                    <div className="flex justify-end">
-                      <Button
-                        type="button"
-                        onClick={async () => {
-                          // Validate coupon code
-                          if (!localTrialConfig.coupon.trim()) {
-                            error("Please enter a coupon code or click Generate");
-                            return;
-                          }
-
-                          if (localTrialConfig.message_limit <= 0 || localTrialConfig.minute_limit <= 0) {
-                            error("Please enter valid limits greater than 0");
-                            return;
-                          }
-
-                          try {
-                            setIsUpdatingTrial(true);
-                            const response = await fetchWithAuth(
-                              `${API_URL}/experts/${projectId}`,
-                              {
-                                method: "PUT",
-                                headers: {
-                                  ...getAuthHeaders(),
-                                  "Content-Type": "application/json",
-                                },
-                                body: JSON.stringify({
-                                  free_trial_coupon: localTrialConfig.coupon.trim().toUpperCase(),
-                                  trial_message_limit: localTrialConfig.message_limit,
-                                  trial_minute_limit: localTrialConfig.minute_limit,
-                                }),
-                              }
-                            );
-
-                            const data = await response.json();
-                            if (data.success) {
-                              setExpert({
-                                ...expert,
-                                free_trial_coupon: localTrialConfig.coupon.trim().toUpperCase(),
-                                trial_message_limit: localTrialConfig.message_limit,
-                                trial_minute_limit: localTrialConfig.minute_limit
-                              });
-                              success("Trial configuration saved successfully!");
-                            } else {
-                              error("Failed to save trial configuration: " + (data.error || "Unknown error"));
-                            }
-                          } catch (err) {
-                            console.error("Error saving trial configuration:", err);
-                            error("Error saving trial configuration");
-                          } finally {
-                            setIsUpdatingTrial(false);
-                          }
-                        }}
-                        disabled={isUpdatingTrial || !localTrialConfig.coupon.trim()}
-                        className="bg-blue-600 hover:bg-blue-700 text-white"
-                      >
-                        {isUpdatingTrial ? (
-                          <>
-                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                            Saving...
-                          </>
-                        ) : (
-                          "Save Trial Configuration"
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-
-                  {/* Trial Info */}
-                  <div className="bg-blue-100 p-3 rounded-lg">
-                    <p className="text-xs text-blue-800">
-                      <strong>How it works:</strong> Users enter the coupon code during subscription signup to get 7 days of free access with the limits above. After the trial ends or limits are reached, they'll be prompted to upgrade to a paid plan.
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-
+       
 
         {/* Pricing Plans Management */}
         <Card className="shadow-lg">
@@ -1127,7 +890,14 @@ const PricingSubscriptionManagerPage = () => {
 
           </CardContent>
         </Card>
-
+ {/* Multiple Trial Configurations */}
+        <MultipleTrialConfigs 
+          expertId={projectId as string}
+          onConfigsChange={(configs) => {
+            // Optional: Handle configuration changes if needed
+            console.log('Trial configurations updated:', configs);
+          }}
+        />
         {/* Create Plan Modal */}
         {showCreatePlan && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">

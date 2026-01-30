@@ -5,13 +5,30 @@ import { useParams, useRouter } from 'next/navigation'
 import { useSelector, useDispatch } from 'react-redux'
 import { Button } from '@/components/ui/button'
 import { API_URL } from '@/lib/config'
-import { ArrowLeft, Phone, PhoneOff, User, LogIn, LogOut, MessageSquare } from 'lucide-react'
+import { ArrowLeft, Phone, PhoneOff, User, LogIn, LogOut, MessageSquare, Languages } from 'lucide-react'
 import { useVoiceConversation } from '@/hooks/useVoiceConversation'
 import { RootState } from '@/store/store'
 import { logout, loadUserFromStorage } from '@/store/slices/authSlice'
 import { usePlanLimitations } from '@/hooks/usePlanLimitations'
 import { UsageStatusBar } from '@/components/usage/UsageStatusBar'
 import { LimitReachedModal } from '@/components/usage/LimitReachedModal'
+import LanguageSelector from '@/components/ui/LanguageSelector'
+
+// Language options for display
+const LANGUAGES = [
+  { code: "en", name: "English", flag: "🇺🇸" },
+  { code: "es", name: "Spanish", flag: "🇪🇸" },
+  { code: "fr", name: "French", flag: "🇫🇷" },
+  { code: "de", name: "German", flag: "🇩🇪" },
+  { code: "it", name: "Italian", flag: "🇮🇹" },
+  { code: "pt", name: "Portuguese", flag: "🇵🇹" },
+  { code: "ru", name: "Russian", flag: "🇷🇺" },
+  { code: "ja", name: "Japanese", flag: "🇯🇵" },
+  { code: "ko", name: "Korean", flag: "🇰🇷" },
+  { code: "zh", name: "Chinese", flag: "🇨🇳" },
+  { code: "ar", name: "Arabic", flag: "🇸🇦" },
+  { code: "hi", name: "Hindi", flag: "🇮🇳" },
+]
 
 interface Expert {
   id: string
@@ -53,6 +70,7 @@ const ExpertCallPage = () => {
   const [usageTrackingInterval, setUsageTrackingInterval] = useState<NodeJS.Timeout | null>(null)
   const [lastTrackedMinute, setLastTrackedMinute] = useState(0)
   const [showLimitReachedModal, setShowLimitReachedModal] = useState(false)
+  const [selectedLanguage, setSelectedLanguage] = useState("en")
 
   // Plan limitations hook
   const {
@@ -87,7 +105,7 @@ const ExpertCallPage = () => {
     endConversation,
   } = useVoiceConversation({
     expertId: expert?.id || '',
-    userId: user?.id, // Pass user ID for expert owner tracking
+    userId: user?.id,
     onError: (error) => {
       setError(error)
     },
@@ -99,6 +117,14 @@ const ExpertCallPage = () => {
   // Load user from storage on mount
   useEffect(() => {
     dispatch(loadUserFromStorage())
+  }, [])
+
+  // Load saved language preference
+  useEffect(() => {
+    const savedLanguage = localStorage.getItem("preferred_language");
+    if (savedLanguage) {
+      setSelectedLanguage(savedLanguage);
+    }
   }, [])
 
   useEffect(() => {
@@ -276,6 +302,32 @@ const ExpertCallPage = () => {
     dispatch(logout())
   }
 
+  const handleLanguageChange = async (languageCode: string) => {
+    setSelectedLanguage(languageCode);
+    localStorage.setItem("preferred_language", languageCode);
+    
+    // Simple API call to update ElevenLabs agent language
+    if (expert?.id && languageCode !== "en") {
+      try {
+        const response = await fetch(`${API_URL}/conversation/update-language/${expert.id}?language=${languageCode}`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('dilan_ai_token')}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (response.ok) {
+          console.log(`✅ Language updated to ${languageCode}`);
+        } else {
+          console.log(`❌ Failed to update language`);
+        }
+      } catch (error) {
+        console.log(`❌ Error updating language:`, error);
+      }
+    }
+  }
+
   const formatCallDuration = (seconds: number): string => {
     const hrs = Math.floor(seconds / 3600)
     const mins = Math.floor((seconds % 3600) / 60)
@@ -378,28 +430,28 @@ const ExpertCallPage = () => {
       <div className="border-b border-gray-200">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2 sm:space-x-4 flex-1 min-w-0">
               <button
                 onClick={handleBack}
-                className="text-gray-600 hover:text-gray-900"
+                className="text-gray-600 hover:text-gray-900 flex-shrink-0"
               >
                 <ArrowLeft className="h-6 w-6" />
               </button>
-              <div className="flex items-center space-x-2">
+              <div className="flex items-center space-x-2 min-w-0 flex-1">
                 {expert?.avatar_url ? (
                   <img
                     src={expert.avatar_url}
                     alt={expert.name}
-                    className="w-8 h-8 rounded-full object-cover"
+                    className="w-8 h-8 rounded-full object-cover flex-shrink-0"
                     onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
                   />
                 ) : null}
-                <span className="font-semibold text-gray-900">{expert?.name}</span>
+                <span className="font-semibold text-gray-900 truncate text-sm sm:text-base">{expert?.name}</span>
               </div>
             </div>
             
             {/* User Profile / Login */}
-            <div className="flex items-center space-x-3">
+            <div className="flex items-center space-x-1 sm:space-x-3 flex-shrink-0">
               {/* Chat Button */}
               <Button
                 onClick={handleGoToChat}
@@ -413,37 +465,66 @@ const ExpertCallPage = () => {
               <Button
                 onClick={handleGoToChat}
                 size="sm"
-                className="sm:hidden flex items-center justify-center w-9 h-9 bg-black hover:bg-gray-800 text-white border-0 shadow-sm mr-2 rounded-full"
+                className="sm:hidden flex items-center justify-center w-8 h-8 bg-black hover:bg-gray-800 text-white border-0 shadow-sm mr-1 rounded-full"
               >
-                <MessageSquare className="h-4 w-4" />
+                <MessageSquare className="h-3 w-3" />
               </Button>
               {isAuthenticated && user ? (
-                <div className="flex items-center space-x-3">
-                  <div className="text-right">
+                <div className="flex items-center space-x-1 sm:space-x-3">
+                  <div className="text-right hidden sm:block">
                     <p className="text-sm font-medium text-gray-900">{user.full_name || user.username}</p>
                     <p className="text-xs text-gray-500">{user.email}</p>
                   </div>
-                  {user.avatar_url ? (
-                    <img 
-                      src={user.avatar_url.startsWith('http') ? user.avatar_url : `${API_URL}${user.avatar_url}`} 
-                      className="w-10 h-10 rounded-full object-cover border-2 border-gray-200" 
-                      alt={user.username}
-                      onError={(e) => {
-                        e.currentTarget.style.display = 'none'
-                        e.currentTarget.nextElementSibling?.classList.remove('hidden')
-                      }}
-                    />
-                  ) : null}
-                  <div className={`w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center ${user.avatar_url ? 'hidden' : ''}`}>
-                    <User className="h-5 w-5 text-gray-500" />
+                  {/* Mobile: Show only avatar */}
+                  <div className="sm:hidden">
+                    {user.avatar_url ? (
+                      <img 
+                        src={user.avatar_url.startsWith('http') ? user.avatar_url : `${API_URL}${user.avatar_url}`} 
+                        className="w-8 h-8 rounded-full object-cover border-2 border-gray-200" 
+                        alt={user.username}
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none'
+                          e.currentTarget.nextElementSibling?.classList.remove('hidden')
+                        }}
+                      />
+                    ) : null}
+                    <div className={`w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center ${user.avatar_url ? 'hidden' : ''}`}>
+                      <User className="h-4 w-4 text-gray-500" />
+                    </div>
+                  </div>
+                  {/* Desktop: Show full profile */}
+                  <div className="hidden sm:block">
+                    {user.avatar_url ? (
+                      <img 
+                        src={user.avatar_url.startsWith('http') ? user.avatar_url : `${API_URL}${user.avatar_url}`} 
+                        className="w-10 h-10 rounded-full object-cover border-2 border-gray-200" 
+                        alt={user.username}
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none'
+                          e.currentTarget.nextElementSibling?.classList.remove('hidden')
+                        }}
+                      />
+                    ) : null}
+                    <div className={`w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center ${user.avatar_url ? 'hidden' : ''}`}>
+                      <User className="h-5 w-5 text-gray-500" />
+                    </div>
                   </div>
                   <Button
                     onClick={handleLogout}
                     variant="ghost"
                     size="sm"
-                    className="text-gray-600 hover:text-gray-900"
+                    className="text-gray-600 hover:text-gray-900 hidden sm:flex"
                   >
                     <LogOut className="h-4 w-4" />
+                  </Button>
+                  {/* Mobile logout - icon only */}
+                  <Button
+                    onClick={handleLogout}
+                    variant="ghost"
+                    size="sm"
+                    className="sm:hidden w-8 h-8 p-0 text-gray-600 hover:text-gray-900"
+                  >
+                    <LogOut className="h-3 w-3" />
                   </Button>
                 </div>
               ) : (
@@ -614,6 +695,18 @@ const ExpertCallPage = () => {
           <h1 className="text-4xl font-bold text-gray-900 mb-4">
             {expert?.name}
           </h1>
+
+          {/* Language Selector - Centered like the Hindi text */}
+          {!state.isConnected && (
+            <div className="mb-4 flex justify-center">
+              <LanguageSelector
+                selectedLanguage={selectedLanguage}
+                onLanguageChange={handleLanguageChange}
+                compact={false}
+                className=""
+              />
+            </div>
+          )}
 
           {/* Status Text */}
           {state.isConnected && (

@@ -43,6 +43,7 @@ import {
   Phone,
   Volume2,
   VolumeX,
+  Languages,
 } from "lucide-react";
 import FilePreviewModal from "@/components/chat/FilePreviewModal";
 import { RootState } from "@/store/store";
@@ -154,6 +155,9 @@ const ExpertChatPage = () => {
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [playingMessageId, setPlayingMessageId] = useState<string | null>(null);
   const [loadingMessageId, setLoadingMessageId] = useState<string | null>(null);
+  const [translatingMessageId, setTranslatingMessageId] = useState<string | null>(null);
+  const [translatedMessages, setTranslatedMessages] = useState<Map<string, { text: string; language: string }>>(new Map());
+  const [openTranslateDropdown, setOpenTranslateDropdown] = useState<string | null>(null);
   const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null);
   const [audioCache, setAudioCache] = useState<Map<string, string>>(new Map());
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -274,6 +278,27 @@ const ExpertChatPage = () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [isUserMenuOpen]);
+
+  // Close translate dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (openTranslateDropdown) {
+        const target = event.target as Element;
+        const dropdown = target.closest('.translate-dropdown-container');
+        if (!dropdown) {
+          setOpenTranslateDropdown(null);
+        }
+      }
+    };
+
+    if (openTranslateDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [openTranslateDropdown]);
 
   // Auto-connect when expert is loaded
   useEffect(() => {
@@ -499,6 +524,22 @@ const ExpertChatPage = () => {
     return () => {
       if (recognitionRef.current) {
         recognitionRef.current.stop();
+      }
+    };
+  }, []);
+
+  // Cleanup audio cache on component unmount
+  useEffect(() => {
+    return () => {
+      // Revoke all cached audio URLs to prevent memory leaks
+      audioCache.forEach((url) => {
+        URL.revokeObjectURL(url);
+      });
+      
+      // Stop any currently playing audio
+      if (currentAudio) {
+        currentAudio.pause();
+        currentAudio.currentTime = 0;
       }
     };
   }, []);
@@ -896,13 +937,15 @@ const ExpertChatPage = () => {
         setPlayingMessageId(null);
         setLoadingMessageId(null);
         setCurrentAudio(null);
-        URL.revokeObjectURL(audioUrl);
+        // Don't revoke URL here - keep it cached for reuse
       };
 
       audio.onerror = () => {
         setPlayingMessageId(null);
         setLoadingMessageId(null);
         setCurrentAudio(null);
+        // Remove from cache on error and revoke URL
+        audioCache.delete(cacheKey);
         URL.revokeObjectURL(audioUrl);
         alert("Failed to play audio. Please try again.");
       };
@@ -921,6 +964,66 @@ const ExpertChatPage = () => {
       alert("Failed to generate speech. Please try again.");
     }
   };
+
+  const handleTranslate = async (messageId: string, text: string, targetLanguage: string) => {
+    try {
+      setTranslatingMessageId(messageId);
+
+      // Call translation API
+      const response = await fetch(`${API_URL}/translate`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          text: text,
+          target_language: targetLanguage,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Translation API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.success) {
+        // Store the translation
+        const newTranslations = new Map(translatedMessages);
+        newTranslations.set(messageId, {
+          text: data.translated_text,
+          language: targetLanguage
+        });
+        setTranslatedMessages(newTranslations);
+      } else {
+        throw new Error(data.error || "Translation failed");
+      }
+
+    } catch (error) {
+      console.error("Translation error:", error);
+      alert("Failed to translate message. Please try again.");
+    } finally {
+      setTranslatingMessageId(null);
+    }
+  };
+
+  const getLanguageOptions = () => [
+    { code: 'es', name: 'Spanish' },
+    { code: 'fr', name: 'French' },
+    { code: 'de', name: 'German' },
+    { code: 'it', name: 'Italian' },
+    { code: 'pt', name: 'Portuguese' },
+    { code: 'ru', name: 'Russian' },
+    { code: 'ja', name: 'Japanese' },
+    { code: 'ko', name: 'Korean' },
+    { code: 'zh', name: 'Chinese' },
+    { code: 'ar', name: 'Arabic' },
+    { code: 'hi', name: 'Hindi' },
+    { code: 'tr', name: 'Turkish' },
+    { code: 'pl', name: 'Polish' },
+    { code: 'nl', name: 'Dutch' },
+    { code: 'sv', name: 'Swedish' },
+  ];
 
   const startOpenAIChatSession = async (expertId?: string) => {
     const id = expertId || expert?.id;
@@ -2336,8 +2439,24 @@ const ExpertChatPage = () => {
                       {m.type === "user" ? (
                         <div>
                           <p className="text-sm leading-relaxed whitespace-pre-wrap">
-                            {m.text}
+                            {translatedMessages.has(m.id) ? translatedMessages.get(m.id)!.text : m.text}
                           </p>
+                          {translatedMessages.has(m.id) && (
+                            <div className="mt-1 text-xs text-gray-500 flex items-center gap-1">
+                              <Languages className="h-3 w-3" />
+                              Translated to {getLanguageOptions().find(lang => lang.code === translatedMessages.get(m.id)!.language)?.name}
+                              <button
+                                onClick={() => {
+                                  const newTranslations = new Map(translatedMessages);
+                                  newTranslations.delete(m.id);
+                                  setTranslatedMessages(newTranslations);
+                                }}
+                                className="ml-1 text-blue-600 hover:text-blue-800 underline"
+                              >
+                                Show original
+                              </button>
+                            </div>
+                          )}
                           {m.files && m.files.length > 0 && (
                             <div className="mt-2 space-y-2">
                               {m.files.map((file, idx) => (
@@ -2398,8 +2517,24 @@ const ExpertChatPage = () => {
                       ) : (
                         <div className="text-sm sm:text-[15px] leading-relaxed prose prose-sm max-w-none prose-gray prose-headings:text-gray-900 prose-p:text-gray-900 prose-strong:text-gray-900 prose-li:text-gray-900 prose-ul:my-2 prose-li:my-0 prose-p:my-0">
                           <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                            {m.text}
+                            {translatedMessages.has(m.id) ? translatedMessages.get(m.id)!.text : m.text}
                           </ReactMarkdown>
+                          {translatedMessages.has(m.id) && (
+                            <div className="mt-2 text-xs text-gray-500 flex items-center gap-1">
+                              <Languages className="h-3 w-3" />
+                              Translated to {getLanguageOptions().find(lang => lang.code === translatedMessages.get(m.id)!.language)?.name}
+                              <button
+                                onClick={() => {
+                                  const newTranslations = new Map(translatedMessages);
+                                  newTranslations.delete(m.id);
+                                  setTranslatedMessages(newTranslations);
+                                }}
+                                className="ml-1 text-blue-600 hover:text-blue-800 underline"
+                              >
+                                Show original
+                              </button>
+                            </div>
+                          )}
                         </div>
                       )}
 
@@ -2483,7 +2618,8 @@ const ExpertChatPage = () => {
                         {/* Copy Button */}
                         <button
                           onClick={() => {
-                            navigator.clipboard.writeText(m.text);
+                            const textToCopy = translatedMessages.has(m.id) ? translatedMessages.get(m.id)!.text : m.text;
+                            navigator.clipboard.writeText(textToCopy);
                             setCopiedMessageId(m.id);
                             setTimeout(() => setCopiedMessageId(null), 2000);
                           }}
@@ -2499,7 +2635,10 @@ const ExpertChatPage = () => {
 
                         {/* Read Aloud Button */}
                         <button
-                          onClick={() => handleReadAloud(m.id, m.text)}
+                          onClick={() => {
+                            const textToRead = translatedMessages.has(m.id) ? translatedMessages.get(m.id)!.text : m.text;
+                            handleReadAloud(m.id, textToRead);
+                          }}
                           className={`p-1.5 rounded-lg transition-all duration-200 group ${
                             playingMessageId === m.id 
                               ? "bg-blue-50 hover:bg-blue-100" 
@@ -2530,6 +2669,82 @@ const ExpertChatPage = () => {
                             }`} />
                           )}
                         </button>
+
+                        {/* Translate Button */}
+                        <div className="relative translate-dropdown-container">
+                          <button
+                            onClick={() => {
+                              setOpenTranslateDropdown(openTranslateDropdown === m.id ? null : m.id);
+                            }}
+                            className={`p-1.5 rounded-lg transition-all duration-200 group ${
+                              translatingMessageId === m.id
+                                ? "bg-green-50"
+                                : translatedMessages.has(m.id)
+                                  ? "bg-green-50 hover:bg-green-100"
+                                  : "hover:bg-gray-200"
+                            } ${translatingMessageId === m.id ? "opacity-50 cursor-not-allowed" : ""}`}
+                            title={
+                              translatingMessageId === m.id
+                                ? "Translating..."
+                                : translatedMessages.has(m.id)
+                                  ? "Translated - click to change language"
+                                  : "Translate message"
+                            }
+                            disabled={translatingMessageId === m.id}
+                          >
+                            {translatingMessageId === m.id ? (
+                              <div className="h-4 w-4 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
+                            ) : (
+                              <Languages className={`h-4 w-4 transition-colors ${
+                                translatedMessages.has(m.id)
+                                  ? "text-green-600"
+                                  : "text-gray-500 group-hover:text-green-600"
+                              }`} />
+                            )}
+                          </button>
+                          
+                          {/* Custom Dropdown */}
+                          {openTranslateDropdown === m.id && (
+                            <div className="absolute top-full left-0 mt-2 w-48 bg-white/20 backdrop-blur-xl rounded-2xl border border-white/30 shadow-2xl z-50 max-h-64 overflow-hidden ring-1 ring-black/5">
+                              <div className="px-3 py-2 text-xs font-medium text-gray-700 bg-white/10 border-b border-white/20">
+                                <Languages className="h-3 w-3 inline mr-1.5 opacity-50" />
+                                Translate to:
+                              </div>
+                              <div className="py-1 max-h-48 overflow-y-auto">
+                                {getLanguageOptions().map((language) => (
+                                  <button
+                                    key={language.code}
+                                    onClick={() => {
+                                      handleTranslate(m.id, m.text, language.code);
+                                      setOpenTranslateDropdown(null); // Close dropdown after selection
+                                    }}
+                                    className="w-full text-left px-3 py-2.5 text-sm hover:bg-white/20 hover:text-blue-700 transition-all duration-200 flex items-center group backdrop-blur-sm"
+                                  >
+                                    <Languages className="h-4 w-4 mr-2.5 text-gray-500 opacity-50 group-hover:text-blue-500 group-hover:opacity-80 transition-all" />
+                                    <span className="font-normal text-gray-700">{language.name}</span>
+                                  </button>
+                                ))}
+                                {translatedMessages.has(m.id) && (
+                                  <>
+                                    <div className="border-t border-white/20 my-1" />
+                                    <button
+                                      onClick={() => {
+                                        const newTranslations = new Map(translatedMessages);
+                                        newTranslations.delete(m.id);
+                                        setTranslatedMessages(newTranslations);
+                                        setOpenTranslateDropdown(null); // Close dropdown after action
+                                      }}
+                                      className="w-full text-left px-3 py-2.5 text-sm hover:bg-white/20 hover:text-red-700 transition-all duration-200 flex items-center text-gray-600 group backdrop-blur-sm"
+                                    >
+                                      <X className="h-4 w-4 mr-2.5 text-gray-500 opacity-50 group-hover:text-red-500 group-hover:opacity-80 transition-all" />
+                                      <span className="font-normal">Show original</span>
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          )}
+                        </div>
                       </div>
                     )}
                   </div>

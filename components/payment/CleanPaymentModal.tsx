@@ -95,6 +95,7 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
     isValid: boolean;
     isValidating: boolean;
     message: string;
+    trialDays?: number; // Add trial days to state
   }>({ isValid: false, isValidating: false, message: "" });
   const [showTrialTerms, setShowTrialTerms] = useState(false);
 
@@ -251,10 +252,14 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
       const data = await response.json();
 
       if (data.success && data.validation && data.validation.is_valid === true) {
+        const trialConfig = data.validation.trial_config;
+        const trialDays = trialConfig?.duration_days || 7;
+        
         setCouponValidation({
           isValid: true,
           isValidating: false,
-          message: "Valid trial coupon! 7-day free trial will be applied."
+          message: `Valid trial coupon! ${trialDays}-day free trial will be applied.`,
+          trialDays: trialDays
         });
         setShowTrialTerms(true);
       } else {
@@ -1098,7 +1103,9 @@ const CleanPaymentModal: React.FC<CleanPaymentModalProps> = ({
                   </div>
                 )}
 
-                <p className="text-xs text-gray-500">Enter a trial coupon to get 7 days free access</p>
+                {/* <p className="text-xs text-gray-500">
+                  Enter a trial coupon to get {couponValidation.trialDays ? `${couponValidation.trialDays} days` : 'up to 30 days'} free access
+                </p> */}
               </div>
 
               <div className="pt-2">
