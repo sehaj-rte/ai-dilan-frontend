@@ -1289,7 +1289,16 @@ const ClientChatPage = () => {
 
       console.log("✅ Files uploaded to S3:", s3Files);
 
-      // Store processed files (not the original File objects)
+      // Store S3 file metadata with URLs for display
+      const filesWithS3Urls = s3Files.map((s3File, index) => ({
+        file: processedFiles[index],
+        s3Url: s3File.url,
+        s3Key: s3File.s3_key,
+        name: s3File.name,
+        type: s3File.type,
+        size: s3File.size,
+      }));
+
       setUploadedFiles((prev) => [...prev, ...processedFiles]);
 
       // Store S3 URLs separately for sending to backend
@@ -1301,17 +1310,12 @@ const ClientChatPage = () => {
         size: f.size,
       }));
 
-      // Append to existing S3 files (not replace) to support multiple uploads
+      // Store both file objects and S3 data for proper mapping
       const existingS3Files = (window as any).__s3UploadedFiles || [];
-      console.log(
-        `📊 Before append - Existing S3 files: ${existingS3Files.length}, New files: ${s3FileData.length}`,
-      );
+      const existingFileMapping = (window as any).__fileToS3Mapping || [];
+      
       (window as any).__s3UploadedFiles = [...existingS3Files, ...s3FileData];
-
-      console.log(
-        `✅ After append - Total files ready to send: ${(window as any).__s3UploadedFiles.length}`,
-      );
-      console.log(`📋 All S3 files:`, (window as any).__s3UploadedFiles);
+      (window as any).__fileToS3Mapping = [...existingFileMapping, ...filesWithS3Urls];
     } catch (error) {
       console.error("❌ S3 upload failed:", error);
       alert("Failed to upload files. Please try again.");
@@ -1351,7 +1355,16 @@ const ClientChatPage = () => {
 
       console.log("✅ Camera photos uploaded to S3:", s3Files);
 
-      // Store processed files
+      // Store S3 file metadata with URLs for display
+      const filesWithS3Urls = s3Files.map((s3File, index) => ({
+        file: processedFiles[index],
+        s3Url: s3File.url,
+        s3Key: s3File.s3_key,
+        name: s3File.name,
+        type: s3File.type,
+        size: s3File.size,
+      }));
+
       setUploadedFiles((prev) => [...prev, ...processedFiles]);
 
       // Store S3 URLs separately for sending to backend
@@ -1363,9 +1376,12 @@ const ClientChatPage = () => {
         size: f.size,
       }));
 
-      // Append to existing S3 files
+      // Store both file objects and S3 data for proper mapping
       const existingS3Files = (window as any).__s3UploadedFiles || [];
+      const existingFileMapping = (window as any).__fileToS3Mapping || [];
+      
       (window as any).__s3UploadedFiles = [...existingS3Files, ...s3FileData];
+      (window as any).__fileToS3Mapping = [...existingFileMapping, ...filesWithS3Urls];
 
       console.log("✅ Camera photos ready to send");
     } catch (error) {
@@ -1381,12 +1397,18 @@ const ClientChatPage = () => {
   };
 
   const removeFile = (index: number) => {
+    const fileToRemove = uploadedFiles[index];
     setUploadedFiles((prev) => prev.filter((_, i) => i !== index));
-    // Also remove from S3 data
+    
+    // Also remove from S3 data and file mapping
     const s3Data = (window as any).__s3UploadedFiles || [];
-    (window as any).__s3UploadedFiles = s3Data.filter(
-      (_: any, i: number) => i !== index,
-    );
+    const fileMapping = (window as any).__fileToS3Mapping || [];
+    
+    // Remove from S3 data by index
+    (window as any).__s3UploadedFiles = s3Data.filter((_: any, i: number) => i !== index);
+    
+    // Remove from file mapping by file reference
+    (window as any).__fileToS3Mapping = fileMapping.filter((mapping: any) => mapping.file !== fileToRemove);
   };
 
   const sendMsg = async () => {
@@ -1408,12 +1430,17 @@ const ClientChatPage = () => {
       type: "user",
       text: inputText.trim(),
       timestamp: new Date(),
-      files: uploadedFiles.map((f) => ({
-        name: f.name,
-        type: f.type,
-        url: URL.createObjectURL(f),
-        size: f.size,
-      })),
+      files: uploadedFiles.map((f, index) => {
+        // Use S3 URLs from the file mapping
+        const fileMapping = (window as any).__fileToS3Mapping || [];
+        const mappedFile = fileMapping.find((mapping: any) => mapping.file === f);
+        return {
+          name: f.name,
+          type: f.type,
+          url: mappedFile?.s3Url || URL.createObjectURL(f), // Fallback to blob URL if S3 URL not available
+          size: f.size,
+        };
+      }),
     };
 
     // Add user message to chat
@@ -1718,9 +1745,10 @@ const ClientChatPage = () => {
         }
       }
 
-      // Clear S3 data after saving to database
+      // Clear S3 data and file mapping after saving to database
       if (s3FileData.length > 0) {
         (window as any).__s3UploadedFiles = [];
+        (window as any).__fileToS3Mapping = [];
       }
 
       // Save agent response to database AFTER user message (await to ensure proper ordering)
@@ -3268,14 +3296,21 @@ const ClientChatPage = () => {
                       // Show image thumbnail
                       <div className="flex items-center gap-2 flex-1 min-w-0">
                         <img
-                          src={URL.createObjectURL(file)}
+                          src={(() => {
+                            // Use S3 URL from file mapping
+                            const fileMapping = (window as any).__fileToS3Mapping || [];
+                            const mappedFile = fileMapping.find((mapping: any) => mapping.file === file);
+                            return mappedFile?.s3Url || URL.createObjectURL(file);
+                          })()}
                           alt={file.name}
                           className="h-10 w-10 rounded-lg object-cover cursor-pointer hover:opacity-80 transition-opacity"
                           onClick={() => {
+                            const fileMapping = (window as any).__fileToS3Mapping || [];
+                            const mappedFile = fileMapping.find((mapping: any) => mapping.file === file);
                             const fileAttachment: FileAttachment = {
                               name: file.name,
                               type: file.type,
-                              url: URL.createObjectURL(file),
+                              url: mappedFile?.s3Url || URL.createObjectURL(file),
                               size: file.size,
                             };
                             setPreviewFile(fileAttachment);
@@ -3296,10 +3331,12 @@ const ClientChatPage = () => {
                       // Show file icon for non-images
                       <button
                         onClick={() => {
+                          const fileMapping = (window as any).__fileToS3Mapping || [];
+                          const mappedFile = fileMapping.find((mapping: any) => mapping.file === file);
                           const fileAttachment: FileAttachment = {
                             name: file.name,
                             type: file.type,
-                            url: URL.createObjectURL(file),
+                            url: mappedFile?.s3Url || URL.createObjectURL(file),
                             size: file.size,
                           };
                           setPreviewFile(fileAttachment);
@@ -3366,7 +3403,6 @@ const ClientChatPage = () => {
                   type="file"
                   multiple
                   accept="image/*,.pdf,.doc,.docx,.txt"
-                  capture="environment"
                   onChange={handleFileSelect}
                   className="hidden"
                   aria-label="Upload files"
@@ -3479,6 +3515,16 @@ const ClientChatPage = () => {
                             const s3Files = await uploadFilesToS3(compressedFiles);
                             console.log("✅ Pasted images uploaded to S3:", s3Files);
                             
+                            // Store S3 file metadata with URLs for display
+                            const filesWithS3Urls = s3Files.map((s3File, index) => ({
+                              file: compressedFiles[index],
+                              s3Url: s3File.url,
+                              s3Key: s3File.s3_key,
+                              name: s3File.name,
+                              type: s3File.type,
+                              size: s3File.size,
+                            }));
+                            
                             // Add to uploaded files
                             setUploadedFiles((prev) => [...prev, ...compressedFiles]);
                             
@@ -3492,7 +3538,10 @@ const ClientChatPage = () => {
                             }));
                             
                             const existingS3Files = (window as any).__s3UploadedFiles || [];
+                            const existingFileMapping = (window as any).__fileToS3Mapping || [];
+                            
                             (window as any).__s3UploadedFiles = [...existingS3Files, ...s3FileData];
+                            (window as any).__fileToS3Mapping = [...existingFileMapping, ...filesWithS3Urls];
                             
                             console.log("✅ Pasted images ready to send");
                           }
