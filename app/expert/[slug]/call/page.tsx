@@ -13,7 +13,6 @@ import {
   LogIn,
   LogOut,
   MessageSquare,
-  Languages,
 } from "lucide-react";
 import { useVoiceConversation } from "@/hooks/useVoiceConversation";
 import { RootState } from "@/store/store";
@@ -22,23 +21,7 @@ import { usePlanLimitations } from "@/hooks/usePlanLimitations";
 import { UsageStatusBar } from "@/components/usage/UsageStatusBar";
 import { LimitReachedModal } from "@/components/usage/LimitReachedModal";
 import { useExpert } from "@/contexts/ExpertContext";
-import LanguageSelector from "@/components/ui/LanguageSelector";
 
-// Language options for display
-const LANGUAGES = [
-  { code: "en", name: "English", flag: "🇺🇸" },
-  { code: "es", name: "Spanish", flag: "🇪🇸" },
-  { code: "fr", name: "French", flag: "🇫🇷" },
-  { code: "de", name: "German", flag: "🇩🇪" },
-  { code: "it", name: "Italian", flag: "🇮🇹" },
-  { code: "pt", name: "Portuguese", flag: "🇵🇹" },
-  { code: "ru", name: "Russian", flag: "🇷🇺" },
-  { code: "ja", name: "Japanese", flag: "🇯🇵" },
-  { code: "ko", name: "Korean", flag: "🇰🇷" },
-  { code: "zh", name: "Chinese", flag: "🇨🇳" },
-  { code: "ar", name: "Arabic", flag: "🇸🇦" },
-  { code: "hi", name: "Hindi", flag: "🇮🇳" },
-];
 
 interface Expert {
   id: string;
@@ -93,7 +76,6 @@ const ClientCallPage = () => {
     boolean | null
   >(null);
   const [authLoaded, setAuthLoaded] = useState(false);
-  const [selectedLanguage, setSelectedLanguage] = useState("en");
 
   // Plan limitations state
   const [showLimitReachedModal, setShowLimitReachedModal] = useState(false);
@@ -382,13 +364,13 @@ const ClientCallPage = () => {
     if (isAuthenticated) {
       const canMakeCall = checkCanMakeCall(1);
       console.log(`   checkCanMakeCall(1): ${canMakeCall}`);
-      
+
       if (!canMakeCall) {
         console.log(`🚫 Call blocked - showing limit modal`);
         setShowLimitReachedModal(true);
         return;
       }
-      
+
       // Additional check for overuse cases
       if (remainingUsage.minutes !== null && remainingUsage.minutes <= 0) {
         console.log(`🚫 Call blocked - no minutes remaining (${remainingUsage.minutes})`);
@@ -411,7 +393,7 @@ const ClientCallPage = () => {
         const languageName = LANGUAGES.find(lang => lang.code === selectedLanguage)?.name;
         console.log(`🌍 Configuring conversation for ${languageName}...`);
         setError(`Configuring conversation for ${languageName}...`);
-        
+
         // Clear the message after a short delay
         setTimeout(() => setError(null), 2000);
       }
@@ -471,14 +453,14 @@ const ClientCallPage = () => {
 
       // Calculate total minutes used (round up partial minutes for billing)
       const totalMinutes = Math.ceil(callDuration / 60);
-      
+
       console.log(`📞 Call ended: ${formatCallDurationWithText(callDuration)} (${callDuration} seconds) -> billing ${totalMinutes} minute${totalMinutes !== 1 ? 's' : ''}`);
 
       // Track final usage - only track remaining minutes not already tracked
       if (isAuthenticated && expert?.id && totalMinutes > lastTrackedMinute) {
         const remainingMinutes = totalMinutes - lastTrackedMinute;
         console.log(`📞 Tracking final ${remainingMinutes} minutes for call (total: ${totalMinutes}, already tracked: ${lastTrackedMinute})`);
-        
+
         trackUsage({
           expert_id: expert.id,
           event_type: "minutes_used",
@@ -515,31 +497,7 @@ const ClientCallPage = () => {
     dispatch(logout());
   };
 
-  const handleLanguageChange = async (languageCode: string) => {
-    setSelectedLanguage(languageCode);
-    localStorage.setItem("preferred_language", languageCode);
-    
-    // Simple API call to update ElevenLabs agent language
-    if (expert?.id && languageCode !== "en") {
-      try {
-        const response = await fetch(`${API_URL}/conversation/update-language/${expert.id}?language=${languageCode}`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('dilan_ai_token')}`,
-            'Content-Type': 'application/json'
-          }
-        });
-        
-        if (response.ok) {
-          console.log(`✅ Language updated to ${languageCode}`);
-        } else {
-          console.log(`❌ Failed to update language`);
-        }
-      } catch (error) {
-        console.log(`❌ Error updating language:`, error);
-      }
-    }
-  };
+
 
   const formatCallDuration = (seconds: number): string => {
     const hrs = Math.floor(seconds / 3600);
@@ -571,43 +529,43 @@ const ClientCallPage = () => {
     if (!isAuthenticated || !expert?.id || callDuration === 0) return;
 
     const currentMinutes = Math.ceil(callDuration / 60);
-    
+
     // Only track if we've crossed into a new minute
     if (currentMinutes > lastTrackedMinute) {
       const minutesToTrack = currentMinutes - lastTrackedMinute;
-      
+
       console.log(`📊 Real-time tracking: ${minutesToTrack} minute(s) (total: ${currentMinutes}, last tracked: ${lastTrackedMinute})`);
-      
+
       try {
         await trackUsage({
           expert_id: expert.id,
           event_type: "minutes_used",
           quantity: minutesToTrack,
         });
-        
+
         setLastTrackedMinute(currentMinutes);
-        
+
         // Refresh usage data to get updated limits
         await refreshUsage();
-        
+
         // Check if user is running low on time (1 minute remaining)
         const remainingUsage = getRemainingUsage();
         console.log(`📊 After tracking - remaining minutes: ${remainingUsage.minutes}`);
-        
+
         if (remainingUsage.minutes !== null && remainingUsage.minutes <= 1 && remainingUsage.minutes > 0) {
           if (!showLowTimeWarning) {
             setShowLowTimeWarning(true);
             console.log(`⚠️ Low time warning: ${remainingUsage.minutes} minute(s) remaining`);
           }
         }
-        
+
         // If no minutes remaining, end the call gracefully
         if (remainingUsage.minutes !== null && remainingUsage.minutes <= 0) {
           console.log(`🚫 No minutes remaining - ending call gracefully`);
           await handleEndCall();
           setShowLimitReachedModal(true);
         }
-        
+
       } catch (error) {
         console.error("Failed to track real-time usage:", error);
       }
@@ -621,7 +579,7 @@ const ClientCallPage = () => {
         // Check remaining time every 10 seconds
         const remainingUsage = getRemainingUsage();
         console.log(`🔍 Usage check: ${remainingUsage.minutes} minutes remaining`);
-        
+
         // Show warning when 1 minute left
         if (remainingUsage.minutes !== null && remainingUsage.minutes <= 1 && remainingUsage.minutes > 0) {
           if (!showLowTimeWarning) {
@@ -629,7 +587,7 @@ const ClientCallPage = () => {
             console.log(`⚠️ Low time warning triggered: ${remainingUsage.minutes} minute(s) remaining`);
           }
         }
-        
+
         // End call when 0 minutes
         if (remainingUsage.minutes !== null && remainingUsage.minutes <= 0) {
           console.log(`🚫 No minutes remaining - ending call immediately`);
@@ -637,7 +595,7 @@ const ClientCallPage = () => {
           setShowLimitReachedModal(true);
         }
       }, 10000); // Check every 10 seconds
-      
+
       return () => clearInterval(checkInterval);
     }
   }, [state.isConnected, callDuration, showLowTimeWarning, getRemainingUsage, handleEndCall]);
@@ -802,9 +760,9 @@ const ClientCallPage = () => {
                     {/* Mobile: Show only avatar */}
                     <div className="sm:hidden">
                       {user.avatar_url ? (
-                        <img 
-                          src={user.avatar_url.startsWith('http') ? user.avatar_url : `${API_URL}${user.avatar_url}`} 
-                          className="w-8 h-8 rounded-full object-cover border-2 border-gray-200" 
+                        <img
+                          src={user.avatar_url.startsWith('http') ? user.avatar_url : `${API_URL}${user.avatar_url}`}
+                          className="w-8 h-8 rounded-full object-cover border-2 border-gray-200"
                           alt={user.username}
                           onError={(e) => {
                             e.currentTarget.style.display = 'none'
@@ -819,9 +777,9 @@ const ClientCallPage = () => {
                     {/* Desktop: Show full profile */}
                     <div className="hidden sm:block">
                       {user.avatar_url ? (
-                        <img 
-                          src={user.avatar_url.startsWith('http') ? user.avatar_url : `${API_URL}${user.avatar_url}`} 
-                          className="w-10 h-10 rounded-full object-cover border-2 border-gray-200" 
+                        <img
+                          src={user.avatar_url.startsWith('http') ? user.avatar_url : `${API_URL}${user.avatar_url}`}
+                          className="w-10 h-10 rounded-full object-cover border-2 border-gray-200"
                           alt={user.username}
                           onError={(e) => {
                             e.currentTarget.style.display = 'none'
@@ -881,7 +839,7 @@ const ClientCallPage = () => {
 
         {/* Usage Status Bar - only show for authenticated users with plan limitations */}
         {isAuthenticated && currentPlan && !limitStatus.isUnlimited && (
-          <div 
+          <div
             className="px-4 py-2"
             style={{
               background: publication?.banner_url
@@ -1080,17 +1038,7 @@ const ClientCallPage = () => {
               {expert?.name}
             </h1>
 
-            {/* Language Selector - Centered like the Hindi text */}
-            {!state.isConnected && (
-              <div className="mb-4 flex justify-center">
-                <LanguageSelector
-                  selectedLanguage={selectedLanguage}
-                  onLanguageChange={handleLanguageChange}
-                  compact={false}
-                  className=""
-                />
-              </div>
-            )}
+
 
             {/* Status Text */}
             {state.isConnected && (
@@ -1198,11 +1146,10 @@ const ClientCallPage = () => {
 
                       {/* Microphone button */}
                       <button
-                        className={`relative z-10 w-16 h-16 rounded-full flex items-center justify-center shadow-lg transition-all ${
-                          state.isListening
+                        className={`relative z-10 w-16 h-16 rounded-full flex items-center justify-center shadow-lg transition-all ${state.isListening
                             ? "bg-gray-700 scale-110"
                             : "bg-gray-200 hover:bg-gray-300"
-                        }`}
+                          }`}
                       >
                         <svg
                           className={`w-6 h-6 ${state.isListening ? "text-white" : "text-gray-700"}`}
@@ -1219,21 +1166,21 @@ const ClientCallPage = () => {
               )}
             </div>
 
-  
-           {/* Browser Compatibility Notice - Same fixed width */}
+
+            {/* Browser Compatibility Notice - Same fixed width */}
             <div >
               <div className="inline-flex items-center px-3 py-2 rounded-full bg-gray-50 border border-gray-200 text-gray-600 text-xs font-medium shadow-sm">
-                <svg 
-                  className="w-3 h-3 mr-1 text-gray-500 flex-shrink-0" 
-                  fill="none" 
-                  stroke="currentColor" 
+                <svg
+                  className="w-3 h-3 mr-1 text-gray-500 flex-shrink-0"
+                  fill="none"
+                  stroke="currentColor"
                   viewBox="0 0 24 24"
                 >
-                  <path 
-                    strokeLinecap="round" 
-                    strokeLinejoin="round" 
-                    strokeWidth={2} 
-                    d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" 
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
                   />
                 </svg>
                 <span className="whitespace-nowrap">Best experience with Chrome or Safari</span>
