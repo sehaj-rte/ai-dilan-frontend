@@ -1,57 +1,32 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useParams } from "next/navigation";
 import DashboardLayout from "@/components/dashboard/DashboardLayout";
-import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardHeader,
-    CardTitle,
-} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { useToast, ToastContainer } from "@/components/ui/toast";
-import {
-    FileText,
-    Shield,
-    Scale,
-    Save,
-    Loader2,
-    RefreshCw,
-    Info,
-} from "lucide-react";
+import { FileText, Shield, Scale, Loader2, Info, X } from "lucide-react";
 import { API_URL } from "@/lib/config";
 import { fetchWithAuth, getAuthHeaders } from "@/lib/api-client";
-import { useExpert } from "@/contexts/ExpertContext";
 
 const LegalDocumentsPage = () => {
     const params = useParams();
     const projectId = params.id as string;
-    const { toasts, removeToast, success, error } = useToast();
+    const { toasts, removeToast, error } = useToast();
 
-    const [loading, setLoading] = useState(true);
-    const [saving, setSaving] = useState(false);
-    const [activeTab, setActiveTab] = useState("privacy");
+    const [modalOpen, setModalOpen] = useState<string | null>(null);
+    const [modalContent, setModalContent] = useState<string>("");
+    const [modalLoading, setModalLoading] = useState(false);
 
-    const [formData, setFormData] = useState({
-        privacy_policy: "",
-        dpa: "",
-        terms_conditions: "",
-    });
+    const openModal = async (type: string) => {
+        setModalOpen(type);
+        setModalLoading(true);
+        setModalContent("");
+        
+        // Prevent body scroll and background distortion
+        document.body.style.overflow = 'hidden';
 
-    useEffect(() => {
-        if (projectId) {
-            fetchPublicationSettings();
-        }
-    }, [projectId]);
-
-    const fetchPublicationSettings = async () => {
         try {
-            setLoading(true);
             const response = await fetchWithAuth(
                 `${API_URL}/publishing/experts/${projectId}/publication`,
                 {
@@ -61,221 +36,257 @@ const LegalDocumentsPage = () => {
             const data = await response.json();
 
             if (data.success && data.publication) {
-                setFormData({
-                    privacy_policy: data.publication.privacy_policy || "",
-                    dpa: data.publication.dpa || "",
-                    terms_conditions: data.publication.terms_conditions || "",
-                });
-            }
-        } catch (err) {
-            console.error("Error fetching publication settings:", err);
-            error("Failed to load legal documents");
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleSave = async () => {
-        try {
-            setSaving(true);
-            const response = await fetchWithAuth(
-                `${API_URL}/publishing/experts/${projectId}/publication`,
-                {
-                    method: "PUT",
-                    headers: {
-                        ...getAuthHeaders(),
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify(formData),
+                let content = "";
+                switch (type) {
+                    case 'privacy':
+                        content = data.publication.privacy_policy || "";
+                        break;
+                    case 'terms':
+                        content = data.publication.terms_conditions || "";
+                        break;
+                    case 'dpa':
+                        content = data.publication.dpa || "";
+                        break;
                 }
-            );
-
-            const data = await response.json();
-
-            if (data.success) {
-                success("Legal documents updated successfully!");
-            } else {
-                error("Failed to update legal documents: " + (data.detail || "Unknown error"));
+                setModalContent(content);
             }
         } catch (err) {
-            console.error("Error updating legal documents:", err);
-            error("Error updating legal documents");
+            console.error("Error fetching document:", err);
+            error("Failed to load document");
         } finally {
-            setSaving(false);
+            setModalLoading(false);
         }
     };
 
-    const loadDefault = async (type: "privacy" | "dpa" | "terms") => {
-        try {
-            const fileName = type === "privacy" ? "privacy.html" : type === "dpa" ? "dpa.html" : "terms.html";
-            const response = await fetch(`/legal/expert/${fileName}`);
-            if (!response.ok) throw new Error("Default file not found");
-            const content = await response.text();
+    const closeModal = () => {
+        setModalOpen(null);
+        setModalContent("");
+        // Restore body scroll
+        document.body.style.overflow = 'unset';
+    };
 
-            setFormData(prev => ({
-                ...prev,
-                [type === "privacy" ? "privacy_policy" : type === "dpa" ? "dpa" : "terms_conditions"]: content
-            }));
-
-            success(`Loaded default ${type.toUpperCase()} template`);
-        } catch (err) {
-            console.error(`Error loading default ${type}:`, err);
-            error(`Failed to load default ${type} template`);
+    const getModalData = (type: string) => {
+        switch (type) {
+            case 'privacy':
+                return {
+                    title: 'Privacy Policy',
+                    icon: <Shield className="h-6 w-6" />
+                };
+            case 'terms':
+                return {
+                    title: 'Terms & Conditions',
+                    icon: <Scale className="h-6 w-6" />
+                };
+            case 'dpa':
+                return {
+                    title: 'Data Processing Agreement',
+                    icon: <Info className="h-6 w-6" />
+                };
+            default:
+                return { title: '', icon: null };
         }
     };
 
-    if (loading) {
-        return (
-            <DashboardLayout>
-                <div className="flex items-center justify-center h-[calc(100vh-200px)]">
-                    <Loader2 className="h-12 w-12 animate-spin text-blue-600" />
-                </div>
-            </DashboardLayout>
-        );
-    }
+    const modalData = modalOpen ? getModalData(modalOpen) : null;
 
     return (
         <DashboardLayout>
             <ToastContainer toasts={toasts} onClose={removeToast} />
-            <div className="max-w-5xl mx-auto p-6">
-                <div className="mb-8 flex items-start justify-between">
-                    <div>
-                        <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-                            <FileText className="h-8 w-8 text-blue-600" />
-                            Legal Documents
-                        </h1>
-                        <p className="text-gray-600 mt-2">
-                            Customize your Privacy Policy, DPA, and Terms & Conditions. These will be linked on your public persona pages.
-                        </p>
-                    </div>
+            <div className="max-w-4xl mx-auto p-6">
+                <div className="mb-8 text-center">
+                    <h1 className="text-3xl font-bold text-gray-900 flex items-center justify-center gap-3">
+                        <FileText className="h-8 w-8 text-blue-600" />
+                        Legal Documents Preview
+                    </h1>
+                    <p className="text-gray-600 mt-2">
+                        Preview how your legal documents appear to users
+                    </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <Button
-                        onClick={handleSave}
-                        disabled={saving}
-                        className="bg-blue-600 hover:bg-blue-700 text-white"
+                        onClick={() => openModal('privacy')}
+                        className="h-32 flex flex-col items-center justify-center gap-4 bg-blue-50 hover:bg-blue-100 text-blue-700 border-2 border-blue-200 hover:border-blue-300"
+                        variant="outline"
                     >
-                        {saving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-                        Save Changes
+                        <Shield className="h-8 w-8" />
+                        <span className="text-lg font-semibold">Privacy Policy</span>
+                    </Button>
+
+                    <Button
+                        onClick={() => openModal('terms')}
+                        className="h-32 flex flex-col items-center justify-center gap-4 bg-green-50 hover:bg-green-100 text-green-700 border-2 border-green-200 hover:border-green-300"
+                        variant="outline"
+                    >
+                        <Scale className="h-8 w-8" />
+                        <span className="text-lg font-semibold">Terms & Conditions</span>
+                    </Button>
+
+                    <Button
+                        onClick={() => openModal('dpa')}
+                        className="h-32 flex flex-col items-center justify-center gap-4 bg-purple-50 hover:bg-purple-100 text-purple-700 border-2 border-purple-200 hover:border-purple-300"
+                        variant="outline"
+                    >
+                        <Info className="h-8 w-8" />
+                        <span className="text-lg font-semibold">DPA</span>
                     </Button>
                 </div>
-
-                <Card className="shadow-sm border-gray-200 overflow-hidden bg-white">
-                    <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                        <div className="border-b border-gray-100 bg-gray-50/50 px-6">
-                            <TabsList className="bg-transparent border-none gap-6 h-14">
-                                <TabsTrigger
-                                    value="privacy"
-                                    className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-blue-600 data-[state=active]:shadow-none rounded-none px-2 h-14"
-                                >
-                                    <Shield className="h-4 w-4 mr-2" />
-                                    Privacy Policy
-                                </TabsTrigger>
-                                <TabsTrigger
-                                    value="terms"
-                                    className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-blue-600 data-[state=active]:shadow-none rounded-none px-2 h-14"
-                                >
-                                    <Scale className="h-4 w-4 mr-2" />
-                                    Terms & Conditions
-                                </TabsTrigger>
-                                <TabsTrigger
-                                    value="dpa"
-                                    className="data-[state=active]:bg-transparent data-[state=active]:border-b-2 data-[state=active]:border-blue-600 data-[state=active]:shadow-none rounded-none px-2 h-14"
-                                >
-                                    <Info className="h-4 w-4 mr-2" />
-                                    DPA
-                                </TabsTrigger>
-                            </TabsList>
-                        </div>
-
-                        <div className="p-6">
-                            <TabsContent value="privacy" className="mt-0">
-                                <div className="space-y-4">
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <h3 className="text-lg font-semibold text-gray-900">Privacy Policy</h3>
-                                            <p className="text-sm text-gray-500">HTML content for your Privacy Policy</p>
-                                        </div>
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => loadDefault("privacy")}
-                                            className="text-gray-600"
-                                        >
-                                            <RefreshCw className="h-3 w-3 mr-2" />
-                                            Load Default
-                                        </Button>
-                                    </div>
-                                    <Textarea
-                                        placeholder="Paste your HTML Privacy Policy here..."
-                                        className="min-h-[500px] font-mono text-sm leading-relaxed"
-                                        value={formData.privacy_policy}
-                                        onChange={(e) => setFormData({ ...formData, privacy_policy: e.target.value })}
-                                    />
-                                </div>
-                            </TabsContent>
-
-                            <TabsContent value="terms" className="mt-0">
-                                <div className="space-y-4">
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <h3 className="text-lg font-semibold text-gray-900">Terms & Conditions</h3>
-                                            <p className="text-sm text-gray-500">HTML content for your Terms & Conditions</p>
-                                        </div>
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => loadDefault("terms")}
-                                            className="text-gray-600"
-                                        >
-                                            <RefreshCw className="h-3 w-3 mr-2" />
-                                            Load Default
-                                        </Button>
-                                    </div>
-                                    <Textarea
-                                        placeholder="Paste your HTML Terms & Conditions here..."
-                                        className="min-h-[500px] font-mono text-sm leading-relaxed"
-                                        value={formData.terms_conditions}
-                                        onChange={(e) => setFormData({ ...formData, terms_conditions: e.target.value })}
-                                    />
-                                </div>
-                            </TabsContent>
-
-                            <TabsContent value="dpa" className="mt-0">
-                                <div className="space-y-4">
-                                    <div className="flex items-center justify-between">
-                                        <div>
-                                            <h3 className="text-lg font-semibold text-gray-900">Data Processing Agreement (DPA)</h3>
-                                            <p className="text-sm text-gray-500">HTML content for your DPA</p>
-                                        </div>
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => loadDefault("dpa")}
-                                            className="text-gray-600"
-                                        >
-                                            <RefreshCw className="h-3 w-3 mr-2" />
-                                            Load Default
-                                        </Button>
-                                    </div>
-                                    <Textarea
-                                        placeholder="Paste your HTML DPA here..."
-                                        className="min-h-[500px] font-mono text-sm leading-relaxed"
-                                        value={formData.dpa}
-                                        onChange={(e) => setFormData({ ...formData, dpa: e.target.value })}
-                                    />
-                                </div>
-                            </TabsContent>
-                        </div>
-                    </Tabs>
-                </Card>
-
-                <div className="mt-6 p-4 bg-blue-50 border border-blue-100 rounded-lg flex items-start gap-3">
-                    <Info className="h-5 w-5 text-blue-600 mt-0.5" />
-                    <div className="text-sm text-blue-700">
-                        <p className="font-semibold">Rendering Note:</p>
-                        <p>Documents are stored as HTML and will be rendered within the styling of each persona's page. We recommend using semantic HTML tags like <code>&lt;h1&gt;</code>, <code>&lt;p&gt;</code>, <code>&lt;table&gt;</code>, etc. Avoid using <code>&lt;html&gt;</code> or <code>&lt;body&gt;</code> tags as the content will be injected into an existing page.</p>
-                    </div>
-                </div>
             </div>
+
+            {/* Modal */}
+            {modalOpen && modalData && (
+                <>
+                    <div 
+                        className="fixed inset-0 bg-black bg-opacity-50 z-50"
+                        onClick={closeModal}
+                        style={{ 
+                            position: 'fixed',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            width: '100vw',
+                            height: '100vh'
+                        }}
+                    />
+                    <div className="fixed inset-0 z-50 overflow-y-auto">
+                        <div className="min-h-screen px-4 py-8 flex items-center justify-center">
+                            <div 
+                                className="bg-white rounded-lg max-w-4xl w-full max-h-[85vh] overflow-hidden shadow-2xl relative"
+                                onClick={(e) => e.stopPropagation()}
+                            >
+                                <div className="flex items-center justify-between p-6 border-b bg-gray-50">
+                                    <div className="flex items-center gap-3">
+                                        <div className="p-2 rounded-lg bg-blue-50 text-blue-600">
+                                            {modalData.icon}
+                                        </div>
+                                        <h2 className="text-xl font-bold text-gray-900">{modalData.title}</h2>
+                                    </div>
+                                    <Button
+                                        onClick={closeModal}
+                                        variant="ghost"
+                                        size="sm"
+                                        className="text-gray-500 hover:text-gray-700"
+                                    >
+                                        <X className="h-5 w-5" />
+                                    </Button>
+                                </div>
+                                
+                                <div className="p-6 overflow-y-auto max-h-[calc(85vh-80px)] bg-white">
+                                    {modalLoading ? (
+                                        <div className="flex items-center justify-center h-64">
+                                            <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+                                        </div>
+                                    ) : modalContent ? (
+                                        <div 
+                                            className="legal-content-preview"
+                                            dangerouslySetInnerHTML={{ __html: modalContent }}
+                                        />
+                                    ) : (
+                                        <div className="flex items-center justify-center h-64 text-gray-400">
+                                            <div className="text-center">
+                                                {modalData.icon}
+                                                <p className="mt-4">No content available for {modalData.title}</p>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </>
+            )}
+
+            <style jsx global>{`
+                .legal-content-preview {
+                    font-family: 'Inter', system-ui, sans-serif;
+                    line-height: 1.6;
+                    color: #4B5563;
+                }
+                
+                .legal-content-preview h1, 
+                .legal-content-preview h2, 
+                .legal-content-preview h3 {
+                    color: #111827;
+                    font-weight: 700;
+                    margin-top: 2.5rem;
+                    margin-bottom: 1.25rem;
+                }
+                
+                .legal-content-preview h1 {
+                    font-size: 1.875rem;
+                    border-bottom: 2px solid #3b82f6;
+                    padding-bottom: 0.5rem;
+                }
+                
+                .legal-content-preview h2 {
+                    font-size: 1.5rem;
+                    margin-top: 2rem;
+                }
+                
+                .legal-content-preview h3 {
+                    font-size: 1.25rem;
+                }
+                
+                .legal-content-preview p {
+                    margin-bottom: 1.5rem;
+                }
+                
+                .legal-content-preview table {
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin: 2rem 0;
+                    font-size: 0.875rem;
+                }
+                
+                .legal-content-preview th, 
+                .legal-content-preview td {
+                    border: 1px solid #E5E7EB;
+                    padding: 1rem;
+                    text-align: left;
+                }
+                
+                .legal-content-preview th {
+                    background-color: #F9FAFB;
+                    font-weight: 600;
+                    color: #374151;
+                }
+                
+                .legal-content-preview ul {
+                    margin-left: 1.5rem;
+                    margin-bottom: 1.5rem;
+                }
+                
+                .legal-content-preview li {
+                    margin-bottom: 0.5rem;
+                }
+                
+                .legal-content-preview .contact-block {
+                    background: #f0f4ff;
+                    padding: 1rem;
+                    border-left: 4px solid #4c6ef5;
+                    margin: 1.5rem 0;
+                    border-radius: 0.5rem;
+                }
+                
+                .legal-content-preview .contact-block h2 {
+                    margin-top: 0;
+                    color: #1e40af;
+                }
+                
+                .legal-content-preview strong {
+                    font-weight: 600;
+                    color: #374151;
+                }
+                
+                .legal-content-preview code {
+                    background-color: #f3f4f6;
+                    padding: 0.125rem 0.25rem;
+                    border-radius: 0.25rem;
+                    font-size: 0.875em;
+                    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+                }
+            `}</style>
         </DashboardLayout>
     );
 };

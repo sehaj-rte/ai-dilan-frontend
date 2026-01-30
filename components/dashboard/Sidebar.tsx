@@ -23,6 +23,7 @@ import {
   Eye,
   CreditCard,
   FileText,
+  Zap,
 } from "lucide-react";
 
 import type { LucideIcon } from "lucide-react";
@@ -127,6 +128,11 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, projectId }) => {
               title: "AI Behaviour",
               href: `/project/${projectId}/behavior-settings`,
               icon: Brain,
+            },
+            {
+              title: "Specialized APIs",
+              href: `/project/${projectId}/specialized-apis`,
+              icon: Zap,
             },
             {
               title: "Profile Settings",
