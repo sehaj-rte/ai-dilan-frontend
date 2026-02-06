@@ -31,6 +31,7 @@ import {
   Activity,
   Crown,
   Settings,
+  QrCode,
 } from "lucide-react";
 
 import type { LucideIcon } from "lucide-react";
@@ -75,7 +76,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, projectId }) => {
 
   // Use state to handle hydration safely
   const [mounted, setMounted] = React.useState(false);
-  
+
   const projectName = expert?.name || "";
   const expertOwnerId = expert?.user_id || null;
 
@@ -91,7 +92,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, projectId }) => {
     if (projectId) {
       // Always return sections structure for project pages, but use safe fallbacks when not mounted
       const safeProjectName = mounted ? (projectName || "AI Persona") : "AI Persona";
-      
+
       const sections = [
         {
           title: "Persona",
@@ -200,6 +201,11 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, projectId }) => {
               title: "Pricing & Subscription",
               href: `/project/${projectId}/pricing-subscription`,
               icon: CreditCard,
+            },
+            {
+              title: "QR Code Manager",
+              href: `/project/${projectId}/qr-code-manager`,
+              icon: QrCode,
             },
             {
               title: "Legal Documents",
