@@ -13,6 +13,7 @@ import {
   LogIn,
   LogOut,
   MessageSquare,
+  Languages,
 } from "lucide-react";
 import { useVoiceConversation } from "@/hooks/useVoiceConversation";
 import { RootState } from "@/store/store";
@@ -21,6 +22,7 @@ import { usePlanLimitations } from "@/hooks/usePlanLimitations";
 import { UsageStatusBar } from "@/components/usage/UsageStatusBar";
 import { LimitReachedModal } from "@/components/usage/LimitReachedModal";
 import { useExpert } from "@/contexts/ExpertContext";
+import { LanguageSelector } from "@/components/ui/LanguageSelector";
 
 
 interface Expert {
@@ -126,6 +128,8 @@ const ClientCallPage = () => {
 
   const { state, startConversation, endConversation } = useVoiceConversation({
     expertId: expert?.id || "",
+    userId: user?.id,
+    language: selectedLanguage,
     onError: (error) => {
       setError(error);
     },
@@ -1086,8 +1090,27 @@ const ClientCallPage = () => {
               </div>
             )}
 
+            {/* Language Selector - User Specific */}
+            {!state.isConnected && (
+              <div className="mb-8 flex flex-col items-center">
+                <p className="text-sm font-medium text-gray-500 mb-3 flex items-center gap-1.5">
+                  <Languages className="h-4 w-4" />
+                  Select your conversation language
+                </p>
+                <LanguageSelector
+                  selectedLanguage={selectedLanguage}
+                  onLanguageChange={(lang) => {
+                    setSelectedLanguage(lang);
+                    localStorage.setItem("preferred_language", lang);
+                  }}
+                  className="w-full max-w-xs shadow-sm bg-white/50 backdrop-blur-sm"
+                  disabled={state.isConnecting}
+                />
+              </div>
+            )}
+
             {/* Call Button */}
-            <div className="mb-6 mt-12">
+            <div className="mb-6 mt-4">
               {!state.isConnected ? (
                 <Button
                   onClick={handleStartCall}

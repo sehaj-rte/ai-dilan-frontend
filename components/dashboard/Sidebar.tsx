@@ -24,6 +24,13 @@ import {
   CreditCard,
   FileText,
   Zap,
+  PieChart,
+  Users,
+  DollarSign,
+  Lightbulb,
+  Activity,
+  Crown,
+  Settings,
 } from "lucide-react";
 
 import type { LucideIcon } from "lucide-react";
@@ -100,7 +107,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, projectId }) => {
               icon: MessageSquare,
             },
             {
-              title: "Analytics",
+              title: "Chat Metrics",
               href: `/project/${projectId}/analytics`,
               icon: TrendingUp,
             },
@@ -108,6 +115,46 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, projectId }) => {
               title: "Earnings from Subscriptions",
               href: `/project/${projectId}/earnings`,
               icon: BarChart3,
+            },
+          ],
+        },
+        {
+          title: "Analytics",
+          items: [
+            {
+              title: "Dashboard",
+              href: `/project/${projectId}/insights/dashboard`,
+              icon: PieChart,
+            },
+            {
+              title: "Audience Insights",
+              href: `/project/${projectId}/insights/audience-insights`,
+              icon: Users,
+            },
+            {
+              title: "Revenue",
+              href: `/project/${projectId}/insights/revenue`,
+              icon: DollarSign,
+            },
+            {
+              title: "Content Intelligence",
+              href: `/project/${projectId}/insights/content-intelligence`,
+              icon: Lightbulb,
+            },
+            {
+              title: "Usage & Retention",
+              href: `/project/${projectId}/insights/usage-retention`,
+              icon: Activity,
+            },
+            {
+              title: "Top Users",
+              href: `/project/${projectId}/insights/top-users`,
+              icon: Crown,
+            },
+            {
+              title: "Settings",
+              href: `/project/${projectId}/insights/settings`,
+              icon: Settings,
             },
           ],
         },

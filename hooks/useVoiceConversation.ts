@@ -32,7 +32,7 @@ export interface UseVoiceConversationOptions {
 
 export const useVoiceConversation = (options: UseVoiceConversationOptions) => {
   const { expertId, userId, language, onMessage, onError, onStatusChange } = options
-  
+
   const [state, setState] = useState<VoiceConversationState>({
     isConnected: false,
     isConnecting: false,
@@ -43,30 +43,30 @@ export const useVoiceConversation = (options: UseVoiceConversationOptions) => {
     outputVolume: 0,
     error: null
   })
-  
+
   const conversationRef = useRef<Conversation | null>(null)
   const volumeIntervalRef = useRef<NodeJS.Timeout | null>(null)
-  
+
   const updateState = useCallback((updates: Partial<VoiceConversationState>) => {
     setState(prev => ({ ...prev, ...updates }))
   }, [])
-  
+
   const getSignedUrl = useCallback(async (): Promise<string> => {
     try {
       let url = `${API_URL}/conversation/signed-url/${expertId}`
       const params = new URLSearchParams()
-      
+
       if (userId) {
         params.append('user_id', userId)
       }
       if (language && language !== 'en') {
         params.append('language', language)
       }
-      
+
       if (params.toString()) {
         url += `?${params.toString()}`
       }
-      
+
       const response = await fetch(url, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('dilan_ai_token')}`,
@@ -74,36 +74,44 @@ export const useVoiceConversation = (options: UseVoiceConversationOptions) => {
         }
       })
       const data = await response.json()
-      
+
       if (!data.success) {
         throw new Error(data.error || 'Failed to get signed URL')
       }
-      
+
       return data.signed_url
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to get signed URL'
       throw new Error(errorMessage)
     }
   }, [expertId, userId, language])
-  
+
   const startConversation = useCallback(async () => {
     if (conversationRef.current || state.isConnecting) {
       return
     }
-    
+
     try {
       updateState({ isConnecting: true, error: null })
-      
+
       // Request microphone permission
       await navigator.mediaDevices.getUserMedia({ audio: true })
-      
+
       // Get signed URL from backend
       const signedUrl = await getSignedUrl()
-      
+
       // Start ElevenLabs conversation
       const conversation = await Conversation.startSession({
         signedUrl,
         connectionType: 'websocket',
+        overrides: language && language !== 'en' ? ({
+          agent: {
+            language: language,
+          },
+          tts: {
+            model_id: "eleven_turbo_v2_5",
+          }
+        } as any) : undefined,
         onConnect: () => {
           console.log('Voice conversation connected')
           updateState({ isConnected: true, isConnecting: false })
@@ -111,17 +119,17 @@ export const useVoiceConversation = (options: UseVoiceConversationOptions) => {
         },
         onDisconnect: () => {
           console.log('Voice conversation disconnected')
-          updateState({ 
-            isConnected: false, 
-            isConnecting: false, 
-            isSpeaking: false, 
-            isListening: false 
+          updateState({
+            isConnected: false,
+            isConnecting: false,
+            isSpeaking: false,
+            isListening: false
           })
           onStatusChange?.('disconnected')
         },
         onMessage: (message) => {
           console.log('Voice message received:', message)
-          
+
           // Create voice message object
           const voiceMessage: VoiceMessage = {
             id: Date.now().toString(),
@@ -130,7 +138,7 @@ export const useVoiceConversation = (options: UseVoiceConversationOptions) => {
             timestamp: new Date(),
             type: (message as any).type === 'user_transcript' ? 'transcription' : 'response'
           }
-          
+
           onMessage?.(voiceMessage)
         },
         onError: (error) => {
@@ -142,7 +150,7 @@ export const useVoiceConversation = (options: UseVoiceConversationOptions) => {
         onStatusChange: (status) => {
           console.log('Voice conversation status:', status)
           const statusValue = (status as any).status || status
-          updateState({ 
+          updateState({
             isConnected: statusValue === 'connected',
             isConnecting: statusValue === 'connecting'
           })
@@ -159,9 +167,9 @@ export const useVoiceConversation = (options: UseVoiceConversationOptions) => {
           updateState({ canSendFeedback: Boolean(canSend) })
         }
       })
-      
+
       conversationRef.current = conversation
-      
+
       // Start volume monitoring
       volumeIntervalRef.current = setInterval(async () => {
         if (conversation) {
@@ -174,19 +182,19 @@ export const useVoiceConversation = (options: UseVoiceConversationOptions) => {
           }
         }
       }, 100)
-      
+
     } catch (error) {
       console.error('Failed to start voice conversation:', error)
       const errorMessage = error instanceof Error ? error.message : 'Failed to start voice conversation'
-      updateState({ 
-        error: errorMessage, 
-        isConnecting: false, 
-        isConnected: false 
+      updateState({
+        error: errorMessage,
+        isConnecting: false,
+        isConnected: false
       })
       onError?.(errorMessage)
     }
   }, [expertId, state.isConnecting, updateState, getSignedUrl, onMessage, onError, onStatusChange])
-  
+
   const endConversation = useCallback(async () => {
     if (conversationRef.current) {
       try {
@@ -196,12 +204,12 @@ export const useVoiceConversation = (options: UseVoiceConversationOptions) => {
       }
       conversationRef.current = null
     }
-    
+
     if (volumeIntervalRef.current) {
       clearInterval(volumeIntervalRef.current)
       volumeIntervalRef.current = null
     }
-    
+
     updateState({
       isConnected: false,
       isConnecting: false,
@@ -212,7 +220,7 @@ export const useVoiceConversation = (options: UseVoiceConversationOptions) => {
       outputVolume: 0
     })
   }, [updateState])
-  
+
   const setVolume = useCallback(async (volume: number) => {
     if (conversationRef.current) {
       try {
@@ -222,7 +230,7 @@ export const useVoiceConversation = (options: UseVoiceConversationOptions) => {
       }
     }
   }, [])
-  
+
   const setMicMuted = useCallback(async (muted: boolean) => {
     if (conversationRef.current) {
       try {
@@ -232,7 +240,7 @@ export const useVoiceConversation = (options: UseVoiceConversationOptions) => {
       }
     }
   }, [])
-  
+
   const sendFeedback = useCallback((positive: boolean) => {
     if (conversationRef.current && state.canSendFeedback) {
       try {
@@ -242,7 +250,7 @@ export const useVoiceConversation = (options: UseVoiceConversationOptions) => {
       }
     }
   }, [state.canSendFeedback])
-  
+
   const sendUserMessage = useCallback((message: string) => {
     if (conversationRef.current) {
       try {
@@ -252,7 +260,7 @@ export const useVoiceConversation = (options: UseVoiceConversationOptions) => {
       }
     }
   }, [])
-  
+
   const sendUserActivity = useCallback(() => {
     if (conversationRef.current) {
       try {
@@ -262,14 +270,14 @@ export const useVoiceConversation = (options: UseVoiceConversationOptions) => {
       }
     }
   }, [])
-  
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
       endConversation()
     }
   }, [endConversation])
-  
+
   return {
     state,
     startConversation,
