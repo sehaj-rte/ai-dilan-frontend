@@ -92,7 +92,7 @@ const ClientCallPage = () => {
     boolean | null
   >(null);
   const [authLoaded, setAuthLoaded] = useState(false);
-  const [selectedLanguage, setSelectedLanguage] = useState("en");
+  const [selectedLanguage, setSelectedLanguage] = useState("en-GB");
 
   // Plan limitations state
   const [showLimitReachedModal, setShowLimitReachedModal] = useState(false);
@@ -1081,7 +1081,7 @@ const ClientCallPage = () => {
 
             {/* Language Selector - User Specific */}
             {!state.isConnected && (
-              <div className="mb-8 flex flex-col items-center">
+              <div className="mb-4 flex flex-col items-center">
                 <p className="text-sm font-medium text-gray-500 mb-3 flex items-center gap-1.5">
                   <Languages className="h-4 w-4" />
                   Select your conversation language
@@ -1100,7 +1100,7 @@ const ClientCallPage = () => {
             )}
 
             {/* Call Button */}
-            <div className="mb-6 mt-4 flex flex-col items-center">
+            <div className="mb-6 mt-2 flex flex-col items-center">
               {!state.isConnected ? (
                 <Button
                   onClick={handleStartCall}

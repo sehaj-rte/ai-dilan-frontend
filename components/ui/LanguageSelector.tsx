@@ -20,7 +20,8 @@ interface LanguageSelectorProps {
 }
 
 const LANGUAGES: Language[] = [
-  { code: "en", name: "English", flag: "🇺🇸" },
+  { code: "en", name: "English US", flag: "🇺🇸" },
+  { code: "en-GB", name: "English UK", flag: "🇬🇧" },
   { code: "es", name: "Spanish", flag: "🇪🇸" },
   { code: "fr", name: "French", flag: "🇫🇷" },
   { code: "de", name: "German", flag: "🇩🇪" },

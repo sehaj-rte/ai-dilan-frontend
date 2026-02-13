@@ -59,8 +59,9 @@ export const useVoiceConversation = (options: UseVoiceConversationOptions) => {
       if (userId) {
         params.append('user_id', userId)
       }
-      if (language && language !== 'en') {
-        params.append('language', language)
+      const backendLanguage = language === 'en-GB' ? 'en' : language;
+      if (backendLanguage && backendLanguage !== 'en') {
+        params.append('language', backendLanguage)
       }
 
       if (params.toString()) {
@@ -106,7 +107,7 @@ export const useVoiceConversation = (options: UseVoiceConversationOptions) => {
         connectionType: 'websocket',
         overrides: language && language !== 'en' ? ({
           agent: {
-            language: language,
+            language: language === 'en-GB' ? 'en' : language,
           },
           tts: {
             model_id: "eleven_turbo_v2_5",

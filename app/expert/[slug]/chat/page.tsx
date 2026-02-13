@@ -1034,17 +1034,18 @@ const ClientChatPage = () => {
         return;
       }
 
-      // For long text, use only first part for faster initial response
-      let textToSpeak = text;
-      if (text.length > 500) {
-        // Find a good breaking point (sentence end) within first 500 chars
-        const truncatePoint = text.substring(0, 500).lastIndexOf('. ');
-        if (truncatePoint > 200) {
-          textToSpeak = text.substring(0, truncatePoint + 1);
-        } else {
-          textToSpeak = text.substring(0, 500) + "...";
-        }
-      }
+      // Clean Markdown formatting and special characters for clearer TTS
+      const textToSpeak = text
+        .replace(/\*\*(.*?)\*\*/g, '$1') // Bold
+        .replace(/\*(.*?)\*/g, '$1')     // Italic
+        .replace(/__(.*?)__/g, '$1')    // Bold
+        .replace(/_(.*?)_/g, '$1')      // Italic
+        .replace(/#+\s+(.*?)/g, '$1')    // Headings
+        .replace(/\[(.*?)\]\(.*?\)/g, '$1') // Links
+        .replace(/`{1,3}([\s\S]*?)`{1,3}/g, '$1') // Code blocks
+        .replace(/[*_~`#|]/g, '')        // Remaining Markdown symbols
+        .replace(/[:]/g, ' ')            // Remove colons (read as space for pause)
+        .trim();
 
       // Check cache first
       const cacheKey = `${expert.voice_id}-${textToSpeak}`;
