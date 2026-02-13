@@ -12,6 +12,22 @@ import { logout, loadUserFromStorage } from '@/store/slices/authSlice'
 import { usePlanLimitations } from '@/hooks/usePlanLimitations'
 import { UsageStatusBar } from '@/components/usage/UsageStatusBar'
 import { LimitReachedModal } from '@/components/usage/LimitReachedModal'
+import { Languages } from 'lucide-react'
+import { LanguageSelector } from "@/components/ui/LanguageSelector";
+
+const LANGUAGES = [
+  { code: "en", name: "English" },
+  { code: "es", name: "Spanish" },
+  { code: "fr", name: "French" },
+  { code: "de", name: "German" },
+  { code: "it", name: "Italian" },
+  { code: "pt", name: "Portuguese" },
+  { code: "hi", name: "Hindi" },
+  { code: "ar", name: "Arabic" },
+  { code: "zh", name: "Chinese" },
+  { code: "ja", name: "Japanese" },
+  { code: "ko", name: "Korean" },
+];
 
 
 interface Expert {
@@ -54,6 +70,7 @@ const ExpertCallPage = () => {
   const [usageTrackingInterval, setUsageTrackingInterval] = useState<NodeJS.Timeout | null>(null)
   const [lastTrackedMinute, setLastTrackedMinute] = useState(0)
   const [showLimitReachedModal, setShowLimitReachedModal] = useState(false)
+  const [selectedLanguage, setSelectedLanguage] = useState("en");
 
   // Plan limitations hook
   const {
@@ -89,6 +106,7 @@ const ExpertCallPage = () => {
   } = useVoiceConversation({
     expertId: expert?.id || '',
     userId: user?.id,
+    language: selectedLanguage,
     onError: (error) => {
       setError(error)
     },
@@ -101,6 +119,14 @@ const ExpertCallPage = () => {
   useEffect(() => {
     dispatch(loadUserFromStorage())
   }, [])
+
+  // Load saved language preference
+  useEffect(() => {
+    const savedLanguage = localStorage.getItem("preferred_language");
+    if (savedLanguage) {
+      setSelectedLanguage(savedLanguage);
+    }
+  }, []);
 
   useEffect(() => {
     fetchExpertData()
@@ -181,6 +207,16 @@ const ExpertCallPage = () => {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         setError('Your browser does not support microphone access. Please use a modern browser.')
         return
+      }
+
+      // Show language configuration message
+      if (selectedLanguage !== 'en') {
+        const languageName = LANGUAGES.find(lang => lang.code === selectedLanguage)?.name;
+        console.log(`🌍 Configuring conversation for ${languageName}...`);
+        setError(`Configuring conversation for ${languageName}...`);
+
+        // Clear the message after a short delay
+        setTimeout(() => setError(null), 2000);
       }
 
       await startConversation()
@@ -667,13 +703,33 @@ const ExpertCallPage = () => {
             </div>
           )}
 
+          {/* Language Selector - User Specific */}
+          {!state.isConnected && (
+            <div className="mb-8 flex flex-col items-center">
+              <p className="text-sm font-medium text-gray-500 mb-3 flex items-center gap-1.5">
+                <Languages className="h-4 w-4" />
+                Select your conversation language
+              </p>
+              <LanguageSelector
+                selectedLanguage={selectedLanguage}
+                onLanguageChange={(lang) => {
+                  setSelectedLanguage(lang);
+                  localStorage.setItem("preferred_language", lang);
+                }}
+                className="w-full max-w-[280px]"
+                buttonClassName="w-full py-6 rounded-full border-gray-200 bg-white/50 backdrop-blur-sm text-gray-700 text-lg font-medium shadow-lg"
+                disabled={state.isConnecting}
+              />
+            </div>
+          )}
+
           {/* Call Button */}
-          <div className="mb-6 mt-12">
+          <div className="mb-6 mt-4 flex flex-col items-center">
             {!state.isConnected ? (
               <Button
                 onClick={handleStartCall}
                 disabled={state.isConnecting || !expert || planLoading}
-                className="bg-black hover:bg-gray-800 text-white px-8 py-6 rounded-full text-lg font-medium shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                className="bg-black hover:bg-gray-800 text-white w-full max-w-[280px] py-6 rounded-full text-lg font-medium shadow-lg border border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {state.isConnecting ? (
                   <>
@@ -696,7 +752,7 @@ const ExpertCallPage = () => {
               <>
                 <Button
                   onClick={handleEndCall}
-                  className="bg-red-500 hover:bg-red-600 text-white px-8 py-6 rounded-full text-lg font-medium shadow-lg"
+                  className="bg-red-500 hover:bg-red-600 text-white w-full max-w-[280px] py-6 rounded-full text-lg font-medium shadow-lg border border-transparent"
                 >
                   <PhoneOff className="mr-2 h-5 w-5" />
                   End Call
@@ -737,8 +793,8 @@ const ExpertCallPage = () => {
                     {/* Microphone button */}
                     <button
                       className={`relative z-10 w-16 h-16 rounded-full flex items-center justify-center shadow-lg transition-all ${state.isListening
-                          ? 'bg-gray-700 scale-110'
-                          : 'bg-gray-200 hover:bg-gray-300'
+                        ? 'bg-gray-700 scale-110'
+                        : 'bg-gray-200 hover:bg-gray-300'
                         }`}
                     >
                       <svg

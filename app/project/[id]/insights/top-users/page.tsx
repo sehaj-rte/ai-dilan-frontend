@@ -1,338 +1,282 @@
 'use client'
 
+import { useState } from 'react'
 import { useParams } from 'next/navigation'
 import DashboardLayout from '@/components/dashboard/DashboardLayout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Crown, MessageSquare, Clock, DollarSign } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
+import {
+  Crown,
+  TrendingUp,
+  Zap,
+  Sparkles,
+  DollarSign,
+  ArrowUpRight,
+  MessageSquare,
+  Search,
+  ChevronRight,
+  MoreHorizontal,
+  Star,
+  Users,
+  Target,
+  Rocket
+} from 'lucide-react'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip"
+
+const powerUsers = [
+  {
+    id: "U-8421",
+    name: "Sarah Johnson",
+    ltv: "$1,450",
+    sessionsMonth: 42,
+    themes: ["Growth Architecture", "Venture Debt"],
+    avatar: "SJ",
+    rank: 1
+  },
+  {
+    id: "U-3290",
+    name: "Michael Chen",
+    ltv: "$980",
+    sessionsMonth: 38,
+    themes: ["B2B SaaS Pricing", "Scaling Ops"],
+    avatar: "MC",
+    rank: 2
+  },
+  {
+    id: "U-1102",
+    name: "Emily Rodriguez",
+    ltv: "$850",
+    sessionsMonth: 31,
+    themes: ["Team Psychology", "Hiring"],
+    avatar: "ER",
+    rank: 3
+  },
+  {
+    id: "U-5542",
+    name: "David Kim",
+    ltv: "$720",
+    sessionsMonth: 28,
+    themes: ["Exit Strategy", "M&A"],
+    avatar: "DK",
+    rank: 4
+  },
+  {
+    id: "U-2109",
+    name: "Lisa Thompson",
+    ltv: "$640",
+    sessionsMonth: 25,
+    themes: ["Personal Branding", "Content"],
+    avatar: "LT",
+    rank: 5
+  }
+]
+
+const upgradeCandidates = [
+  {
+    name: "Alexander Knight",
+    engagement: "98%",
+    depth: "9.4/10",
+    probability: 92,
+    plan: "Free",
+    triggers: ["Asked about Pricing 4x", "Daily Voice interactions"]
+  },
+  {
+    name: "Elena Rodriguez",
+    engagement: "95%",
+    depth: "8.9/10",
+    probability: 88,
+    plan: "Pro",
+    triggers: ["Deep-dive on Venture Debt", "High LTV potential"]
+  },
+  {
+    name: "Marcus Aurelius",
+    engagement: "92%",
+    depth: "8.5/10",
+    probability: 84,
+    plan: "Free",
+    triggers: ["Frequent framework requests", "Session length > 20min"]
+  }
+]
 
 export default function TopUsersPage() {
   const params = useParams()
-  const projectId = params.id as string
-
-  const topUsers = [
-    {
-      id: 1,
-      name: "Sarah Johnson",
-      email: "sarah.j@example.com",
-      avatar: "SJ",
-      messages: 1247,
-      sessions: 89,
-      totalTime: "42h 15m",
-      revenue: "$145.00",
-      plan: "Premium",
-      joinDate: "Dec 2023",
-      lastActive: "2 hours ago",
-      engagement: 95
-    },
-    {
-      id: 2,
-      name: "Michael Chen",
-      email: "m.chen@example.com",
-      avatar: "MC",
-      messages: 1089,
-      sessions: 76,
-      totalTime: "38h 42m",
-      revenue: "$87.00",
-      plan: "Basic",
-      joinDate: "Jan 2024",
-      lastActive: "5 hours ago",
-      engagement: 92
-    },
-    {
-      id: 3,
-      name: "Emily Rodriguez",
-      email: "emily.r@example.com",
-      avatar: "ER",
-      messages: 967,
-      sessions: 68,
-      totalTime: "35h 28m",
-      revenue: "$196.00",
-      plan: "Pro",
-      joinDate: "Nov 2023",
-      lastActive: "1 hour ago",
-      engagement: 89
-    },
-    {
-      id: 4,
-      name: "David Kim",
-      email: "david.kim@example.com",
-      avatar: "DK",
-      messages: 834,
-      sessions: 62,
-      totalTime: "31h 56m",
-      revenue: "$58.00",
-      plan: "Basic",
-      joinDate: "Jan 2024",
-      lastActive: "3 hours ago",
-      engagement: 87
-    },
-    {
-      id: 5,
-      name: "Lisa Thompson",
-      email: "lisa.t@example.com",
-      avatar: "LT",
-      messages: 756,
-      sessions: 54,
-      totalTime: "28h 33m",
-      revenue: "$174.00",
-      plan: "Premium",
-      joinDate: "Dec 2023",
-      lastActive: "30 minutes ago",
-      engagement: 84
-    }
-  ]
+  const [projectId] = useState(params.id as string)
 
   return (
     <DashboardLayout>
-      <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Top Users</h1>
-          <p className="text-gray-600 mt-2">Your most engaged and valuable users</p>
+      <div className="container mx-auto p-6 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-100 pb-6">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight text-slate-900 flex items-center gap-3">
+              Top Users
+              <Badge variant="outline" className="font-semibold text-amber-600 border-amber-200 bg-amber-50/50 uppercase tracking-wider text-[10px]">Economic Leverage</Badge>
+            </h1>
+            <p className="text-muted-foreground mt-1">Identify your most valuable users and high-conversion targets.</p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <Button size="sm" variant="outline" className="h-9 gap-2">
+              <Search className="h-3.5 w-3.5" /> Export Data
+            </Button>
+            <Button size="sm" className="h-9 gap-2 bg-slate-900 hover:bg-slate-800 text-white shadow-xl">
+              <Zap className="h-3.5 w-3.5 text-amber-400" /> Lead Gen Sync
+            </Button>
+          </div>
         </div>
-      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">VIP Users</CardTitle>
-            <Crown className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">47</div>
-            <p className="text-xs text-muted-foreground">Users with 90+ engagement score</p>
-          </CardContent>
-        </Card>
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Top User Messages</CardTitle>
-            <MessageSquare className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">1,247</div>
-            <p className="text-xs text-muted-foreground">Highest message count</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Longest Session</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">42h 15m</div>
-            <p className="text-xs text-muted-foreground">Total time by top user</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Top User Revenue</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">$196</div>
-            <p className="text-xs text-muted-foreground">Highest lifetime value</p>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Top Users Leaderboard</CardTitle>
-          <CardDescription>Ranked by engagement score and activity</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {topUsers.map((user, index) => (
-              <div key={user.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                <div className="flex items-center space-x-4">
-                  <div className="flex items-center space-x-3">
-                    <div className="text-lg font-bold text-gray-500 w-6">
-                      #{index + 1}
-                    </div>
-                    <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
-                      <span className="text-white font-semibold text-sm">{user.avatar}</span>
-                    </div>
-                  </div>
-                  <div>
-                    <div className="flex items-center space-x-2">
-                      <p className="font-medium text-gray-900">{user.name}</p>
-                      {index < 3 && <Crown className="h-4 w-4 text-yellow-500" />}
-                    </div>
-                    <p className="text-sm text-gray-500">{user.email}</p>
-                    <div className="flex items-center space-x-4 mt-1">
-                      <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded">
-                        {user.plan}
-                      </span>
-                      <span className="text-xs text-gray-500">
-                        Joined {user.joinDate}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-                  <div>
-                    <div className="text-lg font-bold text-gray-900">{user.messages}</div>
-                    <div className="text-xs text-gray-500">Messages</div>
-                  </div>
-                  <div>
-                    <div className="text-lg font-bold text-gray-900">{user.sessions}</div>
-                    <div className="text-xs text-gray-500">Sessions</div>
-                  </div>
-                  <div>
-                    <div className="text-lg font-bold text-gray-900">{user.totalTime}</div>
-                    <div className="text-xs text-gray-500">Total Time</div>
-                  </div>
-                  <div>
-                    <div className="text-lg font-bold text-green-600">{user.revenue}</div>
-                    <div className="text-xs text-gray-500">Revenue</div>
-                  </div>
-                </div>
-
-                <div className="text-right">
-                  <div className="flex items-center space-x-2">
-                    <div className="text-lg font-bold text-blue-600">{user.engagement}%</div>
-                    <div className="w-12 bg-gray-200 rounded-full h-2">
-                      <div 
-                        className="bg-blue-600 h-2 rounded-full" 
-                        style={{ width: `${user.engagement}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                  <div className="text-xs text-gray-500 mt-1">
-                    Last active: {user.lastActive}
-                  </div>
-                </div>
+          {/* SECTION 1: POWER USERS */}
+          <div className="xl:col-span-2 space-y-6">
+            <div className="flex items-center justify-between px-1">
+              <div className="flex items-center gap-2">
+                <Crown className="h-5 w-5 text-amber-500" />
+                <h2 className="text-xl font-bold text-slate-800 tracking-tight">Power Users Leaderboard</h2>
               </div>
-            ))}
+              <Badge variant="secondary" className="bg-slate-100 text-slate-500 font-bold">Top 5.2% of Audience</Badge>
+            </div>
+
+            <Card className="border-slate-200/60 shadow-sm overflow-hidden bg-white/50 backdrop-blur-sm">
+              <Table>
+                <TableHeader className="bg-slate-50/50">
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="w-12 text-center text-[10px] font-bold uppercase text-slate-400 tracking-widest">Rank</TableHead>
+                    <TableHead className="text-[10px] font-bold uppercase text-slate-400 tracking-widest">User / ID</TableHead>
+                    <TableHead className="text-[10px] font-bold uppercase text-slate-400 tracking-widest text-center">LTV (Lifetime)</TableHead>
+                    <TableHead className="text-[10px] font-bold uppercase text-slate-400 tracking-widest text-center">Sessions/Mo</TableHead>
+                    <TableHead className="text-[10px] font-bold uppercase text-slate-400 tracking-widest">Favorite Themes</TableHead>
+                    <TableHead className="text-right"></TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {powerUsers.map((user) => (
+                    <TableRow key={user.id} className="group hover:bg-slate-50/80 transition-colors border-slate-100 italic font-medium">
+                      <TableCell className="text-center font-bold text-slate-400">
+                        {user.rank === 1 ? <Star className="h-4 w-4 text-amber-500 mx-auto fill-amber-500" /> : user.rank}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center font-bold text-slate-400 group-hover:bg-white transition-colors border border-transparent group-hover:border-slate-200">
+                            {user.avatar}
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="text-sm font-bold text-slate-900">{user.name}</span>
+                            <span className="text-[10px] text-slate-400 font-medium">{user.id}</span>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-center font-bold text-emerald-600 tabular-nums">
+                        {user.ltv}
+                      </TableCell>
+                      <TableCell className="text-center">
+                        <Badge variant="outline" className="border-slate-200 font-bold text-slate-600 text-[11px] h-6 px-2">
+                          {user.sessionsMonth}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1.5">
+                          {user.themes.map((theme, i) => (
+                            <Badge key={i} variant="secondary" className="bg-indigo-50 text-indigo-600 hover:bg-indigo-100 border-none text-[9px] py-0.5 px-2 font-bold uppercase tracking-tight">
+                              {theme}
+                            </Badge>
+                          ))}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 hover:bg-white">
+                          <MoreHorizontal className="h-4 w-4 text-slate-400" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              <div className="p-4 bg-slate-50/50 border-t border-slate-100 text-center">
+                <Button variant="link" className="text-xs font-bold text-slate-500 hover:text-slate-900 uppercase tracking-widest">
+                  View Full Ranked Audit <ChevronRight className="ml-1 h-3 w-3" />
+                </Button>
+              </div>
+            </Card>
+
           </div>
-        </CardContent>
-      </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>User Tiers</CardTitle>
-            <CardDescription>Distribution of users by engagement level</CardDescription>
-          </CardHeader>
-          <CardContent>
+          {/* SECTION 2: UPGRADE CANDIDATES */}
+          <div className="space-y-6">
+            <div className="flex items-center gap-2 px-1">
+              <Sparkles className="h-5 w-5 text-violet-500" />
+              <h2 className="text-xl font-bold text-slate-800 italic">Upgrade Candidates</h2>
+            </div>
+
             <div className="space-y-4">
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center space-x-2">
-                    <Crown className="h-4 w-4 text-yellow-500" />
-                    <span className="text-sm font-medium">VIP Users (90-100%)</span>
-                  </div>
-                  <span className="text-sm text-gray-500">47 users</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div className="bg-yellow-500 h-2 rounded-full" style={{ width: '12%' }}></div>
-                </div>
-              </div>
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium">High Engagement (70-89%)</span>
-                  <span className="text-sm text-gray-500">156 users</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div className="bg-green-600 h-2 rounded-full" style={{ width: '39%' }}></div>
-                </div>
-              </div>
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium">Medium Engagement (50-69%)</span>
-                  <span className="text-sm text-gray-500">134 users</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div className="bg-blue-600 h-2 rounded-full" style={{ width: '34%' }}></div>
-                </div>
-              </div>
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-medium">Low Engagement (0-49%)</span>
-                  <span className="text-sm text-gray-500">63 users</span>
-                </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div className="bg-gray-600 h-2 rounded-full" style={{ width: '15%' }}></div>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+              {upgradeCandidates.map((candidate, idx) => (
+                <Card key={idx} className="group border-slate-200/60 hover:border-violet-200 transition-all hover:shadow-xl bg-white overflow-hidden">
+                  <div className="h-1.5 bg-gradient-to-r from-violet-500 to-indigo-500" />
+                  <CardHeader className="pb-3 border-b border-slate-50 flex flex-row items-center justify-between">
+                    <div>
+                      <CardTitle className="text-sm font-bold text-slate-900">{candidate.name}</CardTitle>
+                      <div className="text-[10px] font-bold text-slate-400 flex items-center gap-2 mt-1">
+                        Current: <Badge variant="secondary" className="text-[9px] h-4 bg-slate-100">{candidate.plan}</Badge>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-[10px] font-bold text-violet-600 block mb-0.5">probability</span>
+                      <div className="text-lg font-black text-slate-900 leading-none">{candidate.probability}%</div>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-4 space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <span className="text-[9px] uppercase font-bold text-slate-400 block mb-1 tracking-wider">Engagement</span>
+                        <div className="flex items-center gap-1">
+                          <TrendingUp className="h-3 w-3 text-emerald-500" />
+                          <span className="text-xs font-bold text-slate-700 tracking-tighter">{candidate.engagement}</span>
+                        </div>
+                      </div>
+                      <div>
+                        <span className="text-[9px] uppercase font-bold text-slate-400 block mb-1 tracking-wider">Question Depth</span>
+                        <div className="flex items-center gap-1 text-slate-700">
+                          <Zap className="h-3 w-3 text-amber-500" />
+                          <span className="text-xs font-bold tracking-tighter">{candidate.depth}</span>
+                        </div>
+                      </div>
+                    </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Top Users by Plan</CardTitle>
-            <CardDescription>Premium users drive the most engagement</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Premium Plan Users</p>
-                  <p className="text-sm text-gray-500">Average 87% engagement</p>
-                </div>
-                <div className="text-right">
-                  <div className="text-lg font-bold text-blue-600">23</div>
-                  <div className="text-xs text-gray-500">in top 50</div>
-                </div>
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Pro Plan Users</p>
-                  <p className="text-sm text-gray-500">Average 82% engagement</p>
-                </div>
-                <div className="text-right">
-                  <div className="text-lg font-bold text-purple-600">15</div>
-                  <div className="text-xs text-gray-500">in top 50</div>
-                </div>
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Basic Plan Users</p>
-                  <p className="text-sm text-gray-500">Average 74% engagement</p>
-                </div>
-                <div className="text-right">
-                  <div className="text-lg font-bold text-green-600">12</div>
-                  <div className="text-xs text-gray-500">in top 50</div>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+                    <div className="space-y-2 pt-2 border-t border-slate-50">
+                      <span className="text-[9px] uppercase font-bold text-slate-400 block tracking-widest">AI Triggers</span>
+                      <div className="space-y-1.5">
+                        {candidate.triggers.map((trigger, i) => (
+                          <div key={i} className="flex items-center gap-2 text-[10px] font-semibold text-slate-600">
+                            <div className="h-1 w-1 rounded-full bg-violet-400" />
+                            {trigger}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>User Insights</CardTitle>
-          <CardDescription>Key patterns from your top users</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="text-center p-4 bg-blue-50 rounded-lg">
-              <MessageSquare className="h-8 w-8 text-blue-600 mx-auto mb-2" />
-              <div className="text-2xl font-bold text-blue-600">23.4</div>
-              <p className="text-sm text-gray-600">Avg. messages per session</p>
-              <p className="text-xs text-gray-500 mt-1">Top users send 40% more messages</p>
-            </div>
-            <div className="text-center p-4 bg-green-50 rounded-lg">
-              <Clock className="h-8 w-8 text-green-600 mx-auto mb-2" />
-              <div className="text-2xl font-bold text-green-600">18m 42s</div>
-              <p className="text-sm text-gray-600">Avg. session duration</p>
-              <p className="text-xs text-gray-500 mt-1">28% longer than average users</p>
-            </div>
-            <div className="text-center p-4 bg-purple-50 rounded-lg">
-              <Crown className="h-8 w-8 text-purple-600 mx-auto mb-2" />
-              <div className="text-2xl font-bold text-purple-600">4.2x</div>
-              <p className="text-sm text-gray-600">Return frequency</p>
-              <p className="text-xs text-gray-500 mt-1">More likely to return daily</p>
+                    <Button className="w-full bg-violet-50 hover:bg-violet-100 text-violet-700 h-9 font-bold text-[11px] border border-violet-100 shadow-sm shadow-violet-50 group">
+                      Personalize Offer
+                      <Rocket className="ml-2 h-3.5 w-3.5 group-hover:-translate-y-0.5 group-hover:translate-x-0.5 transition-transform" />
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
       </div>
     </DashboardLayout>
   )

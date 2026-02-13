@@ -59,18 +59,18 @@ export default function SubscriptionHistoryPage() {
   // Calculate total earnings
   const calculateTotalEarnings = () => {
     if (subscriptions.length === 0) return { amount: 0, currency: 'GBP' }
-    
+
     // Group by currency and sum
     const earningsByCurrency = subscriptions.reduce((acc, sub) => {
       const currency = sub.currency || 'GBP'
       acc[currency] = (acc[currency] || 0) + (sub.amount || 0)
       return acc
     }, {} as Record<string, number>)
-    
+
     // For now, return the primary currency (most common one)
     const currencies = Object.keys(earningsByCurrency)
     const primaryCurrency = currencies.length > 0 ? currencies[0] : 'GBP'
-    
+
     return {
       amount: earningsByCurrency[primaryCurrency] || 0,
       currency: primaryCurrency,
@@ -223,7 +223,7 @@ export default function SubscriptionHistoryPage() {
     const headers = [
       'Subscription ID',
       'Subscriber Name',
-      'Subscriber Email', 
+      'Subscriber Email',
       'Plan Name',
       'Amount',
       'Currency',
@@ -255,7 +255,7 @@ export default function SubscriptionHistoryPage() {
     // Create and download the file
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
     const link = document.createElement('a')
-    
+
     if (link.download !== undefined) {
       const url = URL.createObjectURL(blob)
       link.setAttribute('href', url)
@@ -264,7 +264,7 @@ export default function SubscriptionHistoryPage() {
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
-      
+
       success("CSV file downloaded successfully")
     } else {
       error("CSV download not supported in this browser")
@@ -406,11 +406,10 @@ export default function SubscriptionHistoryPage() {
                         </td>
                         <td className="p-3 capitalize">
                           <span
-                            className={`px-2 py-1 rounded text-xs ${
-                              sub.status === "active"
+                            className={`px-2 py-1 rounded text-xs ${sub.status === "active"
                                 ? "bg-green-100 text-green-700"
                                 : "bg-gray-200 text-gray-600"
-                            }`}
+                              }`}
                           >
                             {sub.status}
                           </span>

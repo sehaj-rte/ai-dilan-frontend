@@ -152,11 +152,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, projectId }) => {
               href: `/project/${projectId}/insights/top-users`,
               icon: Crown,
             },
-            {
-              title: "Settings",
-              href: `/project/${projectId}/insights/settings`,
-              icon: Settings,
-            },
+
           ],
         },
         {

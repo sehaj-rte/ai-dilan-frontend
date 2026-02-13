@@ -1103,19 +1103,20 @@ const ClientCallPage = () => {
                     setSelectedLanguage(lang);
                     localStorage.setItem("preferred_language", lang);
                   }}
-                  className="w-full max-w-xs shadow-sm bg-white/50 backdrop-blur-sm"
+                  className="w-full max-w-[280px]"
+                  buttonClassName="w-full py-6 rounded-full border-gray-200 bg-white/50 backdrop-blur-sm text-gray-700 text-lg font-medium shadow-lg"
                   disabled={state.isConnecting}
                 />
               </div>
             )}
 
             {/* Call Button */}
-            <div className="mb-6 mt-4">
+            <div className="mb-6 mt-4 flex flex-col items-center">
               {!state.isConnected ? (
                 <Button
                   onClick={handleStartCall}
                   disabled={state.isConnecting || !expert || planLoading}
-                  className="bg-black hover:bg-gray-800 text-white px-8 py-6 rounded-full text-lg font-medium shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="bg-black hover:bg-gray-800 text-white w-full max-w-[280px] py-6 rounded-full text-lg font-medium shadow-lg border border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {state.isConnecting ? (
                     <>
@@ -1138,7 +1139,7 @@ const ClientCallPage = () => {
                 <>
                   <Button
                     onClick={handleEndCall}
-                    className="bg-red-500 hover:bg-red-600 text-white px-8 py-6 rounded-full text-lg font-medium shadow-lg"
+                    className="bg-red-500 hover:bg-red-600 text-white w-full max-w-[280px] py-6 rounded-full text-lg font-medium shadow-lg border border-transparent"
                   >
                     <PhoneOff className="mr-2 h-5 w-5" />
                     End Call
