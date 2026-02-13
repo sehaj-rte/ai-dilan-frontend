@@ -9,7 +9,7 @@ export function LogRocketProvider({ children }: { children: React.ReactNode }) {
       try {
         // Dynamic import to handle cases where LogRocket might not be installed yet
         import('logrocket').then((LogRocket) => {
-          LogRocket.default.init('40k7ez/ai-dilan')
+          LogRocket.default.init('wjatyq/dilan')
           console.log('LogRocket initialized successfully')
         }).catch((error) => {
           console.warn('LogRocket not available:', error.message)
