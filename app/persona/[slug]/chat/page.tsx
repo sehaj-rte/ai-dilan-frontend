@@ -184,7 +184,7 @@ const ExpertChatPage = () => {
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
   const [isExpertOwner, setIsExpertOwner] = useState(false);
   const [usageRefreshTrigger, setUsageRefreshTrigger] = useState(0);  // Add refresh trigger
-  
+
   // Monthly warning modal state
   const [monthlyWarningModal, setMonthlyWarningModal] = useState<{
     isOpen: boolean;
@@ -320,7 +320,7 @@ const ExpertChatPage = () => {
               ? convertS3UrlToProxy(data.expert.avatar_url)
               : null,
           });
-          
+
           // Check if current user is the expert owner
           if (user && data.expert && String(data.expert.user_id) === String(user.id)) {
             setIsExpertOwner(true);
@@ -381,7 +381,7 @@ const ExpertChatPage = () => {
   useEffect(() => {
     if (expert) {
       loadConversations(expert.id);
-      
+
       // Check if current user is the expert owner
       if (user && expert && String(expert.user_id) === String(user.id)) {
         setIsExpertOwner(true);
@@ -535,7 +535,7 @@ const ExpertChatPage = () => {
       audioCache.forEach((url) => {
         URL.revokeObjectURL(url);
       });
-      
+
       // Stop any currently playing audio
       if (currentAudio) {
         currentAudio.pause();
@@ -915,7 +915,7 @@ const ExpertChatPage = () => {
         // Create audio from response
         const audioBlob = await response.blob();
         audioUrl = URL.createObjectURL(audioBlob);
-        
+
         // Cache the audio URL (limit cache size to prevent memory issues)
         if (audioCache.size > 10) {
           const firstKey = audioCache.keys().next().value;
@@ -986,7 +986,7 @@ const ExpertChatPage = () => {
       }
 
       const data = await response.json();
-      
+
       if (data.success) {
         // Store the translation
         const newTranslations = new Map(translatedMessages);
@@ -1381,12 +1381,12 @@ const ExpertChatPage = () => {
                     prev.map((msg) =>
                       msg.id === agentMessageId
                         ? {
-                            ...msg,
-                            text: fullResponse,
-                            toolCalls,
-                            sources,
-                            isStreaming: false,
-                          }
+                          ...msg,
+                          text: fullResponse,
+                          toolCalls,
+                          sources,
+                          isStreaming: false,
+                        }
                         : msg,
                     ),
                   );
@@ -1538,10 +1538,10 @@ const ExpertChatPage = () => {
         prev.map((msg) =>
           msg.id === streamingMessageId
             ? {
-                ...msg,
-                text: "Sorry, I encountered an error. Please try again.",
-                isStreaming: false,
-              }
+              ...msg,
+              text: "Sorry, I encountered an error. Please try again.",
+              isStreaming: false,
+            }
             : msg,
         ),
       );
@@ -1581,9 +1581,9 @@ const ExpertChatPage = () => {
           timestamp: new Date(msg.created_at),
           files: msg.files
             ? msg.files.map((file: any) => ({
-                ...file,
-                url: convertS3UrlToProxy(file.url), // Convert S3 URLs to proxy URLs
-              }))
+              ...file,
+              url: convertS3UrlToProxy(file.url), // Convert S3 URLs to proxy URLs
+            }))
             : undefined,
           sources: msg.citations || [], // Load citations as sources
           toolCalls: msg.tool_calls || [], // Load tool_calls
@@ -2082,9 +2082,8 @@ const ExpertChatPage = () => {
                 )}
                 <img
                   src={expert.avatar_url}
-                  className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full object-cover transition-opacity duration-300 ${
-                    expertImageLoading ? "opacity-0" : "opacity-100"
-                  } ${expertImageError ? "hidden" : ""}`}
+                  className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full object-cover transition-opacity duration-300 ${expertImageLoading ? "opacity-0" : "opacity-100"
+                    } ${expertImageError ? "hidden" : ""}`}
                   alt={expert.name}
                   onLoad={handleExpertImageLoad}
                   onError={handleExpertImageError}
@@ -2183,9 +2182,8 @@ const ExpertChatPage = () => {
                             ? user.avatar_url
                             : `${API_URL}${user.avatar_url}`
                         }
-                        className={`w-10 h-10 rounded-full object-cover border-2 border-gray-200 transition-opacity duration-300 ${
-                          userImageLoading ? "opacity-0" : "opacity-100"
-                        } ${userImageError ? "hidden" : ""}`}
+                        className={`w-10 h-10 rounded-full object-cover border-2 border-gray-200 transition-opacity duration-300 ${userImageLoading ? "opacity-0" : "opacity-100"
+                          } ${userImageError ? "hidden" : ""}`}
                         alt={user.username}
                         onLoad={handleUserImageLoad}
                         onError={handleUserImageError}
@@ -2240,9 +2238,8 @@ const ExpertChatPage = () => {
                           )}
                           <img
                             src={user.avatar_url}
-                            className={`w-8 h-8 rounded-full object-cover border-2 border-gray-200 transition-opacity duration-300 ${
-                              userImageLoading ? "opacity-0" : "opacity-100"
-                            } ${userImageError ? "hidden" : ""}`}
+                            className={`w-8 h-8 rounded-full object-cover border-2 border-gray-200 transition-opacity duration-300 ${userImageLoading ? "opacity-0" : "opacity-100"
+                              } ${userImageError ? "hidden" : ""}`}
                             alt={user.username}
                             onLoad={handleUserImageLoad}
                             onError={handleUserImageError}
@@ -2319,7 +2316,7 @@ const ExpertChatPage = () => {
               />
             </div>
           )}
-          
+
           <div className="max-w-3xl mx-auto space-y-4 sm:space-y-6">
 
             {/* Initial greeting when no messages */}
@@ -2335,9 +2332,8 @@ const ExpertChatPage = () => {
                     <img
                       src={expert.avatar_url}
                       alt={expert.name}
-                      className={`h-16 w-16 rounded-full object-cover transition-opacity duration-300 ${
-                        expertImageLoading ? "opacity-0" : "opacity-100"
-                      } ${expertImageError ? "hidden" : ""}`}
+                      className={`h-16 w-16 rounded-full object-cover transition-opacity duration-300 ${expertImageLoading ? "opacity-0" : "opacity-100"
+                        } ${expertImageError ? "hidden" : ""}`}
                       onLoad={handleExpertImageLoad}
                       onError={handleExpertImageError}
                     />
@@ -2358,7 +2354,7 @@ const ExpertChatPage = () => {
                   </p>
                   <p className="text-sm text-gray-500">
                     I'm ready to help with your questions.
-                  
+
                   </p>
                 </div>
               </div>
@@ -2400,9 +2396,8 @@ const ExpertChatPage = () => {
                           <img
                             src={expert.avatar_url}
                             alt={expert.name}
-                            className={`h-6 w-6 sm:h-8 sm:w-8 rounded-full object-cover transition-opacity duration-300 ${
-                              expertImageLoading ? "opacity-0" : "opacity-100"
-                            } ${expertImageError ? "hidden" : ""}`}
+                            className={`h-6 w-6 sm:h-8 sm:w-8 rounded-full object-cover transition-opacity duration-300 ${expertImageLoading ? "opacity-0" : "opacity-100"
+                              } ${expertImageError ? "hidden" : ""}`}
                             onLoad={handleExpertImageLoad}
                             onError={handleExpertImageError}
                           />
@@ -2428,12 +2423,12 @@ const ExpertChatPage = () => {
                       style={
                         m.type === "user"
                           ? {
-                              backgroundColor: primaryColor,
-                              borderRadius: "1rem 1rem 0 1rem",
-                            }
+                            backgroundColor: primaryColor,
+                            borderRadius: "1rem 1rem 0 1rem",
+                          }
                           : {
-                              borderRadius: "1rem 1rem 1rem 0",
-                            }
+                            borderRadius: "1rem 1rem 1rem 0",
+                          }
                       }
                     >
                       {m.type === "user" ? (
@@ -2639,20 +2634,19 @@ const ExpertChatPage = () => {
                             const textToRead = translatedMessages.has(m.id) ? translatedMessages.get(m.id)!.text : m.text;
                             handleReadAloud(m.id, textToRead);
                           }}
-                          className={`p-1.5 rounded-lg transition-all duration-200 group ${
-                            playingMessageId === m.id 
-                              ? "bg-blue-50 hover:bg-blue-100" 
-                              : loadingMessageId === m.id
-                                ? "bg-orange-50"
-                                : "hover:bg-gray-200"
-                          } ${!expert?.voice_id || loadingMessageId === m.id ? "opacity-50 cursor-not-allowed" : ""}`}
+                          className={`p-1.5 rounded-lg transition-all duration-200 group ${playingMessageId === m.id
+                            ? "bg-blue-50 hover:bg-blue-100"
+                            : loadingMessageId === m.id
+                              ? "bg-orange-50"
+                              : "hover:bg-gray-200"
+                            } ${!expert?.voice_id || loadingMessageId === m.id ? "opacity-50 cursor-not-allowed" : ""}`}
                           title={
-                            !expert?.voice_id 
+                            !expert?.voice_id
                               ? "Voice not available for this expert"
                               : loadingMessageId === m.id
                                 ? "Generating speech..."
-                                : playingMessageId === m.id 
-                                  ? "Stop reading" 
+                                : playingMessageId === m.id
+                                  ? "Stop reading"
                                   : "Read aloud"
                           }
                           disabled={!expert?.voice_id || loadingMessageId === m.id}
@@ -2662,11 +2656,10 @@ const ExpertChatPage = () => {
                           ) : playingMessageId === m.id ? (
                             <VolumeX className="h-4 w-4 text-blue-600 animate-pulse" />
                           ) : (
-                            <Volume2 className={`h-4 w-4 transition-colors ${
-                              expert?.voice_id 
-                                ? "text-gray-500 group-hover:text-blue-600" 
-                                : "text-gray-300"
-                            }`} />
+                            <Volume2 className={`h-4 w-4 transition-colors ${expert?.voice_id
+                              ? "text-gray-500 group-hover:text-blue-600"
+                              : "text-gray-300"
+                              }`} />
                           )}
                         </button>
 
@@ -2676,13 +2669,12 @@ const ExpertChatPage = () => {
                             onClick={() => {
                               setOpenTranslateDropdown(openTranslateDropdown === m.id ? null : m.id);
                             }}
-                            className={`p-1.5 rounded-lg transition-all duration-200 group ${
-                              translatingMessageId === m.id
-                                ? "bg-green-50"
-                                : translatedMessages.has(m.id)
-                                  ? "bg-green-50 hover:bg-green-100"
-                                  : "hover:bg-gray-200"
-                            } ${translatingMessageId === m.id ? "opacity-50 cursor-not-allowed" : ""}`}
+                            className={`p-1.5 rounded-lg transition-all duration-200 group ${translatingMessageId === m.id
+                              ? "bg-green-50"
+                              : translatedMessages.has(m.id)
+                                ? "bg-green-50 hover:bg-green-100"
+                                : "hover:bg-gray-200"
+                              } ${translatingMessageId === m.id ? "opacity-50 cursor-not-allowed" : ""}`}
                             title={
                               translatingMessageId === m.id
                                 ? "Translating..."
@@ -2695,14 +2687,13 @@ const ExpertChatPage = () => {
                             {translatingMessageId === m.id ? (
                               <div className="h-4 w-4 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
                             ) : (
-                              <Languages className={`h-4 w-4 transition-colors ${
-                                translatedMessages.has(m.id)
-                                  ? "text-green-600"
-                                  : "text-gray-500 group-hover:text-green-600"
-                              }`} />
+                              <Languages className={`h-4 w-4 transition-colors ${translatedMessages.has(m.id)
+                                ? "text-green-600"
+                                : "text-gray-500 group-hover:text-green-600"
+                                }`} />
                             )}
                           </button>
-                          
+
                           {/* Custom Dropdown */}
                           {openTranslateDropdown === m.id && (
                             <div className="absolute top-full left-0 mt-2 w-48 bg-white/20 backdrop-blur-xl rounded-2xl border border-white/30 shadow-2xl z-50 max-h-64 overflow-hidden ring-1 ring-black/5">
@@ -2766,9 +2757,8 @@ const ExpertChatPage = () => {
                       <img
                         src={expert.avatar_url}
                         alt={expert.name}
-                        className={`h-6 w-6 sm:h-8 sm:w-8 rounded-full object-cover transition-opacity duration-300 ${
-                          expertImageLoading ? "opacity-0" : "opacity-100"
-                        } ${expertImageError ? "hidden" : ""}`}
+                        className={`h-6 w-6 sm:h-8 sm:w-8 rounded-full object-cover transition-opacity duration-300 ${expertImageLoading ? "opacity-0" : "opacity-100"
+                          } ${expertImageError ? "hidden" : ""}`}
                         onLoad={handleExpertImageLoad}
                         onError={handleExpertImageError}
                       />
@@ -2955,11 +2945,11 @@ const ExpertChatPage = () => {
                     onPaste={async (e) => {
                       const items = Array.from(e.clipboardData?.items || []);
                       const imageItems = items.filter(item => item.type.startsWith('image/'));
-                      
+
                       if (imageItems.length > 0) {
                         e.preventDefault();
                         setIsUploadingFiles(true);
-                        
+
                         try {
                           const files: File[] = [];
                           for (const item of imageItems) {
@@ -2968,17 +2958,17 @@ const ExpertChatPage = () => {
                               files.push(file);
                             }
                           }
-                          
+
                           if (files.length > 0) {
                             console.log("📋 Pasting", files.length, "image(s)");
-                            
+
                             // Upload to S3
                             const s3Files = await uploadFilesToS3(files);
                             console.log("✅ Pasted images uploaded to S3:", s3Files);
-                            
+
                             // Add to uploaded files
                             setUploadedFiles((prev) => [...prev, ...files]);
-                            
+
                             // Store S3 URLs
                             const s3FileData = s3Files.map((f) => ({
                               name: f.name,
@@ -2987,10 +2977,10 @@ const ExpertChatPage = () => {
                               s3_key: f.s3_key,
                               size: f.size,
                             }));
-                            
+
                             const existingS3Files = (window as any).__s3UploadedFiles || [];
                             (window as any).__s3UploadedFiles = [...existingS3Files, ...s3FileData];
-                            
+
                             console.log("✅ Pasted images ready to send");
                           }
                         } catch (error) {
@@ -3005,8 +2995,8 @@ const ExpertChatPage = () => {
                       isListening
                         ? "🎤 Listening... speak now"
                         : isUploadingFiles
-                        ? "Uploading images..."
-                        : "Type your message or paste images..."
+                          ? "Uploading images..."
+                          : "Type your message or paste images..."
                     }
                     className="w-full border-0 bg-transparent focus:outline-none resize-none overflow-y-auto text-sm sm:text-[15px] leading-6 text-gray-900 placeholder:text-gray-400"
                     style={{ height: "24px", maxHeight: "100px" }}
@@ -3025,11 +3015,10 @@ const ExpertChatPage = () => {
                       onClick={toggleListening}
                       size="icon"
                       variant="ghost"
-                      className={`rounded-xl h-8 w-8 sm:h-10 sm:w-10 transition-all duration-200 ${
-                        isListening
-                          ? "bg-red-50 text-red-600 hover:bg-red-100 animate-pulse"
-                          : "hover:bg-gray-100 text-gray-500"
-                      }`}
+                      className={`rounded-xl h-8 w-8 sm:h-10 sm:w-10 transition-all duration-200 ${isListening
+                        ? "bg-red-50 text-red-600 hover:bg-red-100 animate-pulse"
+                        : "hover:bg-gray-100 text-gray-500"
+                        }`}
                       title={isListening ? "Stop listening" : "Voice input"}
                       disabled={
                         isWaitingForResponse || streamingMessageId !== null
@@ -3076,16 +3065,16 @@ const ExpertChatPage = () => {
                     style={{
                       backgroundColor:
                         (inputText.trim() || uploadedFiles.length > 0) &&
-                        !isWaitingForResponse &&
-                        !streamingMessageId &&
-                        !planLoading
+                          !isWaitingForResponse &&
+                          !streamingMessageId &&
+                          !planLoading
                           ? primaryColor
                           : "#E5E7EB",
                       color:
                         (inputText.trim() || uploadedFiles.length > 0) &&
-                        !isWaitingForResponse &&
-                        !streamingMessageId &&
-                        !planLoading
+                          !isWaitingForResponse &&
+                          !streamingMessageId &&
+                          !planLoading
                           ? "white"
                           : "#9CA3AF",
                     }}
@@ -3117,20 +3106,19 @@ const ExpertChatPage = () => {
                 </div>
               </div>
 
-              {/* Helper text */}
-              <div className="mt-2 px-1 flex items-center justify-between text-xs text-gray-400">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2">
-                  <span className="hidden sm:inline">
-                    Press Enter to send, Shift+Enter for new line
+              <div className="mt-2 px-1 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-gray-400">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 font-medium">
+                  <span className="text-[10px] sm:text-[11px]">
+                    AI LLM’s can make mistakes. It’s important to check the answers presented.
                   </span>
-                  <span className="sm:hidden text-[10px]">Enter to send</span>
-                  <span className="text-[10px] sm:text-xs">
-                    • Best experience with Chrome or Safari
+                  <span className="hidden sm:inline opacity-30">|</span>
+                  <span className="text-[10px] sm:text-[11px] opacity-70">
+                    Best experience with Chrome or Safari
                   </span>
                 </div>
                 {(isWaitingForResponse || streamingMessageId) && (
-                  <span className="flex items-center gap-1 text-gray-500">
-                    <div className="h-1.5 w-1.5 rounded-full bg-gray-400 animate-pulse"></div>
+                  <span className="flex items-center gap-1.5 text-gray-500 font-medium">
+                    <div className="h-1.5 w-1.5 rounded-full bg-blue-400 animate-pulse"></div>
                     Processing...
                   </span>
                 )}

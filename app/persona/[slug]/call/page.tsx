@@ -209,16 +209,6 @@ const ExpertCallPage = () => {
         return
       }
 
-      // Show language configuration message
-      if (selectedLanguage !== 'en') {
-        const languageName = LANGUAGES.find(lang => lang.code === selectedLanguage)?.name;
-        console.log(`🌍 Configuring conversation for ${languageName}...`);
-        setError(`Configuring conversation for ${languageName}...`);
-
-        // Clear the message after a short delay
-        setTimeout(() => setError(null), 2000);
-      }
-
       await startConversation()
 
       // Reset tracking state
@@ -698,8 +688,8 @@ const ExpertCallPage = () => {
 
           {/* Error Display */}
           {error && (
-            <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
-              <p className="text-sm text-red-700">{error}</p>
+            <div className="mb-6 bg-gray-50 border border-gray-200 rounded-lg p-4">
+              <p className="text-sm text-gray-700">{error}</p>
             </div>
           )}
 
@@ -752,7 +742,7 @@ const ExpertCallPage = () => {
               <>
                 <Button
                   onClick={handleEndCall}
-                  className="bg-red-500 hover:bg-red-600 text-white w-full max-w-[280px] py-6 rounded-full text-lg font-medium shadow-lg border border-transparent"
+                  className="bg-gray-900 hover:bg-black text-white w-full max-w-[280px] py-6 rounded-full text-lg font-medium shadow-lg border border-transparent"
                 >
                   <PhoneOff className="mr-2 h-5 w-5" />
                   End Call
@@ -814,7 +804,7 @@ const ExpertCallPage = () => {
 
           {/* Browser Compatibility Banner */}
           <div className="mb-8">
-            <div className="inline-flex items-center px-6 py-3 rounded-full  border border-200 text-800 text-sm font-medium shadow-sm">
+            <div className="inline-flex items-center px-6 py-3 rounded-full border border-gray-200 text-gray-800 text-sm font-medium shadow-sm">
               <svg
                 className="w-4 h-4 mr-2"
                 fill="none"

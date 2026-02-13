@@ -111,7 +111,7 @@ const ClientChatPage = () => {
 
   const convertS3UrlToProxy = (s3Url: string, thumbnail: boolean = false, size: number = 40): string => {
     if (!s3Url) return s3Url as any;
-    
+
     // Since avatars are now public, return direct S3 URLs for better performance
     // No need to proxy through the backend anymore
     return s3Url;
@@ -698,7 +698,7 @@ const ClientChatPage = () => {
       audioCache.forEach((url) => {
         URL.revokeObjectURL(url);
       });
-      
+
       // Stop any currently playing audio
       if (currentAudio) {
         currentAudio.pause();
@@ -1078,7 +1078,7 @@ const ClientChatPage = () => {
         // Create audio from response
         const audioBlob = await response.blob();
         audioUrl = URL.createObjectURL(audioBlob);
-        
+
         // Cache the audio URL (limit cache size to prevent memory issues)
         if (audioCache.size > 10) {
           const firstKey = audioCache.keys().next().value;
@@ -1149,7 +1149,7 @@ const ClientChatPage = () => {
       }
 
       const data = await response.json();
-      
+
       if (data.success) {
         // Store the translation
         const newTranslations = new Map(translatedMessages);
@@ -1313,7 +1313,7 @@ const ClientChatPage = () => {
       // Store both file objects and S3 data for proper mapping
       const existingS3Files = (window as any).__s3UploadedFiles || [];
       const existingFileMapping = (window as any).__fileToS3Mapping || [];
-      
+
       (window as any).__s3UploadedFiles = [...existingS3Files, ...s3FileData];
       (window as any).__fileToS3Mapping = [...existingFileMapping, ...filesWithS3Urls];
     } catch (error) {
@@ -1379,7 +1379,7 @@ const ClientChatPage = () => {
       // Store both file objects and S3 data for proper mapping
       const existingS3Files = (window as any).__s3UploadedFiles || [];
       const existingFileMapping = (window as any).__fileToS3Mapping || [];
-      
+
       (window as any).__s3UploadedFiles = [...existingS3Files, ...s3FileData];
       (window as any).__fileToS3Mapping = [...existingFileMapping, ...filesWithS3Urls];
 
@@ -1399,14 +1399,14 @@ const ClientChatPage = () => {
   const removeFile = (index: number) => {
     const fileToRemove = uploadedFiles[index];
     setUploadedFiles((prev) => prev.filter((_, i) => i !== index));
-    
+
     // Also remove from S3 data and file mapping
     const s3Data = (window as any).__s3UploadedFiles || [];
     const fileMapping = (window as any).__fileToS3Mapping || [];
-    
+
     // Remove from S3 data by index
     (window as any).__s3UploadedFiles = s3Data.filter((_: any, i: number) => i !== index);
-    
+
     // Remove from file mapping by file reference
     (window as any).__fileToS3Mapping = fileMapping.filter((mapping: any) => mapping.file !== fileToRemove);
   };
@@ -1656,24 +1656,24 @@ const ClientChatPage = () => {
                     prev.map((msg) =>
                       msg.id === agentMessageId
                         ? {
-                            ...msg,
-                            text: fullResponse,
-                            toolCalls: toolCalls,
-                            sources: sources,
-                            isStreaming: false,
-                          }
+                          ...msg,
+                          text: fullResponse,
+                          toolCalls: toolCalls,
+                          sources: sources,
+                          isStreaming: false,
+                        }
                         : msg,
                     ),
                   );
                   setStreamingMessageId(null);
                 } else if (data.type === "usage_info") {
                   console.log("📊 Received usage info event:", data.data);
-                  
+
                   // Check for monthly warning
                   if (data.data.monthly_warning_exceeded) {
                     const warningInfo = data.data.monthly_warning_info;
                     console.log("⚠️ Monthly warning triggered:", warningInfo);
-                    
+
                     // Show monthly warning modal
                     setMonthlyWarningModal({
                       isOpen: true,
@@ -1813,10 +1813,10 @@ const ClientChatPage = () => {
         prev.map((msg) =>
           msg.id === streamingMessageId
             ? {
-                ...msg,
-                text: "Sorry, I encountered an error. Please try again.",
-                isStreaming: false,
-              }
+              ...msg,
+              text: "Sorry, I encountered an error. Please try again.",
+              isStreaming: false,
+            }
             : msg,
         ),
       );
@@ -1856,9 +1856,9 @@ const ClientChatPage = () => {
           timestamp: new Date(msg.created_at),
           files: msg.files
             ? msg.files.map((file: any) => ({
-                ...file,
-                url: convertS3UrlToProxy(file.url), // Convert S3 URLs to proxy URLs
-              }))
+              ...file,
+              url: convertS3UrlToProxy(file.url), // Convert S3 URLs to proxy URLs
+            }))
             : undefined,
           sources: msg.citations || [], // Load citations as sources
           toolCalls: msg.tool_calls || [], // Load tool_calls
@@ -2026,7 +2026,7 @@ const ClientChatPage = () => {
     >
       {/* Animated background overlay for non-banner publications */}
       {!publication?.banner_url && (
-        <div 
+        <div
           className="absolute inset-0 opacity-30 pointer-events-none"
           style={{
             background: `radial-gradient(circle at 20% 80%, ${primaryColor}20 0%, transparent 50%), 
@@ -2036,10 +2036,10 @@ const ClientChatPage = () => {
           }}
         />
       )}
-      
+
       {/* Enhanced overlay for better text readability */}
       <div className="absolute inset-0 bg-gradient-to-br from-white/5 via-transparent to-black/10 pointer-events-none z-0"></div>
-      
+
       {/* Floating particles for extra visual appeal */}
       {!publication?.banner_url && (
         <div className="absolute inset-0 overflow-hidden pointer-events-none z-0">
@@ -2060,7 +2060,7 @@ const ClientChatPage = () => {
           ))}
         </div>
       )}
-      
+
       <style jsx>{`
         @keyframes gradientShift {
           0%, 100% { background-position: 0% 50%; }
@@ -2124,8 +2124,8 @@ const ClientChatPage = () => {
         ${isSidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}
       `}
         style={{
-          background: publication?.banner_url 
-            ? "rgba(17, 24, 39, 0.95)" 
+          background: publication?.banner_url
+            ? "rgba(17, 24, 39, 0.95)"
             : `linear-gradient(180deg, rgba(17, 24, 39, 0.95) 0%, rgba(31, 41, 55, 0.95) 100%)`,
           backdropFilter: "blur(20px)",
           borderRight: publication?.banner_url ? "1px solid rgba(75, 85, 99, 0.5)" : `1px solid ${primaryColor}30`,
@@ -2473,8 +2473,8 @@ const ClientChatPage = () => {
               ? "rgba(255, 255, 255, 0.95)"
               : `linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.98) 100%)`,
             backdropFilter: "blur(20px)",
-            borderBottom: publication?.banner_url 
-              ? "1px solid rgba(255, 255, 255, 0.3)" 
+            borderBottom: publication?.banner_url
+              ? "1px solid rgba(255, 255, 255, 0.3)"
               : `1px solid ${primaryColor}20`,
             boxShadow: "0 4px 20px rgba(0, 0, 0, 0.1)",
           }}
@@ -2497,9 +2497,8 @@ const ClientChatPage = () => {
                 )}
                 <img
                   src={expert.avatar_url}
-                  className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full object-cover transition-opacity duration-300 ${
-                    expertImageLoading ? "opacity-0" : "opacity-100"
-                  } ${expertImageError ? "hidden" : ""}`}
+                  className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full object-cover transition-opacity duration-300 ${expertImageLoading ? "opacity-0" : "opacity-100"
+                    } ${expertImageError ? "hidden" : ""}`}
                   alt={expert.name}
                   onLoad={handleExpertImageLoad}
                   onError={handleExpertImageError}
@@ -2598,9 +2597,8 @@ const ClientChatPage = () => {
                             ? user.avatar_url
                             : `${API_URL}${user.avatar_url}`
                         }
-                        className={`w-10 h-10 rounded-full object-cover border-2 border-gray-200 transition-opacity duration-300 ${
-                          userImageLoading ? "opacity-0" : "opacity-100"
-                        } ${userImageError ? "hidden" : ""}`}
+                        className={`w-10 h-10 rounded-full object-cover border-2 border-gray-200 transition-opacity duration-300 ${userImageLoading ? "opacity-0" : "opacity-100"
+                          } ${userImageError ? "hidden" : ""}`}
                         alt={user.username}
                         onLoad={handleUserImageLoad}
                         onError={handleUserImageError}
@@ -2659,9 +2657,8 @@ const ClientChatPage = () => {
                           )}
                           <img
                             src={user.avatar_url}
-                            className={`w-8 h-8 rounded-full object-cover border-2 border-gray-200 transition-opacity duration-300 ${
-                              userImageLoading ? "opacity-0" : "opacity-100"
-                            } ${userImageError ? "hidden" : ""}`}
+                            className={`w-8 h-8 rounded-full object-cover border-2 border-gray-200 transition-opacity duration-300 ${userImageLoading ? "opacity-0" : "opacity-100"
+                              } ${userImageError ? "hidden" : ""}`}
                             alt={user.username}
                             onLoad={handleUserImageLoad}
                             onError={handleUserImageError}
@@ -2726,7 +2723,7 @@ const ClientChatPage = () => {
 
         {/* Usage Status Bar - only show for authenticated users with plan limitations */}
         {isAuthenticated && currentPlan && !limitStatus.isUnlimited && (
-          <div 
+          <div
             className="px-3 sm:px-6 py-2"
             style={{
               background: publication?.banner_url
@@ -2759,11 +2756,11 @@ const ClientChatPage = () => {
           <div className="max-w-3xl mx-auto space-y-4 sm:space-y-6">
             {/* Initial greeting when no messages */}
             {messages.length === 0 && !isWaitingForResponse && (
-              <div 
+              <div
                 className="flex flex-col items-center justify-center h-full text-center space-y-4 animate-in fade-in duration-1000"
                 style={{
-                  background: publication?.banner_url 
-                    ? "rgba(255, 255, 255, 0.9)" 
+                  background: publication?.banner_url
+                    ? "rgba(255, 255, 255, 0.9)"
                     : `radial-gradient(circle, ${primaryColor}10 0%, rgba(255, 255, 255, 0.8) 70%)`,
                   borderRadius: "2rem",
                   padding: "2rem",
@@ -2780,9 +2777,8 @@ const ClientChatPage = () => {
                     <img
                       src={expert.avatar_url}
                       alt={expert.name}
-                      className={`h-16 w-16 rounded-full object-cover transition-opacity duration-300 ${
-                        expertImageLoading ? "opacity-0" : "opacity-100"
-                      } ${expertImageError ? "hidden" : ""}`}
+                      className={`h-16 w-16 rounded-full object-cover transition-opacity duration-300 ${expertImageLoading ? "opacity-0" : "opacity-100"
+                        } ${expertImageError ? "hidden" : ""}`}
                       onLoad={handleExpertImageLoad}
                       onError={handleExpertImageError}
                     />
@@ -2847,9 +2843,8 @@ const ClientChatPage = () => {
                           <img
                             src={expert.avatar_url}
                             alt={expert.name}
-                            className={`h-6 w-6 sm:h-8 sm:w-8 rounded-full object-cover transition-opacity duration-300 ${
-                              expertImageLoading ? "opacity-0" : "opacity-100"
-                            } ${expertImageError ? "hidden" : ""}`}
+                            className={`h-6 w-6 sm:h-8 sm:w-8 rounded-full object-cover transition-opacity duration-300 ${expertImageLoading ? "opacity-0" : "opacity-100"
+                              } ${expertImageError ? "hidden" : ""}`}
                             onLoad={handleExpertImageLoad}
                             onError={handleExpertImageError}
                           />
@@ -2875,17 +2870,17 @@ const ClientChatPage = () => {
                       style={
                         m.type === "user"
                           ? {
-                              background: `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`,
-                              borderRadius: "1rem 1rem 0 1rem",
-                              boxShadow: `0 4px 15px ${primaryColor}40`,
-                            }
+                            background: `linear-gradient(135deg, ${primaryColor} 0%, ${secondaryColor} 100%)`,
+                            borderRadius: "1rem 1rem 0 1rem",
+                            boxShadow: `0 4px 15px ${primaryColor}40`,
+                          }
                           : {
-                              background: "rgba(255, 255, 255, 0.95)",
-                              borderRadius: "1rem 1rem 1rem 0",
-                              backdropFilter: "blur(10px)",
-                              border: `1px solid ${primaryColor}20`,
-                              boxShadow: "0 2px 10px rgba(0, 0, 0, 0.1)",
-                            }
+                            background: "rgba(255, 255, 255, 0.95)",
+                            borderRadius: "1rem 1rem 1rem 0",
+                            backdropFilter: "blur(10px)",
+                            border: `1px solid ${primaryColor}20`,
+                            boxShadow: "0 2px 10px rgba(0, 0, 0, 0.1)",
+                          }
                       }
                     >
                       {m.type === "user" ? (
@@ -3077,20 +3072,19 @@ const ClientChatPage = () => {
                             const textToRead = translatedMessages.has(m.id) ? translatedMessages.get(m.id)!.text : m.text;
                             handleReadAloud(m.id, textToRead);
                           }}
-                          className={`p-1.5 rounded-lg transition-all duration-200 group ${
-                            playingMessageId === m.id 
-                              ? "bg-blue-50 hover:bg-blue-100" 
-                              : loadingMessageId === m.id
-                                ? "bg-orange-50"
-                                : "hover:bg-gray-200"
-                          } ${!expert?.voice_id || loadingMessageId === m.id ? "opacity-50 cursor-not-allowed" : ""}`}
+                          className={`p-1.5 rounded-lg transition-all duration-200 group ${playingMessageId === m.id
+                            ? "bg-blue-50 hover:bg-blue-100"
+                            : loadingMessageId === m.id
+                              ? "bg-orange-50"
+                              : "hover:bg-gray-200"
+                            } ${!expert?.voice_id || loadingMessageId === m.id ? "opacity-50 cursor-not-allowed" : ""}`}
                           title={
-                            !expert?.voice_id 
+                            !expert?.voice_id
                               ? "Voice not available for this expert"
                               : loadingMessageId === m.id
                                 ? "Generating speech..."
-                                : playingMessageId === m.id 
-                                  ? "Stop reading" 
+                                : playingMessageId === m.id
+                                  ? "Stop reading"
                                   : "Read aloud"
                           }
                           disabled={!expert?.voice_id || loadingMessageId === m.id}
@@ -3100,11 +3094,10 @@ const ClientChatPage = () => {
                           ) : playingMessageId === m.id ? (
                             <VolumeX className="h-4 w-4 text-blue-600 animate-pulse" />
                           ) : (
-                            <Volume2 className={`h-4 w-4 transition-colors ${
-                              expert?.voice_id 
-                                ? "text-gray-500 group-hover:text-blue-600" 
-                                : "text-gray-300"
-                            }`} />
+                            <Volume2 className={`h-4 w-4 transition-colors ${expert?.voice_id
+                              ? "text-gray-500 group-hover:text-blue-600"
+                              : "text-gray-300"
+                              }`} />
                           )}
                         </button>
 
@@ -3114,13 +3107,12 @@ const ClientChatPage = () => {
                             onClick={() => {
                               setOpenTranslateDropdown(openTranslateDropdown === m.id ? null : m.id);
                             }}
-                            className={`p-1.5 rounded-lg transition-all duration-200 group ${
-                              translatingMessageId === m.id
-                                ? "bg-green-50"
-                                : translatedMessages.has(m.id)
-                                  ? "bg-green-50 hover:bg-green-100"
-                                  : "hover:bg-gray-200"
-                            } ${translatingMessageId === m.id ? "opacity-50 cursor-not-allowed" : ""}`}
+                            className={`p-1.5 rounded-lg transition-all duration-200 group ${translatingMessageId === m.id
+                              ? "bg-green-50"
+                              : translatedMessages.has(m.id)
+                                ? "bg-green-50 hover:bg-green-100"
+                                : "hover:bg-gray-200"
+                              } ${translatingMessageId === m.id ? "opacity-50 cursor-not-allowed" : ""}`}
                             title={
                               translatingMessageId === m.id
                                 ? "Translating..."
@@ -3133,14 +3125,13 @@ const ClientChatPage = () => {
                             {translatingMessageId === m.id ? (
                               <div className="h-4 w-4 border-2 border-green-500 border-t-transparent rounded-full animate-spin" />
                             ) : (
-                              <Languages className={`h-4 w-4 transition-colors ${
-                                translatedMessages.has(m.id)
-                                  ? "text-green-600"
-                                  : "text-gray-500 group-hover:text-green-600"
-                              }`} />
+                              <Languages className={`h-4 w-4 transition-colors ${translatedMessages.has(m.id)
+                                ? "text-green-600"
+                                : "text-gray-500 group-hover:text-green-600"
+                                }`} />
                             )}
                           </button>
-                          
+
                           {/* Custom Dropdown */}
                           {openTranslateDropdown === m.id && (
                             <div className="absolute top-full left-0 mt-2 w-48 bg-white/20 backdrop-blur-xl rounded-2xl border border-white/30 shadow-2xl z-50 max-h-64 overflow-hidden ring-1 ring-black/5">
@@ -3204,9 +3195,8 @@ const ClientChatPage = () => {
                       <img
                         src={expert.avatar_url}
                         alt={expert.name}
-                        className={`h-6 w-6 sm:h-8 sm:w-8 rounded-full object-cover transition-opacity duration-300 ${
-                          expertImageLoading ? "opacity-0" : "opacity-100"
-                        } ${expertImageError ? "hidden" : ""}`}
+                        className={`h-6 w-6 sm:h-8 sm:w-8 rounded-full object-cover transition-opacity duration-300 ${expertImageLoading ? "opacity-0" : "opacity-100"
+                          } ${expertImageError ? "hidden" : ""}`}
                         onLoad={handleExpertImageLoad}
                         onError={handleExpertImageError}
                       />
@@ -3231,7 +3221,7 @@ const ClientChatPage = () => {
         </div>
 
         {/* Input */}
-        <div 
+        <div
           className="px-3 sm:px-6 py-3 sm:py-5"
           style={{
             // background: publication?.banner_url
@@ -3241,7 +3231,7 @@ const ClientChatPage = () => {
             // borderTop: `1px solid ${primaryColor}20`,
             // boxShadow: "0 -4px 20px rgba(0, 0, 0, 0.1)",
 
-                        background: publication?.banner_url
+            background: publication?.banner_url
               ? "rgba(255, 255, 255, 0.85)"
               : `linear-gradient(180deg, rgba(255, 255, 255, 0.9) 0%, rgba(248, 250, 252, 0.95) 100%)`,
             backdropFilter: "blur(15px)",
@@ -3250,7 +3240,7 @@ const ClientChatPage = () => {
           <div className="max-w-3xl mx-auto">
             {/* File Upload Loader */}
             {isUploadingFiles && (
-              <div 
+              <div
                 className="mb-3 sm:mb-4 flex items-center gap-2 sm:gap-3 rounded-xl px-3 sm:px-4 py-2 sm:py-3 animate-in slide-in-from-bottom-2 duration-200"
                 style={{
                   background: `linear-gradient(135deg, ${primaryColor}10, ${secondaryColor}05)`,
@@ -3263,13 +3253,13 @@ const ClientChatPage = () => {
                   <div className="animate-spin rounded-full h-5 w-5 border-2 border-blue-500 border-t-transparent"></div>
                 </div>
                 <div className="flex-1">
-                  <p 
+                  <p
                     className="text-sm font-medium"
                     style={{ color: primaryColor }}
                   >
                     Uploading files...
                   </p>
-                  <p 
+                  <p
                     className="text-xs mt-0.5"
                     style={{ color: secondaryColor }}
                   >
@@ -3374,7 +3364,7 @@ const ClientChatPage = () => {
 
             {/* Input Container */}
             <div className="relative">
-              <div 
+              <div
                 className="flex items-center gap-1 sm:gap-2 rounded-2xl p-1.5 sm:p-2 transition-all duration-300 hover:shadow-2xl"
                 style={{
                   background: "rgba(255, 255, 255, 0.95)",
@@ -3407,7 +3397,7 @@ const ClientChatPage = () => {
                   className="hidden"
                   aria-label="Upload files"
                 />
-                
+
                 {/* Mobile Camera Button */}
                 <input
                   ref={cameraInputRef}
@@ -3418,7 +3408,7 @@ const ClientChatPage = () => {
                   className="hidden"
                   aria-label="Take photo"
                 />
-                
+
                 {/* Show camera button on mobile, file button on desktop */}
                 <div className="flex space-x-1">
                   <Button
@@ -3439,7 +3429,7 @@ const ClientChatPage = () => {
                       <Paperclip className="h-4 w-4 sm:h-5 sm:w-5 text-gray-500" />
                     )}
                   </Button>
-                  
+
                   {/* Camera button for mobile */}
                   <Button
                     onClick={() => cameraInputRef.current?.click()}
@@ -3489,11 +3479,11 @@ const ClientChatPage = () => {
                     onPaste={async (e) => {
                       const items = Array.from(e.clipboardData?.items || []);
                       const imageItems = items.filter(item => item.type.startsWith('image/'));
-                      
+
                       if (imageItems.length > 0) {
                         e.preventDefault();
                         setIsUploadingFiles(true);
-                        
+
                         try {
                           const files: File[] = [];
                           for (const item of imageItems) {
@@ -3502,19 +3492,19 @@ const ClientChatPage = () => {
                               files.push(file);
                             }
                           }
-                          
+
                           if (files.length > 0) {
                             console.log("📋 Pasting", files.length, "image(s)");
-                            
+
                             // Compress images before upload
                             const compressedFiles = await Promise.all(
                               files.map(file => compressImage(file))
                             );
-                            
+
                             // Upload to S3
                             const s3Files = await uploadFilesToS3(compressedFiles);
                             console.log("✅ Pasted images uploaded to S3:", s3Files);
-                            
+
                             // Store S3 file metadata with URLs for display
                             const filesWithS3Urls = s3Files.map((s3File, index) => ({
                               file: compressedFiles[index],
@@ -3524,10 +3514,10 @@ const ClientChatPage = () => {
                               type: s3File.type,
                               size: s3File.size,
                             }));
-                            
+
                             // Add to uploaded files
                             setUploadedFiles((prev) => [...prev, ...compressedFiles]);
-                            
+
                             // Store S3 URLs
                             const s3FileData = s3Files.map((f) => ({
                               name: f.name,
@@ -3536,13 +3526,13 @@ const ClientChatPage = () => {
                               s3_key: f.s3_key,
                               size: f.size,
                             }));
-                            
+
                             const existingS3Files = (window as any).__s3UploadedFiles || [];
                             const existingFileMapping = (window as any).__fileToS3Mapping || [];
-                            
+
                             (window as any).__s3UploadedFiles = [...existingS3Files, ...s3FileData];
                             (window as any).__fileToS3Mapping = [...existingFileMapping, ...filesWithS3Urls];
-                            
+
                             console.log("✅ Pasted images ready to send");
                           }
                         } catch (error) {
@@ -3557,8 +3547,8 @@ const ClientChatPage = () => {
                       isListening
                         ? "🎤 Listening... speak now"
                         : isUploadingFiles
-                        ? "Uploading images..."
-                        : "Type your message or paste images..."
+                          ? "Uploading images..."
+                          : "Type your message or paste images..."
                     }
                     className="w-full border-0 bg-transparent focus:outline-none resize-none overflow-y-auto text-sm sm:text-[15px] leading-6 text-gray-900 placeholder:text-gray-400"
                     style={{ height: "24px", maxHeight: "100px" }}
@@ -3577,11 +3567,10 @@ const ClientChatPage = () => {
                       onClick={toggleListening}
                       size="icon"
                       variant="ghost"
-                      className={`rounded-xl h-8 w-8 sm:h-10 sm:w-10 transition-all duration-200 ${
-                        isListening
-                          ? "bg-red-50 text-red-600 hover:bg-red-100 animate-pulse"
-                          : "hover:bg-gray-100 text-gray-500"
-                      }`}
+                      className={`rounded-xl h-8 w-8 sm:h-10 sm:w-10 transition-all duration-200 ${isListening
+                        ? "bg-red-50 text-red-600 hover:bg-red-100 animate-pulse"
+                        : "hover:bg-gray-100 text-gray-500"
+                        }`}
                       title={isListening ? "Stop listening" : "Voice input"}
                       disabled={
                         isWaitingForResponse || streamingMessageId !== null
@@ -3628,14 +3617,14 @@ const ClientChatPage = () => {
                     style={{
                       backgroundColor:
                         (inputText.trim() || uploadedFiles.length > 0) &&
-                        !isWaitingForResponse &&
-                        !streamingMessageId
+                          !isWaitingForResponse &&
+                          !streamingMessageId
                           ? primaryColor
                           : "#E5E7EB",
                       color:
                         (inputText.trim() || uploadedFiles.length > 0) &&
-                        !isWaitingForResponse &&
-                        !streamingMessageId
+                          !isWaitingForResponse &&
+                          !streamingMessageId
                           ? "white"
                           : "#9CA3AF",
                     }}
@@ -3665,20 +3654,19 @@ const ClientChatPage = () => {
                 </div>
               </div>
 
-              {/* Helper text */}
-              <div className="mt-2 px-1 flex items-center justify-between text-xs text-gray-400">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:gap-2">
-                  <span className="hidden sm:inline">
-                    Press Enter to send, Shift+Enter for new line
+              <div className="mt-2 px-1 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-gray-400">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 font-medium">
+                  <span className="text-[10px] sm:text-[11px]">
+                    AI LLM’s can make mistakes. It’s important to check the answers presented.
                   </span>
-                  <span className="sm:hidden text-[10px]">Enter to send</span>
-                  <span className="text-[10px] sm:text-xs">
-                    • Best experience with Chrome or Safari
+                  <span className="hidden sm:inline opacity-30">|</span>
+                  <span className="text-[10px] sm:text-[11px] opacity-70">
+                    Best experience with Chrome or Safari
                   </span>
                 </div>
                 {(isWaitingForResponse || streamingMessageId) && (
-                  <span className="flex items-center gap-1 text-gray-500">
-                    <div className="h-1.5 w-1.5 rounded-full bg-gray-400 animate-pulse"></div>
+                  <span className="flex items-center gap-1.5 text-gray-500 font-medium">
+                    <div className="h-1.5 w-1.5 rounded-full bg-blue-400 animate-pulse"></div>
                     Processing...
                   </span>
                 )}

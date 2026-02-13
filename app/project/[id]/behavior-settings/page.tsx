@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
-import { 
+import {
   Brain,
   HelpCircle,
   RotateCcw,
@@ -26,13 +26,14 @@ const BehaviorSettingsPage = () => {
   const { toasts, removeToast, success: showSuccess, error: showError } = useToast()
 
   const [loading, setLoading] = useState(true)
-  
+
   // AI Behavior Settings state
   const [behaviorSettings, setBehaviorSettings] = useState({
     kb_mode: 'balanced',
     custom_instructions: '',
     response_length: 1, // 0: Short, 1: Medium, 2: Long
-    ask_followup_questions: true
+    ask_followup_questions: true,
+    first_message: ''
   })
   const [isSavingBehavior, setIsSavingBehavior] = useState(false)
 
@@ -47,13 +48,14 @@ const BehaviorSettingsPage = () => {
         headers: getAuthHeaders(),
       })
       const data = await response.json()
-      
+
       if (data.success && data.settings) {
         setBehaviorSettings({
           kb_mode: data.settings.kb_mode || 'balanced',
           custom_instructions: data.settings.custom_instructions || '',
           response_length: data.settings.response_length ?? 1,
-          ask_followup_questions: data.settings.ask_followup_questions ?? true
+          ask_followup_questions: data.settings.ask_followup_questions ?? true,
+          first_message: data.settings.first_message || ''
         })
       }
     } catch (error) {
@@ -66,7 +68,7 @@ const BehaviorSettingsPage = () => {
   const handleBehaviorSettingsSave = async () => {
     try {
       setIsSavingBehavior(true)
-      
+
       const response = await fetchWithAuth(`${API_URL}/experts/${projectId}/behavior-settings`, {
         method: 'PUT',
         headers: {
@@ -75,9 +77,9 @@ const BehaviorSettingsPage = () => {
         },
         body: JSON.stringify(behaviorSettings)
       })
-      
+
       const data = await response.json()
-      
+
       if (data.success) {
         showSuccess('AI behavior settings saved successfully.', 'Settings Updated')
       } else {
@@ -96,7 +98,8 @@ const BehaviorSettingsPage = () => {
       kb_mode: 'balanced',
       custom_instructions: '',
       response_length: 1,
-      ask_followup_questions: true
+      ask_followup_questions: true,
+      first_message: ''
     })
   }
 
@@ -151,26 +154,25 @@ const BehaviorSettingsPage = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-6">
-              
+
               {/* Knowledge Base Mode */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <Label className="text-base font-semibold">Knowledge Base Mode</Label>
-                  <button 
+                  <button
                     className="text-gray-400 hover:text-gray-600"
                     title="Controls how your agent uses its knowledge base vs. general knowledge"
                   >
                     <HelpCircle className="w-4 h-4" />
                   </button>
                 </div>
-                
+
                 {/* Strict Mode */}
-                <label 
-                  className={`flex items-start space-x-3 p-4 border-2 rounded-lg cursor-pointer transition-colors ${
-                    behaviorSettings.kb_mode === 'strict' 
-                      ? 'border-purple-400 bg-purple-50' 
+                <label
+                  className={`flex items-start space-x-3 p-4 border-2 rounded-lg cursor-pointer transition-colors ${behaviorSettings.kb_mode === 'strict'
+                      ? 'border-purple-400 bg-purple-50'
                       : 'border-gray-200 hover:bg-gray-50'
-                  }`}
+                    }`}
                 >
                   <input
                     type="radio"
@@ -193,12 +195,11 @@ const BehaviorSettingsPage = () => {
                 </label>
 
                 {/* Balanced Mode - RECOMMENDED */}
-                <label 
-                  className={`flex items-start space-x-3 p-4 border-2 rounded-lg cursor-pointer transition-colors ${
-                    behaviorSettings.kb_mode === 'balanced' 
-                      ? 'border-green-400 bg-green-50' 
+                <label
+                  className={`flex items-start space-x-3 p-4 border-2 rounded-lg cursor-pointer transition-colors ${behaviorSettings.kb_mode === 'balanced'
+                      ? 'border-green-400 bg-green-50'
                       : 'border-gray-200 hover:bg-gray-50'
-                  }`}
+                    }`}
                 >
                   <input
                     type="radio"
@@ -224,12 +225,11 @@ const BehaviorSettingsPage = () => {
                 </label>
 
                 {/* Flexible Mode */}
-                <label 
-                  className={`flex items-start space-x-3 p-4 border-2 rounded-lg cursor-pointer transition-colors ${
-                    behaviorSettings.kb_mode === 'flexible' 
-                      ? 'border-blue-400 bg-blue-50' 
+                <label
+                  className={`flex items-start space-x-3 p-4 border-2 rounded-lg cursor-pointer transition-colors ${behaviorSettings.kb_mode === 'flexible'
+                      ? 'border-blue-400 bg-blue-50'
                       : 'border-gray-200 hover:bg-gray-50'
-                  }`}
+                    }`}
                 >
                   <input
                     type="radio"
@@ -264,31 +264,30 @@ const BehaviorSettingsPage = () => {
                       Control how detailed the AI responses should be
                     </p>
                   </div>
-                  <button 
+                  <button
                     className="text-gray-400 hover:text-gray-600"
                     title="Adjusts the verbosity and detail level of AI responses"
                   >
                     <HelpCircle className="w-4 h-4" />
                   </button>
                 </div>
-                
+
                 <div className="space-y-3">
                   {/* Short Response */}
-                  <label 
-                    className={`flex items-start space-x-3 p-4 border-2 rounded-lg cursor-pointer transition-colors ${
-                      behaviorSettings.response_length === 0 
-                        ? 'border-blue-400 bg-blue-50' 
+                  <label
+                    className={`flex items-start space-x-3 p-4 border-2 rounded-lg cursor-pointer transition-colors ${behaviorSettings.response_length === 0
+                        ? 'border-blue-400 bg-blue-50'
                         : 'border-gray-200 hover:bg-gray-50'
-                    }`}
+                      }`}
                   >
                     <input
                       type="radio"
                       name="response_length"
                       value={0}
                       checked={behaviorSettings.response_length === 0}
-                      onChange={(e) => setBehaviorSettings({ 
-                        ...behaviorSettings, 
-                        response_length: parseInt(e.target.value) 
+                      onChange={(e) => setBehaviorSettings({
+                        ...behaviorSettings,
+                        response_length: parseInt(e.target.value)
                       })}
                       className="mt-1"
                     />
@@ -301,21 +300,20 @@ const BehaviorSettingsPage = () => {
                   </label>
 
                   {/* Medium Response */}
-                  <label 
-                    className={`flex items-start space-x-3 p-4 border-2 rounded-lg cursor-pointer transition-colors ${
-                      behaviorSettings.response_length === 1 
-                        ? 'border-blue-400 bg-blue-50' 
+                  <label
+                    className={`flex items-start space-x-3 p-4 border-2 rounded-lg cursor-pointer transition-colors ${behaviorSettings.response_length === 1
+                        ? 'border-blue-400 bg-blue-50'
                         : 'border-gray-200 hover:bg-gray-50'
-                    }`}
+                      }`}
                   >
                     <input
                       type="radio"
                       name="response_length"
                       value={1}
                       checked={behaviorSettings.response_length === 1}
-                      onChange={(e) => setBehaviorSettings({ 
-                        ...behaviorSettings, 
-                        response_length: parseInt(e.target.value) 
+                      onChange={(e) => setBehaviorSettings({
+                        ...behaviorSettings,
+                        response_length: parseInt(e.target.value)
                       })}
                       className="mt-1"
                     />
@@ -328,21 +326,20 @@ const BehaviorSettingsPage = () => {
                   </label>
 
                   {/* Long Response */}
-                  <label 
-                    className={`flex items-start space-x-3 p-4 border-2 rounded-lg cursor-pointer transition-colors ${
-                      behaviorSettings.response_length === 2 
-                        ? 'border-blue-400 bg-blue-50' 
+                  <label
+                    className={`flex items-start space-x-3 p-4 border-2 rounded-lg cursor-pointer transition-colors ${behaviorSettings.response_length === 2
+                        ? 'border-blue-400 bg-blue-50'
                         : 'border-gray-200 hover:bg-gray-50'
-                    }`}
+                      }`}
                   >
                     <input
                       type="radio"
                       name="response_length"
                       value={2}
                       checked={behaviorSettings.response_length === 2}
-                      onChange={(e) => setBehaviorSettings({ 
-                        ...behaviorSettings, 
-                        response_length: parseInt(e.target.value) 
+                      onChange={(e) => setBehaviorSettings({
+                        ...behaviorSettings,
+                        response_length: parseInt(e.target.value)
                       })}
                       className="mt-1"
                     />
@@ -368,21 +365,21 @@ const BehaviorSettingsPage = () => {
                       Whether the AI should ask relevant follow-up questions
                     </p>
                   </div>
-                  <button 
+                  <button
                     className="text-gray-400 hover:text-gray-600"
                     title="When enabled, AI will ask relevant follow-up questions at the end of responses"
                   >
                     <HelpCircle className="w-4 h-4" />
                   </button>
                 </div>
-                
+
                 <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
                   <div className="flex-1">
                     <div className="font-medium text-sm text-gray-900">
                       Ask follow-up questions
                     </div>
                     <div className="text-xs text-gray-600 mt-1">
-                      {behaviorSettings.ask_followup_questions 
+                      {behaviorSettings.ask_followup_questions
                         ? 'AI will ask relevant follow-up questions to better understand user needs'
                         : 'AI will provide direct answers without asking additional questions'
                       }
@@ -390,11 +387,48 @@ const BehaviorSettingsPage = () => {
                   </div>
                   <Switch
                     checked={behaviorSettings.ask_followup_questions}
-                    onCheckedChange={(checked) => setBehaviorSettings({ 
-                      ...behaviorSettings, 
-                      ask_followup_questions: checked 
+                    onCheckedChange={(checked) => setBehaviorSettings({
+                      ...behaviorSettings,
+                      ask_followup_questions: checked
                     })}
                   />
+                </div>
+              </div>
+
+              {/* First Message */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-base font-semibold flex items-center">
+                      <MessageSquare className="h-4 w-4 mr-2 text-purple-600" />
+                      First Message
+                    </Label>
+                    <p className="text-xs text-gray-500 mt-1">
+                      The initial greeting your AI agent sends when a call starts
+                    </p>
+                  </div>
+                  <button
+                    className="text-gray-400 hover:text-gray-600"
+                    title="This message will be spoken by the AI as soon as the call connects"
+                  >
+                    <HelpCircle className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <div className="space-y-2">
+                  <Textarea
+                    value={behaviorSettings.first_message || ''}
+                    onChange={(e) => setBehaviorSettings({
+                      ...behaviorSettings,
+                      first_message: e.target.value
+                    })}
+                    placeholder="e.g., Hi, I'm Dilan. How can I help you today?"
+                    rows={2}
+                    className="w-full resize-none"
+                  />
+                  <p className="text-xs text-gray-400 italic">
+                    💡 This is specifically for ElevenLabs voice agent calls.
+                  </p>
                 </div>
               </div>
 
@@ -407,9 +441,9 @@ const BehaviorSettingsPage = () => {
                       Add specific instructions for how your AI should behave
                     </p>
                   </div>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={resetBehaviorSettings}
                     className="text-gray-600 hover:text-gray-900"
                   >
@@ -446,8 +480,8 @@ const BehaviorSettingsPage = () => {
                       <div>
                         <strong>Knowledge Base Mode:</strong> {
                           behaviorSettings.kb_mode === 'strict' ? 'Knowledge Base Only (Strict)' :
-                          behaviorSettings.kb_mode === 'flexible' ? 'Mixed Mode (Flexible)' :
-                          'Knowledge Base Priority (Balanced)'
+                            behaviorSettings.kb_mode === 'flexible' ? 'Mixed Mode (Flexible)' :
+                              'Knowledge Base Priority (Balanced)'
                         }
                       </div>
                       <div>
@@ -456,6 +490,11 @@ const BehaviorSettingsPage = () => {
                       <div>
                         <strong>Follow-up Questions:</strong> {behaviorSettings.ask_followup_questions ? 'Enabled' : 'Disabled'}
                       </div>
+                      {behaviorSettings.first_message && (
+                        <div>
+                          <strong>First Message:</strong> {behaviorSettings.first_message}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -463,7 +502,7 @@ const BehaviorSettingsPage = () => {
 
               {/* Save Button */}
               <div className="flex justify-end gap-3 pt-4">
-                <Button 
+                <Button
                   onClick={handleBehaviorSettingsSave}
                   disabled={isSavingBehavior}
                   className="bg-purple-600 hover:bg-purple-700"

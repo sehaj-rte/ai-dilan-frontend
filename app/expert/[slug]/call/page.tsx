@@ -370,7 +370,6 @@ const ClientCallPage = () => {
     // CRITICAL: Block calls until usage data is fully loaded
     if (planLoading) {
       console.log(`🚫 Call blocked - usage data still loading`);
-      setError("Loading usage data... Please wait.");
       return;
     }
 
@@ -405,16 +404,6 @@ const ClientCallPage = () => {
           "Your browser does not support microphone access. Please use a modern browser.",
         );
         return;
-      }
-
-      // Show language configuration message
-      if (selectedLanguage !== 'en') {
-        const languageName = LANGUAGES.find(lang => lang.code === selectedLanguage)?.name;
-        console.log(`🌍 Configuring conversation for ${languageName}...`);
-        setError(`Configuring conversation for ${languageName}...`);
-
-        // Clear the message after a short delay
-        setTimeout(() => setError(null), 2000);
       }
 
       console.log(`📞 Starting call - checks passed`);
@@ -1080,10 +1069,10 @@ const ClientCallPage = () => {
             {/* Error Display */}
             {error && (
               <div
-                className={`mb-6 rounded-lg p-4 ${publication?.banner_url ? "bg-red-100/80 border border-red-300/60 backdrop-blur-sm" : "bg-red-50 border border-red-200"}`}
+                className={`mb-6 rounded-lg p-4 ${publication?.banner_url ? "bg-white/50 border border-white/30 backdrop-blur-md" : "bg-gray-50 border border-gray-200"}`}
               >
                 <p
-                  className={`text-sm ${publication?.banner_url ? "text-red-800" : "text-red-700"}`}
+                  className={`text-sm ${publication?.banner_url ? "text-gray-800" : "text-gray-700"}`}
                 >
                   {error}
                 </p>
@@ -1139,7 +1128,7 @@ const ClientCallPage = () => {
                 <>
                   <Button
                     onClick={handleEndCall}
-                    className="bg-red-500 hover:bg-red-600 text-white w-full max-w-[280px] py-6 rounded-full text-lg font-medium shadow-lg border border-transparent"
+                    className="bg-gray-900 hover:bg-black text-white w-full max-w-[280px] py-6 rounded-full text-lg font-medium shadow-lg border border-transparent"
                   >
                     <PhoneOff className="mr-2 h-5 w-5" />
                     End Call
