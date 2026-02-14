@@ -3655,7 +3655,7 @@ const ClientChatPage = () => {
                 </div>
               </div>
 
-              <div className="mt-2 px-1 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-gray-400">
+              <div className="mt-2 px-1 flex flex-col items-center sm:items-start sm:flex-row sm:items-center justify-between gap-2 text-gray-400 text-center sm:text-left">
                 <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 font-medium">
                   <span className="text-[10px] sm:text-[11px]">
                     AI LLM’s can make mistakes. It’s important to check the answers presented.
