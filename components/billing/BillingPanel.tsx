@@ -136,7 +136,7 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
     useState<Subscription | null>(null); // Add selected subscription for upgrade
 
   // Pace warning state
-  const [paceWarnings, setPaceWarnings] = useState<{[key: string]: any}>({});
+  const [paceWarnings, setPaceWarnings] = useState<{ [key: string]: any }>({});
   const [dismissedWarnings, setDismissedWarnings] = useState<Set<string>>(new Set());
 
   // Confirmation modal state
@@ -168,7 +168,7 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
         }
       );
       const data = await response.json();
-      
+
       if (data.success && data.show_warning) {
         setPaceWarnings(prev => ({
           ...prev,
@@ -390,7 +390,7 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
   const handlePaymentMethodAdded = async (newPaymentMethodId?: string) => {
     setShowAddPaymentModal(false);
     showSuccess("Payment method added successfully and set as default");
-    
+
     // Refresh billing data to show new payment method
     await refetchBillingData();
   };
@@ -734,20 +734,20 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
             const refreshData = async () => {
               console.log("🔄 Refreshing billing data after trial termination...");
               await refetchBillingData();
-              
+
               // Check if data is still showing trial, if so refresh again
               setTimeout(async () => {
                 console.log("🔄 Second refresh attempt...");
                 await refetchBillingData();
               }, 2000);
-              
+
               // Final refresh attempt
               setTimeout(async () => {
                 console.log("🔄 Final refresh attempt...");
                 await refetchBillingData();
               }, 4000);
             };
-            
+
             setTimeout(refreshData, 1500);
           } else if (data.requires_payment_action) {
             // Payment is incomplete but trial was ended
@@ -766,20 +766,20 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
             const refreshData = async () => {
               console.log("🔄 Refreshing billing data after trial termination...");
               await refetchBillingData();
-              
+
               // Check if data is still showing trial, if so refresh again
               setTimeout(async () => {
                 console.log("🔄 Second refresh attempt...");
                 await refetchBillingData();
               }, 2000);
-              
+
               // Final refresh attempt
               setTimeout(async () => {
                 console.log("🔄 Final refresh attempt...");
                 await refetchBillingData();
               }, 4000);
             };
-            
+
             setTimeout(refreshData, 1500);
           }
         } else {
@@ -847,9 +847,9 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
 
       {/* Debug Panel - Only show in development */}
       {false && process.env.NODE_ENV === 'development' && subscriptions.length > 0 && (
-        <TrialDebugPanel 
-          subscriptionId={subscriptions[0].stripe_subscription_id} 
-          userToken={userToken} 
+        <TrialDebugPanel
+          subscriptionId={subscriptions[0].stripe_subscription_id}
+          userToken={userToken}
         />
       )}
 
@@ -858,13 +858,12 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
 
       {/* Wrap all sections in a container with reduced max-width and centered margin */}
       <div
-        style={{ maxWidth: "950px", margin: "0 auto" }}
-        className="space-y-10"
+        className="max-w-[950px] mx-auto space-y-10"
       >
         {/* Trial Status Banner - Show for trial subscriptions */}
         {subscriptions.some(sub => sub.status === "trialing") && (
-          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-6">
-            <div className="flex items-center justify-between">
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-4 sm:p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div className="flex items-center gap-3">
                 <div className="bg-blue-100 p-2 rounded-full">
                   <Calendar className="h-5 w-5 text-blue-600" />
@@ -877,7 +876,7 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
                         {subscription.usage_info?.trial_days_remaining || 0} days remaining
                       </p>
                       {subscription.usage_info && (
-                        <div className="mt-3 grid grid-cols-2 gap-4">
+                        <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div>
                             <div className="flex justify-between text-sm text-blue-700 mb-1">
                               <span>Messages Used</span>
@@ -957,36 +956,36 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
                   const billingPeriod = subscription.plan_billing_period || 'month';
                   const totalPrice = subscription.plan_total_price || subscription.plan_price;
                   const monthlyPrice = subscription.plan_price;
-                  
+
                   // Parse month count from billing period
                   let monthCount = 1;
                   let planLabel = '';
                   let bestValueLabel = '';
-                  
+
                   if (billingPeriod.includes('month')) {
                     const match = billingPeriod.match(/(\d+)\s*month/);
                     if (match) {
                       monthCount = parseInt(match[1]);
                     }
                   }
-                  
+
                   // Format: {expert_name} - {duration} Plan ({plan_name})
                   const expertName = subscription.expert_name || 'AI Expert';
                   const planName = subscription.plan_name;
-                  
+
                   if (monthCount === 6) {
                     planLabel = `${expertName} - 6 Months Plan`;
                     bestValueLabel = 'Best Value';
                   } else if (monthCount === 3) {
                     planLabel = `${expertName} - 3 Months Plan`;
-                     bestValueLabel = 'Most Popular';
+                    bestValueLabel = 'Most Popular';
                   } else if (monthCount > 1) {
                     planLabel = `${expertName} - ${monthCount} Months Plan (${planName})`;
-                     bestValueLabel = '';
+                    bestValueLabel = '';
                   } else {
                     planLabel = `${expertName} - 1 Month Plan (${planName})`;
                   }
-                  
+
                   return {
                     planLabel,
                     bestValueLabel,
@@ -998,31 +997,33 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
                 };
 
                 const planInfo = getPlanDurationInfo();
-                
+
                 return (
-                  <Card key={subscription.id} className="border border-gray-200 shadow-sm">
-                    <CardContent className="p-6">
+                  <Card key={subscription.id} className="border border-gray-200 shadow-sm overflow-hidden">
+                    <CardContent className="p-4 sm:p-6">
                       {/* Header Section */}
-                      <div className="flex items-start justify-between mb-6">
+                      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-6">
                         <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <h3 className="text-xl font-semibold text-gray-900">
+                          <div className="flex flex-wrap items-center gap-2 mb-2">
+                            <h3 className="text-lg sm:text-xl font-semibold text-gray-900 break-words">
                               {planInfo.planLabel}
                             </h3>
-                            {planInfo.bestValueLabel && (
-                              <Badge className="bg-green-100 text-green-800 text-sm font-medium px-2 py-1">
-                                {planInfo.bestValueLabel}
-                              </Badge>
-                            )}
-                            {getStatusBadge(subscription.status)}
+                            <div className="flex flex-wrap items-center gap-2">
+                              {planInfo.bestValueLabel && (
+                                <Badge className="bg-green-100 text-green-800 text-xs sm:text-sm font-medium px-2 py-0.5 sm:py-1">
+                                  {planInfo.bestValueLabel}
+                                </Badge>
+                              )}
+                              {getStatusBadge(subscription.status)}
+                            </div>
                           </div>
-                          
+
                           {subscription.expert_name && (
                             <p className="text-sm text-gray-600 mb-3">
                               Expert: {subscription.expert_name}
                             </p>
                           )}
-                          
+
                           {/* Pricing Display */}
                           <div className="mb-2">
                             {subscription.usage_info && subscription.usage_info.trial_days_remaining > 0 ? (
@@ -1050,7 +1051,7 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
                                 <span className="text-gray-600">/month</span>
                               </div>
                             )}
-                            
+
                             {planInfo.monthCount > 1 && !subscription.usage_info?.trial_days_remaining && (
                               <p className="text-sm text-gray-600 mt-1">
                                 Total: £{planInfo.totalPrice} for {planInfo.monthCount} months
@@ -1058,9 +1059,9 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
                             )}
                           </div>
                         </div>
-                        
-                        <div className="text-right">
-                          <div className="flex items-center gap-2 mb-2">
+
+                        <div className="flex flex-col sm:items-end gap-2 shrink-0 w-full sm:w-auto mt-4 sm:mt-0">
+                          <div className="flex flex-wrap items-center gap-2">
                             {/* Invoice Download Button */}
                             {subscription.invoice_url && (
                               <Button
@@ -1073,7 +1074,7 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
                                 View Invoice
                               </Button>
                             )}
-                            
+
                             {/* Cancel/Reactivate Button */}
                             {subscription.cancel_at_period_end ? (
                               <Badge variant="secondary" className="text-orange-700 bg-orange-100 border-orange-200">
@@ -1098,8 +1099,8 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
                         <div className="flex items-center gap-2 mb-2">
                           <Calendar className="h-4 w-4 text-blue-600" />
                           <span className="font-medium text-blue-900">
-                            {subscription.usage_info && subscription.usage_info.trial_days_remaining > 0 
-                              ? 'Trial Period' 
+                            {subscription.usage_info && subscription.usage_info.trial_days_remaining > 0
+                              ? 'Trial Period'
                               : 'Subscription Period'
                             }
                           </span>
@@ -1130,13 +1131,13 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
                           </div>
                           <span className="font-medium text-purple-900">Plan Allowances</span>
                         </div>
-                        
+
                         {(() => {
                           const isTrialActive = subscription.usage_info && subscription.usage_info.trial_days_remaining > 0;
-                          const periodText = isTrialActive 
-                            ? 'trial period' 
+                          const periodText = isTrialActive
+                            ? 'trial period'
                             : planInfo.monthCount === 1 ? 'monthly period' : `${planInfo.monthCount}-month period`;
-                          
+
                           if (subscription.usage_info) {
                             return (
                               <p className="text-purple-800 text-sm">
@@ -1213,10 +1214,10 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
                         </div>
                       </div>
                       {/* Trial-specific actions */}
-                      {subscription.usage_info && subscription.usage_info.trial_days_remaining > 0 && 
-                       (subscription.usage_info.message_percentage >= 100 ||
-                        subscription.usage_info.minute_percentage >= 100 ||
-                        subscription.usage_info.trial_days_remaining <= 0) && (
+                      {subscription.usage_info && subscription.usage_info.trial_days_remaining > 0 &&
+                        (subscription.usage_info.message_percentage >= 100 ||
+                          subscription.usage_info.minute_percentage >= 100 ||
+                          subscription.usage_info.trial_days_remaining <= 0) && (
                           <div className="mt-4 p-4 bg-orange-50 border border-orange-200 rounded-lg">
                             <div className="flex items-center gap-2 mb-2">
                               <AlertCircle className="h-4 w-4 text-orange-500" />
@@ -1340,13 +1341,13 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
             (() => {
               // Find the default payment method, or use the first one if no default is set
               const defaultMethod = paymentMethods.find(method => method.is_default) || paymentMethods[0];
-              
+
               return (
                 <Card>
                   <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                       <div className="flex items-center gap-3">
-                        <CreditCard className="w-8 h-8 text-gray-400" />
+                        <CreditCard className="w-8 h-8 text-gray-400 shrink-0" />
                         <div>
                           <p className="font-semibold">
                             •••• •••• •••• {defaultMethod.card.last4}
@@ -1360,7 +1361,7 @@ const BillingPanel: React.FC<BillingPanelProps> = ({
                           </Badge>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 sm:justify-end">
                         {paymentMethods.length > 1 && (
                           <span className="text-xs text-gray-500">
                             +{paymentMethods.length - 1} more

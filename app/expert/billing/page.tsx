@@ -83,7 +83,7 @@ const ExpertBillingPage = () => {
               You need to be logged in to view billing information.
             </p>
             <div className="flex justify-center">
-              <Button 
+              <Button
                 onClick={() => {
                   // Redirect back to expert page with slug, defaulting to ai-jeff if no expert slug
                   const targetSlug = expertSlug || 'ai-jeff';
@@ -115,8 +115,8 @@ const ExpertBillingPage = () => {
             Back
           </Button>
 
-          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-            <Settings className="h-7 w-7" />
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
+            <Settings className="h-6 w-6 sm:h-7 sm:w-7 shrink-0" />
             Expert Billing & Subscriptions
           </h1>
 
@@ -125,17 +125,17 @@ const ExpertBillingPage = () => {
           </p>
         </div>
         {/* Billing Content */}
-        <Card className="p-6">
+        <Card className="p-4 sm:p-6">
           <BillingPanel
             userToken={userToken}
             expertSlug={expertSlug || undefined}
             usageContext={
               expertSlug && expertId && isAuthenticated
                 ? {
-                    limitStatus,
-                    currentPlan,
-                    planLoading,
-                  }
+                  limitStatus,
+                  currentPlan,
+                  planLoading,
+                }
                 : undefined
             }
             onExpertIdFetched={handleExpertIdFetched}
