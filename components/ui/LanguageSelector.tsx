@@ -17,11 +17,12 @@ interface LanguageSelectorProps {
   buttonClassName?: string;
   compact?: boolean;
   disabled?: boolean;
+  icon?: React.ReactNode;
 }
 
 const LANGUAGES: Language[] = [
-  { code: "en", name: "English US", flag: "🇺🇸" },
-  { code: "en-GB", name: "English UK", flag: "🇬🇧" },
+  { code: "en", name: "US English", flag: "🇺🇸" },
+  { code: "en-GB", name: "UK English", flag: "🇬🇧" },
   { code: "es", name: "Spanish", flag: "🇪🇸" },
   { code: "fr", name: "French", flag: "🇫🇷" },
   { code: "de", name: "German", flag: "🇩🇪" },
@@ -42,6 +43,7 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
   buttonClassName = "",
   compact = false,
   disabled = false,
+  icon,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -70,6 +72,8 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
     setIsOpen(false);
   };
 
+  const defaultIcon = icon || <Languages className="h-5 w-5" />;
+
   return (
     <div className={`relative ${className}`} ref={dropdownRef}>
       <Button
@@ -81,13 +85,13 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
       >
         {compact ? (
           <>
-            <Languages className="h-4 w-4" />
+            {defaultIcon}
             <span className="hidden sm:inline">{selectedLang.flag}</span>
             <ChevronDown className="h-3 w-3" />
           </>
         ) : (
           <>
-            <Languages className="h-4 w-4" />
+            {defaultIcon}
             <span className="flex items-center gap-2">
               <span>{selectedLang.flag}</span>
               <span>{selectedLang.name}</span>

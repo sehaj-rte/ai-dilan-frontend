@@ -2,24 +2,29 @@
 
 import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { useDispatch } from "react-redux";
+import { logout } from "@/store/slices/authSlice";
 import { API_URL } from "@/lib/config";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Loader2, Info, CheckCircle, FileText } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import ExpertPageHeader from "@/components/layout/ExpertPageHeader";
 import { useClientAuthFlow } from "@/contexts/ClientAuthFlowContext";
+import AvatarSettingsModal from "@/components/dashboard/AvatarSettingsModal";
 
 const ExpertTermsPage = () => {
     const params = useParams();
     const router = useRouter();
+    const dispatch = useDispatch();
     const slug = params.slug as string;
-    const { currentUser } = useClientAuthFlow();
+    const { currentUser, setCurrentUser } = useClientAuthFlow();
 
     const [loading, setLoading] = useState(true);
     const [publication, setPublication] = useState<any>(null);
     const [expert, setExpert] = useState<any>(null);
     const [content, setContent] = useState<string>("");
     const [isSourceFromDB, setIsSourceFromDB] = useState(false);
+    const [showProfileModal, setShowProfileModal] = useState(false);
 
     useEffect(() => {
         if (slug) {
@@ -87,13 +92,25 @@ const ExpertTermsPage = () => {
         <div className="min-h-screen bg-gray-50 pb-20">
             <ExpertPageHeader
                 expertName={publication.display_name}
-                user={currentUser}
+                user={currentUser as any}
                 isAuthenticated={!!currentUser}
-                onShowAuthModal={() => { }}
-                onShowProfileModal={() => { }}
-                onShowBilling={() => { }}
-                onLogout={() => { }}
+                onShowAuthModal={() => router.push(`/expert/${slug}`)}
+                onShowProfileModal={() => setShowProfileModal(true)}
+                onShowBilling={() => router.push(`/expert/billing?expert=${slug}`)}
+                onLogout={() => {
+                    // 1. Clear Context state
+                    setCurrentUser(null);
+                    // 2. Clear Redux state
+                    dispatch(logout());
+                    // 3. Clear localStorage (redundant but safe)
+                    localStorage.removeItem("dilan_ai_token");
+                    localStorage.removeItem("dilan_ai_user");
+                    // 4. Redirect
+                    router.push(`/expert/${slug}`);
+                }}
                 primaryColor={primaryColor}
+                showBackButton={true}
+                onBack={() => router.push(`/expert/${slug}`)}
             />
 
             <div className="container mx-auto px-4 py-8 max-w-4xl">
@@ -167,6 +184,15 @@ const ExpertTermsPage = () => {
                     color: #374151;
                 }
             `}</style>
+
+            {/* Profile Modal */}
+            {currentUser && (
+                <AvatarSettingsModal
+                    isOpen={showProfileModal}
+                    onClose={() => setShowProfileModal(false)}
+                    userData={currentUser as any}
+                />
+            )}
         </div>
     );
 };

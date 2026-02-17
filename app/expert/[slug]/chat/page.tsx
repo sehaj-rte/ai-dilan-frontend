@@ -55,6 +55,9 @@ import { UsageStatusBar } from "@/components/usage/UsageStatusBar";
 import { useExpert } from "@/contexts/ExpertContext";
 import { LimitReachedModal } from "@/components/usage/LimitReachedModal";
 import { MonthlyWarningModal } from "@/components/usage/MonthlyWarningModal";
+import UserMenu from "@/components/layout/UserMenu";
+import AvatarSettingsModal from "@/components/dashboard/AvatarSettingsModal";
+import { useClientAuthFlow } from "@/contexts/ClientAuthFlowContext";
 import style from "styled-jsx/style";
 
 interface FileAttachment {
@@ -136,6 +139,9 @@ const ClientChatPage = () => {
     setUserImageLoading(false);
     setUserImageError(true);
   }, []);
+
+  // Auth flow context
+  const { setCurrentUser } = useClientAuthFlow();
 
   // Auth state from Redux
   const { user, isAuthenticated } = useSelector(
@@ -228,6 +234,7 @@ const ClientChatPage = () => {
 
   // Limit reached modal state
   const [showLimitReachedModal, setShowLimitReachedModal] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
 
   // Plan limitations hook
   const {
@@ -1003,7 +1010,19 @@ const ClientChatPage = () => {
   };
 
   const handleLogout = () => {
+    // 1. Clear Redux
     dispatch(logout());
+
+    // 2. Clear Context (Profile page header uses this)
+    setCurrentUser(null);
+
+    // 3. Clear localStorage explicitly
+    localStorage.removeItem("dilan_ai_token");
+    localStorage.removeItem("dilan_ai_user");
+
+    // 4. Redirect for consistency
+    router.push(`/expert/${slug}`);
+
     setConversations([]);
     setMessages([]);
     setCurrentConvId(null);
@@ -2468,7 +2487,7 @@ const ClientChatPage = () => {
       <div className="flex-1 flex flex-col min-w-0 relative z-10">
         {/* Header */}
         <div
-          className="px-3 sm:px-6 py-3 sm:py-4 flex items-center justify-between relative overflow-visible"
+          className="px-3 sm:px-6 py-3 sm:py-4 flex items-center justify-between relative overflow-visible z-20"
           style={{
             background: publication?.banner_url
               ? "rgba(255, 255, 255, 0.95)"
@@ -2573,152 +2592,17 @@ const ClientChatPage = () => {
             >
               <Phone className="h-4 w-4" />
             </Button>
-            {isAuthenticated && user ? (
-              <>
-                {/* Desktop View */}
-                <div className="hidden md:flex items-center space-x-3">
-                  <div className="text-right">
-                    <p className="text-sm font-medium text-gray-900 truncate max-w-[120px]">
-                      {user.full_name || user.username}
-                    </p>
-                    <p className="text-xs text-gray-500 truncate max-w-[120px]">
-                      {user.email}
-                    </p>
-                  </div>
-                  {user.avatar_url ? (
-                    <div className="relative w-10 h-10 flex-shrink-0">
-                      {userImageLoading && (
-                        <div className="absolute inset-0 rounded-full bg-gray-200 flex items-center justify-center border-2 border-gray-200">
-                          <div className="animate-spin rounded-full h-4 w-4 border-b border-blue-600"></div>
-                        </div>
-                      )}
-                      <img
-                        src={
-                          user.avatar_url.startsWith("http")
-                            ? user.avatar_url
-                            : `${API_URL}${user.avatar_url}`
-                        }
-                        className={`w-10 h-10 rounded-full object-cover border-2 border-gray-200 transition-opacity duration-300 ${userImageLoading ? "opacity-0" : "opacity-100"
-                          } ${userImageError ? "hidden" : ""}`}
-                        alt={user.username}
-                        onLoad={handleUserImageLoad}
-                        onError={handleUserImageError}
-                      />
-                      {userImageError && (
-                        <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center border-2 border-gray-200">
-                          <User className="h-5 w-5 text-gray-500" />
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
-                      <User className="h-5 w-5 text-gray-500" />
-                    </div>
-                  )}
-                  <Button
-                    onClick={handleLogout}
-                    variant="outline"
-                    size="sm"
-                    className="text-gray-600 hover:text-gray-900"
-                    style={{
-                      borderColor: primaryColor,
-                      color: primaryColor,
-                    }}
-                  >
-                    <LogOut className="h-4 w-4" />
-                  </Button>
-                </div>
-
-                {/* Mobile/Tablet Dropdown */}
-                <div
-                  //  ref={userMenuRef}
-
-                  className="relative"
-                >
-                  <DropdownMenu>
-                    <DropdownMenuTrigger
-                      ref={userMenuTriggerRef}
-                      className="md:hidden flex items-center justify-center"
-                      onClick={(e) => {
-                        const rect = e.currentTarget.getBoundingClientRect();
-                        setDropdownPosition({
-                          top: rect.bottom + 8,
-                          right: window.innerWidth - rect.right,
-                        });
-                        setIsUserMenuOpen(!isUserMenuOpen);
-                      }}
-                      aria-label="User menu"
-                    >
-                      {user.avatar_url ? (
-                        <div className="relative w-8 h-8">
-                          {userImageLoading && (
-                            <div className="absolute inset-0 rounded-full bg-gray-200 flex items-center justify-center border-2 border-gray-200">
-                              <div className="animate-spin rounded-full h-3 w-3 border-b border-blue-600"></div>
-                            </div>
-                          )}
-                          <img
-                            src={user.avatar_url}
-                            className={`w-8 h-8 rounded-full object-cover border-2 border-gray-200 transition-opacity duration-300 ${userImageLoading ? "opacity-0" : "opacity-100"
-                              } ${userImageError ? "hidden" : ""}`}
-                            alt={user.username}
-                            onLoad={handleUserImageLoad}
-                            onError={handleUserImageError}
-                          />
-                          {userImageError && (
-                            <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center border-2 border-gray-200">
-                              <User className="h-4 w-4 text-gray-500" />
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center">
-                          <User className="h-4 w-4 text-gray-500" />
-                        </div>
-                      )}
-                    </DropdownMenuTrigger>
-                    {isUserMenuOpen && (
-                      <div
-                        className="fixed z-[100] w-56 overflow-hidden rounded-lg border border-gray-200 bg-white p-1 shadow-lg md:hidden"
-                        style={{
-                          top: `${dropdownPosition.top}px`,
-                          right: `${dropdownPosition.right}px`,
-                        }}
-                      >
-                        <div className="px-2 py-2">
-                          <p className="text-sm font-medium text-gray-900 truncate">
-                            {user.full_name || user.username}
-                          </p>
-                          <p className="text-xs text-gray-500 truncate">
-                            {user.email}
-                          </p>
-                        </div>
-                        <div className="-mx-1 my-1 h-px bg-gray-200" />
-                        <div
-                          onClick={() => {
-                            handleLogout();
-                            setIsUserMenuOpen(false);
-                          }}
-                          className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-gray-100 focus:bg-gray-100"
-                        >
-                          <LogOut className="mr-2 h-4 w-4" />
-                          <span>Logout</span>
-                        </div>
-                      </div>
-                    )}
-                  </DropdownMenu>
-                </div>
-              </>
-            ) : (
-              <Button
-                onClick={() => router.push(`/expert/${slug}`)}
-                size="sm"
-                className="text-xs sm:text-sm"
-                style={{ backgroundColor: primaryColor }}
-              >
-                <LogIn className="mr-1 sm:mr-2 h-3 w-3 sm:h-4 sm:w-4" />
-                <span>Login</span>
-              </Button>
-            )}
+            {/* User Profile Dropdown using the new consistent UserMenu component */}
+            <UserMenu
+              user={user as any}
+              isAuthenticated={isAuthenticated}
+              onShowAuthModal={() => router.push(`/expert/${slug}`)}
+              onShowProfileModal={() => setShowProfileModal(true)}
+              onShowBilling={() => router.push(`/expert/billing?expert=${slug}`)}
+              onLogout={handleLogout}
+              primaryColor={primaryColor}
+              hasBackdrop={!!publication?.banner_url}
+            />
           </div>
         </div>
 
@@ -3711,6 +3595,15 @@ const ClientChatPage = () => {
         planName={monthlyWarningModal.planName}
         subscriptionMonths={monthlyWarningModal.subscriptionMonths}
       />
+
+      {/* Profile Modal */}
+      {isAuthenticated && user && (
+        <AvatarSettingsModal
+          isOpen={showProfileModal}
+          onClose={() => setShowProfileModal(false)}
+          userData={user as any}
+        />
+      )}
     </div>
   );
 };

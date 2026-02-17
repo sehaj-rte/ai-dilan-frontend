@@ -28,6 +28,7 @@ import {
   Edit,
   Trash2,
   Eye,
+  RefreshCw,
 } from "lucide-react";
 import { API_URL } from "@/lib/config";
 import { fetchWithAuth, getAuthHeaders } from "@/lib/api-client";
@@ -86,7 +87,7 @@ function ConfirmDeleteDialog({
             {loading ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
-              "Delete"
+              title.includes("Archive") ? "Archive" : "Delete"
             )}
           </Button>
         </DialogFooter>
@@ -685,10 +686,10 @@ const PricingSubscriptionManagerPage = () => {
       const data = await response.json();
 
       if (data.success) {
-        success(`Plan "${planName}" deleted successfully!`);
+        success(`Plan "${planName}" archived successfully!`);
         fetchPlans();
       } else {
-        error(`Failed to delete plan: ${data.detail || "Unknown error"}`);
+        error(`Failed to archive plan: ${data.detail || "Unknown error"}`);
       }
     } catch (err) {
       console.error("Error deleting plan:", err);
@@ -696,6 +697,34 @@ const PricingSubscriptionManagerPage = () => {
     } finally {
       setLoading(false);
       setDeleteModal({ open: false, planId: "", planName: "" });
+    }
+  };
+
+  const handleRestorePlan = async (planId: string, planName: string) => {
+    setLoading(true);
+
+    try {
+      const response = await fetchWithAuth(
+        `${API_URL}/plans/experts/${projectId}/${planId}/restore`,
+        {
+          method: "POST",
+          headers: getAuthHeaders(),
+        },
+      );
+
+      const data = await response.json();
+
+      if (data.success) {
+        success(`Plan "${planName}" restored successfully!`);
+        fetchPlans();
+      } else {
+        error(`Failed to restore plan: ${data.detail || "Unknown error"}`);
+      }
+    } catch (err) {
+      console.error("Error restoring plan:", err);
+      error("Error restoring plan. Please try again.");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -745,7 +774,7 @@ const PricingSubscriptionManagerPage = () => {
           </Button>
         </div>
 
-       
+
 
         {/* Pricing Plans Management */}
         <Card className="shadow-lg">
@@ -797,14 +826,23 @@ const PricingSubscriptionManagerPage = () => {
                 {plans.map((plan: any) => (
                   <div
                     key={plan.id}
-                    className="p-4 border-2 rounded-lg border-gray-200 hover:border-blue-300 transition-all"
+                    className={`p-4 border-2 rounded-lg transition-all ${plan.is_active
+                      ? "border-gray-200 hover:border-blue-300"
+                      : "border-gray-100 bg-gray-50 opacity-80"
+                      }`}
                   >
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
                         <div className="flex items-center justify-between">
                           <h6 className="font-bold text-gray-900 flex items-center">
                             {plan.name}
-                            <CheckCircle className="h-4 w-4 text-green-600 ml-2" />
+                            {plan.is_active ? (
+                              <CheckCircle className="h-4 w-4 text-green-600 ml-2" />
+                            ) : (
+                              <span className="ml-2 px-2 py-0.5 bg-gray-200 text-gray-600 text-[10px] font-bold rounded uppercase">
+                                Archived
+                              </span>
+                            )}
                           </h6>
                           <div className="flex gap-2">
                             <Button
@@ -817,18 +855,33 @@ const PricingSubscriptionManagerPage = () => {
                               <Edit className="h-4 w-4 mr-1" />
                               Edit
                             </Button>
-                            <Button
-                              type="button"
-                              onClick={() =>
-                                openDeleteModal(plan.id, plan.name)
-                              }
-                              variant="outline"
-                              size="sm"
-                              className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                            >
-                              <Trash2 className="h-4 w-4 mr-1" />
-                              Delete
-                            </Button>
+                            {plan.is_active ? (
+                              <Button
+                                type="button"
+                                onClick={() =>
+                                  openDeleteModal(plan.id, plan.name)
+                                }
+                                variant="outline"
+                                size="sm"
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                              >
+                                <Trash2 className="h-4 w-4 mr-1" />
+                                Archive
+                              </Button>
+                            ) : (
+                              <Button
+                                type="button"
+                                onClick={() =>
+                                  handleRestorePlan(plan.id, plan.name)
+                                }
+                                variant="outline"
+                                size="sm"
+                                className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                              >
+                                <RefreshCw className="h-4 w-4 mr-1" />
+                                Restore
+                              </Button>
+                            )}
                           </div>
                         </div>
                         <div className="mt-2">
@@ -890,8 +943,8 @@ const PricingSubscriptionManagerPage = () => {
 
           </CardContent>
         </Card>
- {/* Multiple Trial Configurations */}
-        <MultipleTrialConfigs 
+        {/* Multiple Trial Configurations */}
+        <MultipleTrialConfigs
           expertId={projectId as string}
           onConfigsChange={(configs) => {
             // Optional: Handle configuration changes if needed
@@ -1336,303 +1389,303 @@ const PricingSubscriptionManagerPage = () => {
               </div>
             </div>
           </div>
-             
-            )}
+
+        )}
 
 
-      {/* Delete Plan Confirmation Modal */}
-      <ConfirmDeleteDialog
-        open={deleteModal.open}
-        onClose={() => setDeleteModal({ open: false, planId: "", planName: "" })}
-        onConfirm={handleDeletePlan}
-        title="Delete Plan"
-        description={`Are you sure you want to delete the plan "${deleteModal.planName}"? This action cannot be undone.`}
-        loading={loading}
-      />
+        {/* Delete Plan Confirmation Modal */}
+        <ConfirmDeleteDialog
+          open={deleteModal.open}
+          onClose={() => setDeleteModal({ open: false, planId: "", planName: "" })}
+          onConfirm={handleDeletePlan}
+          title="Archive Plan"
+          description={`Are you sure you want to archive the plan "${deleteModal.planName}"? It will be hidden from users but kept in the database for consistency.`}
+          loading={loading}
+        />
 
-      {/* Content Editor Modal */}
-      {showContentEditor && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="text-xl font-semibold text-gray-900">
-                  Edit Pricing Content
-                </h3>
-                <Button
-                  onClick={() => setShowContentEditor(false)}
-                  variant="outline"
-                  size="sm"
-                >
-                  ×
-                </Button>
-              </div>
-
-              <div className="space-y-6">
-                {/* General Settings */}
-                <div className="p-4 border rounded-lg">
-                  <h4 className="font-semibold text-gray-900 mb-4">General Settings</h4>
-                  <div className="space-y-4">
-                    <div>
-                      <Label className="block text-sm font-medium text-gray-700 mb-2">
-                        Subscription Page Title
-                      </Label>
-                      <Input
-                        value={contentForm.general.subscription_page_title}
-                        onChange={(e) =>
-                          setContentForm(prev => ({
-                            ...prev,
-                            general: { ...prev.general, subscription_page_title: e.target.value }
-                          }))
-                        }
-                        placeholder="Subscribe to AI Expert"
-                      />
-                    </div>
-                    <div>
-                      <Label className="block text-sm font-medium text-gray-700 mb-2">
-                        Subscription Page Description
-                      </Label>
-                      <Input
-                        value={contentForm.general.subscription_page_description}
-                        onChange={(e) =>
-                          setContentForm(prev => ({
-                            ...prev,
-                            general: { ...prev.general, subscription_page_description: e.target.value }
-                          }))
-                        }
-                        placeholder="Choose the perfect plan to access expert assistance"
-                      />
-                    </div>
-                    <div>
-                      <Label className="block text-sm font-medium text-gray-700 mb-2">
-                        Base Monthly Price (for discount calculations)
-                      </Label>
-                      <Input
-                        value={contentForm.general.base_monthly_price}
-                        onChange={(e) =>
-                          setContentForm(prev => ({
-                            ...prev,
-                            general: { ...prev.general, base_monthly_price: e.target.value }
-                          }))
-                        }
-                        placeholder="40"
-                      />
-                      <p className="text-xs text-gray-500 mt-1">
-                        This is used to calculate discount percentages for multi-month plans
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Plan Content Editors */}
-                {/* Specific Plan Editors */}
-                {plans.length > 0 && (
-                  <div className="pt-4 border-t">
-                    <h4 className="font-bold text-gray-900 mb-4">Specific Plan Customization</h4>
-                    <div className="space-y-6">
-                      {plans.map((plan) => {
-                        const planKey = plan.id;
-                        const currentContent = contentForm.plan_custom_content[planKey] || {
-                          title: "",
-                          subtitle: "",
-                          features: [""],
-                          perfect_for: [""],
-                          badge: ""
-                        };
-
-                        const updateField = (field: string, value: any) => {
-                          setContentForm(prev => ({
-                            ...prev,
-                            plan_custom_content: {
-                              ...prev.plan_custom_content,
-                              [planKey]: { ...currentContent, [field]: value }
-                            }
-                          }));
-                        };
-
-                        return (
-                          <div key={planKey} className="p-4 border border-blue-100 rounded-lg bg-blue-50/30">
-                            <div className="flex items-center gap-2 mb-4">
-                              <div className="h-2 w-2 bg-blue-500 rounded-full"></div>
-                              <h5 className="font-semibold text-blue-900">
-                                Plan: {plan.name} (£{plan.price}/{plan.billing_interval})
-                              </h5>
-                            </div>
-
-                            <div className="space-y-4">
-                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                  <Label className="block text-sm font-medium text-gray-700 mb-2">Plan Title</Label>
-                                  <Input
-                                    value={currentContent.title}
-                                    onChange={(e) => updateField('title', e.target.value)}
-                                    placeholder={`e.g. ${plan.name} Plan`}
-                                  />
-                                </div>
-                                <div>
-                                  <Label className="block text-sm font-medium text-gray-700 mb-2">Badge Text</Label>
-                                  <Input
-                                    value={currentContent.badge}
-                                    onChange={(e) => updateField('badge', e.target.value)}
-                                    placeholder="e.g. Recommended"
-                                  />
-                                </div>
-                              </div>
-
-                              <div>
-                                <Label className="block text-sm font-medium text-gray-700 mb-2">Subtitle / Description</Label>
-                                <Input
-                                  value={currentContent.subtitle}
-                                  onChange={(e) => updateField('subtitle', e.target.value)}
-                                  placeholder="Brief description for this specific plan"
-                                />
-                              </div>
-
-                              {/* Features List for Specific Plan */}
-                              <div>
-                                <div className="flex items-center justify-between mb-2">
-                                  <Label className="text-sm font-medium text-gray-700">What's Included</Label>
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => updateField('features', [...currentContent.features, ""])}
-                                    className="h-7 px-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                                  >
-                                    <Plus className="h-3.5 w-3.5 mr-1" /> Add Feature
-                                  </Button>
-                                </div>
-                                <div className="space-y-2">
-                                  {currentContent.features.map((feature: string, idx: number) => (
-                                    <div key={idx} className="flex gap-2">
-                                      <Input
-                                        value={feature}
-                                        onChange={(e) => {
-                                          const newFeatures = [...currentContent.features];
-                                          newFeatures[idx] = e.target.value;
-                                          updateField('features', newFeatures);
-                                        }}
-                                        placeholder={`Feature ${idx + 1}`}
-                                        className="flex-1"
-                                      />
-                                      <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => {
-                                          const newFeatures = currentContent.features.filter((_: any, i: number) => i !== idx);
-                                          updateField('features', newFeatures.length ? newFeatures : [""]);
-                                        }}
-                                        className="h-10 w-10 p-0 text-red-500 hover:text-red-600 hover:bg-red-50"
-                                      >
-                                        <Minus className="h-4 w-4" />
-                                      </Button>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-
-                              {/* Perfect For List for Specific Plan */}
-                              <div>
-                                <div className="flex items-center justify-between mb-2">
-                                  <Label className="text-sm font-medium text-gray-700">Perfect For</Label>
-                                  <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => updateField('perfect_for', [...currentContent.perfect_for, ""])}
-                                    className="h-7 px-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                                  >
-                                    <Plus className="h-3.5 w-3.5 mr-1" /> Add Item
-                                  </Button>
-                                </div>
-                                <div className="space-y-2">
-                                  {currentContent.perfect_for.map((item: string, idx: number) => (
-                                    <div key={idx} className="flex gap-2">
-                                      <Input
-                                        value={item}
-                                        onChange={(e) => {
-                                          const newItems = [...currentContent.perfect_for];
-                                          newItems[idx] = e.target.value;
-                                          updateField('perfect_for', newItems);
-                                        }}
-                                        placeholder={`Perfect for item ${idx + 1}`}
-                                        className="flex-1"
-                                      />
-                                      <Button
-                                        type="button"
-                                        variant="ghost"
-                                        size="sm"
-                                        onClick={() => {
-                                          const newItems = currentContent.perfect_for.filter((_: any, i: number) => i !== idx);
-                                          updateField('perfect_for', newItems.length ? newItems : [""]);
-                                        }}
-                                        className="h-10 w-10 p-0 text-red-500 hover:text-red-600 hover:bg-red-50"
-                                      >
-                                        <Minus className="h-4 w-4" />
-                                      </Button>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {plans.length === 0 && (
-                  <div className="p-8 border-2 border-dashed rounded-lg text-center bg-gray-50">
-                    <p className="text-gray-600 mb-2">No active pricing plans found.</p>
-                    <p className="text-sm text-gray-500">Create a plan down below first to customize its content here.</p>
-                  </div>
-                )}
-
-                <div className="flex gap-3 pt-4">
+        {/* Content Editor Modal */}
+        {showContentEditor && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+              <div className="p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-xl font-semibold text-gray-900">
+                    Edit Pricing Content
+                  </h3>
                   <Button
                     onClick={() => setShowContentEditor(false)}
                     variant="outline"
-                    className="flex-1"
+                    size="sm"
                   >
-                    Cancel
+                    ×
                   </Button>
-                  <Button
-                    onClick={updatePricingContent}
-                    disabled={isLoadingContent}
-                    className="flex-1 bg-blue-600 hover:bg-blue-700"
-                  >
-                    {isLoadingContent ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                        Saving...
-                      </>
-                    ) : (
-                      "Save Changes"
-                    )}
-                  </Button>
+                </div>
+
+                <div className="space-y-6">
+                  {/* General Settings */}
+                  <div className="p-4 border rounded-lg">
+                    <h4 className="font-semibold text-gray-900 mb-4">General Settings</h4>
+                    <div className="space-y-4">
+                      <div>
+                        <Label className="block text-sm font-medium text-gray-700 mb-2">
+                          Subscription Page Title
+                        </Label>
+                        <Input
+                          value={contentForm.general.subscription_page_title}
+                          onChange={(e) =>
+                            setContentForm(prev => ({
+                              ...prev,
+                              general: { ...prev.general, subscription_page_title: e.target.value }
+                            }))
+                          }
+                          placeholder="Subscribe to AI Expert"
+                        />
+                      </div>
+                      <div>
+                        <Label className="block text-sm font-medium text-gray-700 mb-2">
+                          Subscription Page Description
+                        </Label>
+                        <Input
+                          value={contentForm.general.subscription_page_description}
+                          onChange={(e) =>
+                            setContentForm(prev => ({
+                              ...prev,
+                              general: { ...prev.general, subscription_page_description: e.target.value }
+                            }))
+                          }
+                          placeholder="Choose the perfect plan to access expert assistance"
+                        />
+                      </div>
+                      <div>
+                        <Label className="block text-sm font-medium text-gray-700 mb-2">
+                          Base Monthly Price (for discount calculations)
+                        </Label>
+                        <Input
+                          value={contentForm.general.base_monthly_price}
+                          onChange={(e) =>
+                            setContentForm(prev => ({
+                              ...prev,
+                              general: { ...prev.general, base_monthly_price: e.target.value }
+                            }))
+                          }
+                          placeholder="40"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          This is used to calculate discount percentages for multi-month plans
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Plan Content Editors */}
+                  {/* Specific Plan Editors */}
+                  {plans.length > 0 && (
+                    <div className="pt-4 border-t">
+                      <h4 className="font-bold text-gray-900 mb-4">Specific Plan Customization</h4>
+                      <div className="space-y-6">
+                        {plans.map((plan) => {
+                          const planKey = plan.id;
+                          const currentContent = contentForm.plan_custom_content[planKey] || {
+                            title: "",
+                            subtitle: "",
+                            features: [""],
+                            perfect_for: [""],
+                            badge: ""
+                          };
+
+                          const updateField = (field: string, value: any) => {
+                            setContentForm(prev => ({
+                              ...prev,
+                              plan_custom_content: {
+                                ...prev.plan_custom_content,
+                                [planKey]: { ...currentContent, [field]: value }
+                              }
+                            }));
+                          };
+
+                          return (
+                            <div key={planKey} className="p-4 border border-blue-100 rounded-lg bg-blue-50/30">
+                              <div className="flex items-center gap-2 mb-4">
+                                <div className="h-2 w-2 bg-blue-500 rounded-full"></div>
+                                <h5 className="font-semibold text-blue-900">
+                                  Plan: {plan.name} (£{plan.price}/{plan.billing_interval})
+                                </h5>
+                              </div>
+
+                              <div className="space-y-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                  <div>
+                                    <Label className="block text-sm font-medium text-gray-700 mb-2">Plan Title</Label>
+                                    <Input
+                                      value={currentContent.title}
+                                      onChange={(e) => updateField('title', e.target.value)}
+                                      placeholder={`e.g. ${plan.name} Plan`}
+                                    />
+                                  </div>
+                                  <div>
+                                    <Label className="block text-sm font-medium text-gray-700 mb-2">Badge Text</Label>
+                                    <Input
+                                      value={currentContent.badge}
+                                      onChange={(e) => updateField('badge', e.target.value)}
+                                      placeholder="e.g. Recommended"
+                                    />
+                                  </div>
+                                </div>
+
+                                <div>
+                                  <Label className="block text-sm font-medium text-gray-700 mb-2">Subtitle / Description</Label>
+                                  <Input
+                                    value={currentContent.subtitle}
+                                    onChange={(e) => updateField('subtitle', e.target.value)}
+                                    placeholder="Brief description for this specific plan"
+                                  />
+                                </div>
+
+                                {/* Features List for Specific Plan */}
+                                <div>
+                                  <div className="flex items-center justify-between mb-2">
+                                    <Label className="text-sm font-medium text-gray-700">What's Included</Label>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => updateField('features', [...currentContent.features, ""])}
+                                      className="h-7 px-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                    >
+                                      <Plus className="h-3.5 w-3.5 mr-1" /> Add Feature
+                                    </Button>
+                                  </div>
+                                  <div className="space-y-2">
+                                    {currentContent.features.map((feature: string, idx: number) => (
+                                      <div key={idx} className="flex gap-2">
+                                        <Input
+                                          value={feature}
+                                          onChange={(e) => {
+                                            const newFeatures = [...currentContent.features];
+                                            newFeatures[idx] = e.target.value;
+                                            updateField('features', newFeatures);
+                                          }}
+                                          placeholder={`Feature ${idx + 1}`}
+                                          className="flex-1"
+                                        />
+                                        <Button
+                                          type="button"
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => {
+                                            const newFeatures = currentContent.features.filter((_: any, i: number) => i !== idx);
+                                            updateField('features', newFeatures.length ? newFeatures : [""]);
+                                          }}
+                                          className="h-10 w-10 p-0 text-red-500 hover:text-red-600 hover:bg-red-50"
+                                        >
+                                          <Minus className="h-4 w-4" />
+                                        </Button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+
+                                {/* Perfect For List for Specific Plan */}
+                                <div>
+                                  <div className="flex items-center justify-between mb-2">
+                                    <Label className="text-sm font-medium text-gray-700">Perfect For</Label>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => updateField('perfect_for', [...currentContent.perfect_for, ""])}
+                                      className="h-7 px-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                    >
+                                      <Plus className="h-3.5 w-3.5 mr-1" /> Add Item
+                                    </Button>
+                                  </div>
+                                  <div className="space-y-2">
+                                    {currentContent.perfect_for.map((item: string, idx: number) => (
+                                      <div key={idx} className="flex gap-2">
+                                        <Input
+                                          value={item}
+                                          onChange={(e) => {
+                                            const newItems = [...currentContent.perfect_for];
+                                            newItems[idx] = e.target.value;
+                                            updateField('perfect_for', newItems);
+                                          }}
+                                          placeholder={`Perfect for item ${idx + 1}`}
+                                          className="flex-1"
+                                        />
+                                        <Button
+                                          type="button"
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={() => {
+                                            const newItems = currentContent.perfect_for.filter((_: any, i: number) => i !== idx);
+                                            updateField('perfect_for', newItems.length ? newItems : [""]);
+                                          }}
+                                          className="h-10 w-10 p-0 text-red-500 hover:text-red-600 hover:bg-red-50"
+                                        >
+                                          <Minus className="h-4 w-4" />
+                                        </Button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {plans.length === 0 && (
+                    <div className="p-8 border-2 border-dashed rounded-lg text-center bg-gray-50">
+                      <p className="text-gray-600 mb-2">No active pricing plans found.</p>
+                      <p className="text-sm text-gray-500">Create a plan down below first to customize its content here.</p>
+                    </div>
+                  )}
+
+                  <div className="flex gap-3 pt-4">
+                    <Button
+                      onClick={() => setShowContentEditor(false)}
+                      variant="outline"
+                      className="flex-1"
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={updatePricingContent}
+                      disabled={isLoadingContent}
+                      className="flex-1 bg-blue-600 hover:bg-blue-700"
+                    >
+                      {isLoadingContent ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          Saving...
+                        </>
+                      ) : (
+                        "Save Changes"
+                      )}
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Real-Time Subscription Preview */}
-      {showPreview && (
-        <CleanPaymentModal
-          isOpen={showPreview}
-          onClose={() => setShowPreview(false)}
-          plans={plans}
-          expertName={expert?.name || "AI Expert"}
-          expertSlug={expert?.slug}
-          expertId={projectId}
-          onPaymentSuccess={() => { }}
-          userToken=""
-        />
-      )}
-    </div>
+        {/* Real-Time Subscription Preview */}
+        {showPreview && (
+          <CleanPaymentModal
+            isOpen={showPreview}
+            onClose={() => setShowPreview(false)}
+            plans={plans}
+            expertName={expert?.name || "AI Expert"}
+            expertSlug={expert?.slug}
+            expertId={projectId}
+            onPaymentSuccess={() => { }}
+            userToken=""
+          />
+        )}
+      </div>
     </DashboardLayout >
   );
 };

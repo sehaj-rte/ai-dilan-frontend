@@ -698,7 +698,7 @@ const ExpertCallPage = () => {
             <div className="mb-4 flex flex-col items-center">
               <p className="text-sm font-medium text-gray-500 mb-3 flex items-center gap-1.5">
                 <Languages className="h-4 w-4" />
-                Select your conversation language
+                Select your choice of language
               </p>
               <LanguageSelector
                 selectedLanguage={selectedLanguage}
