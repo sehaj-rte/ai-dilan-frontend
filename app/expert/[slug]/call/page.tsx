@@ -13,8 +13,8 @@ import {
   LogIn,
   LogOut,
   MessageSquare,
-  Languages,
 } from "lucide-react";
+import { LanguageTranslateIcon } from "@/components/ui/LanguageTranslateIcon";
 import { useVoiceConversation } from "@/hooks/useVoiceConversation";
 import { RootState } from "@/store/store";
 import { logout, loadUserFromStorage } from "@/store/slices/authSlice";
@@ -23,6 +23,9 @@ import { UsageStatusBar } from "@/components/usage/UsageStatusBar";
 import { LimitReachedModal } from "@/components/usage/LimitReachedModal";
 import { useExpert } from "@/contexts/ExpertContext";
 import { LanguageSelector } from "@/components/ui/LanguageSelector";
+import ExpertPageHeader from "@/components/layout/ExpertPageHeader";
+import AvatarSettingsModal from "@/components/dashboard/AvatarSettingsModal";
+import { useClientAuthFlow } from "@/contexts/ClientAuthFlowContext";
 
 
 interface Expert {
@@ -68,6 +71,7 @@ const ClientCallPage = () => {
 
   // Use Expert context
   const { setExpertData } = useExpert();
+  const { setCurrentUser } = useClientAuthFlow();
 
   // Auth state from Redux
   const { user, isAuthenticated } = useSelector(
@@ -96,6 +100,7 @@ const ClientCallPage = () => {
 
   // Plan limitations state
   const [showLimitReachedModal, setShowLimitReachedModal] = useState(false);
+  const [showProfileModal, setShowProfileModal] = useState(false);
 
   // Plan limitations hook
   const {
@@ -502,7 +507,15 @@ const ClientCallPage = () => {
   };
 
   const handleLogout = () => {
+    // 1. Clear Redux
     dispatch(logout());
+    // 2. Clear Context (Profile page header uses this)
+    setCurrentUser(null);
+    // 3. Clear localStorage explicitly
+    localStorage.removeItem("dilan_ai_token");
+    localStorage.removeItem("dilan_ai_user");
+    // 4. Redirect for consistency
+    router.push(`/expert/${slug}`);
   };
 
 
@@ -707,143 +720,41 @@ const ClientCallPage = () => {
         <div className="absolute inset-0 bg-black bg-opacity-30 pointer-events-none"></div>
       )}
       <div className="relative">
-        {/* Header */}
-        <div
-          className={`${publication?.banner_url ? "bg-white/60 backdrop-blur-xl border-b border-white/30 shadow-lg" : "border-b border-gray-200"}`}
+        {/* Enhanced Header */}
+        <ExpertPageHeader
+          expertName={expert?.name || "Expert"}
+          user={user as any}
+          isAuthenticated={isAuthenticated}
+          onShowAuthModal={() => router.push(`/expert/${slug}`)}
+          onShowProfileModal={() => setShowProfileModal(true)}
+          onShowBilling={() => router.push(`/expert/billing?expert=${slug}`)}
+          onLogout={handleLogout}
+          primaryColor={primaryColor}
+          hasBackdrop={!!publication?.banner_url}
+          showBackButton={true}
+          onBack={handleBack}
         >
-          <div className="container mx-auto px-4 py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2 sm:space-x-4 flex-1 min-w-0">
-                <button
-                  onClick={handleBack}
-                  className="text-gray-600 hover:text-gray-900 flex-shrink-0"
-                >
-                  <ArrowLeft className="h-6 w-6" />
-                </button>
-                <div className="flex items-center space-x-2 min-w-0 flex-1">
-                  {expert?.avatar_url ? (
-                    <img
-                      src={expert.avatar_url}
-                      alt={expert.name}
-                      className="w-8 h-8 rounded-full object-cover flex-shrink-0"
-                      onError={(e) => {
-                        (e.currentTarget as HTMLImageElement).style.display =
-                          "none";
-                      }}
-                    />
-                  ) : null}
-                  <span className="font-semibold text-gray-900 truncate text-sm sm:text-base">
-                    {expert?.name}
-                  </span>
-                </div>
-              </div>
+          {/* Action Buttons */}
+          <div className="flex items-center">
+            {/* Chat Button */}
+            <Button
+              onClick={handleGoToChat}
+              size="sm"
+              className="hidden sm:flex items-center justify-center w-9 h-9 bg-black hover:bg-gray-800 text-white border-0 shadow-sm mr-2 rounded-full transition-all duration-200"
+            >
+              <MessageSquare className="h-4 w-4" />
+            </Button>
 
-              {/* User Profile / Login */}
-              <div className="flex items-center space-x-1 sm:space-x-3 flex-shrink-0">
-                {/* Chat Button */}
-                <Button
-                  onClick={handleGoToChat}
-                  size="sm"
-                  className="hidden sm:flex items-center justify-center w-9 h-9 bg-black hover:bg-gray-800 text-white border-0 shadow-sm mr-2 rounded-full"
-                >
-                  <MessageSquare className="h-4 w-4" />
-                </Button>
-
-                {/* Mobile Chat Button */}
-                <Button
-                  onClick={handleGoToChat}
-                  size="sm"
-                  className="sm:hidden flex items-center justify-center w-8 h-8 bg-black hover:bg-gray-800 text-white border-0 shadow-sm mr-1 rounded-full"
-                >
-                  <MessageSquare className="h-3 w-3" />
-                </Button>
-                {isAuthenticated && user ? (
-                  <div className="flex items-center space-x-1 sm:space-x-3">
-                    <div className="text-right hidden sm:block">
-                      <p className="text-sm font-medium text-gray-900">
-                        {user.full_name || user.username}
-                      </p>
-                      <p className="text-xs text-gray-500">{user.email}</p>
-                    </div>
-                    {/* Mobile: Show only avatar */}
-                    <div className="sm:hidden">
-                      {user.avatar_url ? (
-                        <img
-                          src={user.avatar_url.startsWith('http') ? user.avatar_url : `${API_URL}${user.avatar_url}`}
-                          className="w-8 h-8 rounded-full object-cover border-2 border-gray-200"
-                          alt={user.username}
-                          onError={(e) => {
-                            e.currentTarget.style.display = 'none'
-                            e.currentTarget.nextElementSibling?.classList.remove('hidden')
-                          }}
-                        />
-                      ) : null}
-                      <div className={`w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center ${user.avatar_url ? 'hidden' : ''}`}>
-                        <User className="h-4 w-4 text-gray-500" />
-                      </div>
-                    </div>
-                    {/* Desktop: Show full profile */}
-                    <div className="hidden sm:block">
-                      {user.avatar_url ? (
-                        <img
-                          src={user.avatar_url.startsWith('http') ? user.avatar_url : `${API_URL}${user.avatar_url}`}
-                          className="w-10 h-10 rounded-full object-cover border-2 border-gray-200"
-                          alt={user.username}
-                          onError={(e) => {
-                            e.currentTarget.style.display = 'none'
-                            e.currentTarget.nextElementSibling?.classList.remove('hidden')
-                          }}
-                        />
-                      ) : null}
-                      <div className={`w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center ${user.avatar_url ? 'hidden' : ''}`}>
-                        <User className="h-5 w-5 text-gray-500" />
-                      </div>
-                    </div>
-                    <Button
-                      onClick={handleLogout}
-                      variant="outline"
-                      size="sm"
-                      className="text-gray-600 hover:text-gray-900 hidden sm:flex"
-                      style={{
-                        borderColor: primaryColor,
-                        color: primaryColor,
-                      }}
-                    >
-                      <LogOut className="h-4 w-4" />
-                    </Button>
-                    {/* Mobile logout - icon only */}
-                    <Button
-                      onClick={handleLogout}
-                      variant="outline"
-                      size="sm"
-                      className="sm:hidden w-8 h-8 p-0 text-gray-600 hover:text-gray-900"
-                      style={{
-                        borderColor: primaryColor,
-                        color: primaryColor,
-                      }}
-                    >
-                      <LogOut className="h-3 w-3" />
-                    </Button>
-                  </div>
-                ) : (
-                  <Button
-                    onClick={() => router.push("/auth/login")}
-                    variant="outline"
-                    size="sm"
-                    className="flex items-center gap-2"
-                    style={{
-                      borderColor: primaryColor,
-                      color: primaryColor,
-                    }}
-                  >
-                    <LogIn className="h-4 w-4" />
-                    Login
-                  </Button>
-                )}
-              </div>
-            </div>
+            {/* Mobile Chat Button */}
+            <Button
+              onClick={handleGoToChat}
+              size="sm"
+              className="sm:hidden flex items-center justify-center w-8 h-8 bg-black hover:bg-gray-800 text-white border-0 shadow-sm mr-1 rounded-full transition-all duration-200"
+            >
+              <MessageSquare className="h-3.5 w-3.5" />
+            </Button>
           </div>
-        </div>
+        </ExpertPageHeader>
 
         {/* Usage Status Bar - only show for authenticated users with plan limitations */}
         {isAuthenticated && currentPlan && !limitStatus.isUnlimited && (
@@ -1081,10 +992,10 @@ const ClientCallPage = () => {
 
             {/* Language Selector - User Specific */}
             {!state.isConnected && (
-              <div className="mb-4 flex flex-col items-center">
-                <p className="text-sm font-medium text-gray-500 mb-3 flex items-center gap-1.5">
-                  <Languages className="h-4 w-4" />
-                  Select your conversation language
+              <div className="mb-3 flex flex-col items-center">
+                <p className="text-[12px] font-semibold text-gray-600 mb-1 flex items-center gap-1.5 tracking-tight">
+                  <LanguageTranslateIcon className="h-4 w-4" />
+                  Select your choice of language
                 </p>
                 <LanguageSelector
                   selectedLanguage={selectedLanguage}
@@ -1095,12 +1006,13 @@ const ClientCallPage = () => {
                   className="w-full max-w-[280px]"
                   buttonClassName="w-full py-6 rounded-full border-gray-200 bg-white/50 backdrop-blur-sm text-gray-700 text-lg font-medium shadow-lg"
                   disabled={state.isConnecting}
+                  icon={<LanguageTranslateIcon className="h-5 w-5" />}
                 />
               </div>
             )}
 
             {/* Call Button */}
-            <div className="mb-6 mt-2 flex flex-col items-center">
+            <div className="mb-2 mt-2 flex flex-col items-center">
               {!state.isConnected ? (
                 <Button
                   onClick={handleStartCall}
@@ -1195,11 +1107,11 @@ const ClientCallPage = () => {
             </div>
 
 
-            {/* Browser Compatibility Notice - Same fixed width */}
-            <div >
-              <div className="inline-flex items-center px-3 py-2 rounded-full bg-gray-50 border border-gray-200 text-gray-600 text-xs font-medium shadow-sm">
+            {/* Browser Compatibility Notice */}
+            <div className="flex flex-col items-center">
+              <p className="text-[12px] font-semibold text-gray-600 flex items-center gap-1.5 tracking-tight">
                 <svg
-                  className="w-3 h-3 mr-1 text-gray-500 flex-shrink-0"
+                  className="w-4 h-4"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"
@@ -1207,12 +1119,12 @@ const ClientCallPage = () => {
                   <path
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                    strokeWidth={2}
+                    strokeWidth={2.5}
                     d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
                   />
                 </svg>
-                <span className="whitespace-nowrap">Best experience with Chrome or Safari</span>
-              </div>
+                <span>Best experience with Chrome or Safari</span>
+              </p>
             </div>
           </div>
         </div>
@@ -1227,6 +1139,15 @@ const ClientCallPage = () => {
           expertSlug={slug}
           subscription={subscription}
         />
+
+        {/* Profile Modal */}
+        {isAuthenticated && user && (
+          <AvatarSettingsModal
+            isOpen={showProfileModal}
+            onClose={() => setShowProfileModal(false)}
+            userData={user as any}
+          />
+        )}
       </div>
     </div>
   );
