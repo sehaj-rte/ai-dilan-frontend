@@ -2032,7 +2032,7 @@ const ClientChatPage = () => {
 
   return (
     <div
-      className="flex h-[100dvh] overflow-hidden relative"
+      className="flex h-full overflow-hidden relative"
       style={{
         background: publication?.banner_url
           ? `linear-gradient(135deg, rgba(0,0,0,0.1), rgba(0,0,0,0.05)), url(${convertS3UrlToProxy(publication.banner_url, true, 1200)})`
