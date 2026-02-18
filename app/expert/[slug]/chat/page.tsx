@@ -2196,7 +2196,11 @@ const ClientChatPage = () => {
                   {grouped.today.map((c) => (
                     <div
                       key={c.id}
-                      className={`p-2 rounded hover:bg-gray-800 flex items-center gap-2 group min-w-0 ${currentConvId === c.id ? "" : ""}`}
+                      onClick={() => {
+                        loadConversation(c);
+                        setIsSidebarOpen(false);
+                      }}
+                      className={`p-2 rounded sm:hover:bg-gray-800 flex items-center gap-2 group min-w-0 cursor-pointer ${currentConvId === c.id ? "" : ""}`}
                       style={
                         currentConvId === c.id
                           ? { backgroundColor: primaryColor + "40" }
@@ -2208,6 +2212,7 @@ const ClientChatPage = () => {
                         <input
                           type="text"
                           value={editingTitleText}
+                          onClick={(e) => e.stopPropagation()}
                           onChange={(e) => setEditingTitleText(e.target.value)}
                           onBlur={() => {
                             if (editingTitleText.trim()) {
@@ -2234,10 +2239,7 @@ const ClientChatPage = () => {
                         />
                       ) : (
                         <>
-                          <span
-                            onClick={() => loadConversation(c)}
-                            className="text-sm truncate flex-1 cursor-pointer"
-                          >
+                          <span className="text-sm truncate flex-1">
                             {c.title}
                           </span>
                           <button
@@ -2266,7 +2268,11 @@ const ClientChatPage = () => {
                   {grouped.yesterday.map((c) => (
                     <div
                       key={c.id}
-                      className={`p-2 rounded hover:bg-gray-800 flex items-center gap-2 group min-w-0 ${currentConvId === c.id ? "" : ""}`}
+                      onClick={() => {
+                        loadConversation(c);
+                        setIsSidebarOpen(false);
+                      }}
+                      className={`p-2 rounded sm:hover:bg-gray-800 flex items-center gap-2 group min-w-0 cursor-pointer ${currentConvId === c.id ? "" : ""}`}
                       style={
                         currentConvId === c.id
                           ? { backgroundColor: primaryColor + "40" }
@@ -2278,6 +2284,7 @@ const ClientChatPage = () => {
                         <input
                           type="text"
                           value={editingTitleText}
+                          onClick={(e) => e.stopPropagation()}
                           onChange={(e) => setEditingTitleText(e.target.value)}
                           onBlur={() => {
                             if (editingTitleText.trim()) {
@@ -2304,10 +2311,7 @@ const ClientChatPage = () => {
                         />
                       ) : (
                         <>
-                          <span
-                            onClick={() => loadConversation(c)}
-                            className="text-sm truncate flex-1 cursor-pointer"
-                          >
+                          <span className="text-sm truncate flex-1">
                             {c.title}
                           </span>
                           <button
@@ -2336,7 +2340,11 @@ const ClientChatPage = () => {
                   {grouped.last7days.map((c) => (
                     <div
                       key={c.id}
-                      className={`p-2 rounded hover:bg-gray-800 flex items-center gap-2 group min-w-0 ${currentConvId === c.id ? "" : ""}`}
+                      onClick={() => {
+                        loadConversation(c);
+                        setIsSidebarOpen(false);
+                      }}
+                      className={`p-2 rounded sm:hover:bg-gray-800 flex items-center gap-2 group min-w-0 cursor-pointer ${currentConvId === c.id ? "" : ""}`}
                       style={
                         currentConvId === c.id
                           ? { backgroundColor: primaryColor + "40" }
@@ -2348,6 +2356,7 @@ const ClientChatPage = () => {
                         <input
                           type="text"
                           value={editingTitleText}
+                          onClick={(e) => e.stopPropagation()}
                           onChange={(e) => setEditingTitleText(e.target.value)}
                           onBlur={() => {
                             if (editingTitleText.trim()) {
@@ -2374,10 +2383,7 @@ const ClientChatPage = () => {
                         />
                       ) : (
                         <>
-                          <span
-                            onClick={() => loadConversation(c)}
-                            className="text-sm truncate flex-1 cursor-pointer"
-                          >
+                          <span className="text-sm truncate flex-1">
                             {c.title}
                           </span>
                           <button
@@ -2406,7 +2412,11 @@ const ClientChatPage = () => {
                   {grouped.older.map((c) => (
                     <div
                       key={c.id}
-                      className={`p-2 rounded hover:bg-gray-800 flex items-center gap-2 group min-w-0 ${currentConvId === c.id ? "" : ""}`}
+                      onClick={() => {
+                        loadConversation(c);
+                        setIsSidebarOpen(false);
+                      }}
+                      className={`p-2 rounded sm:hover:bg-gray-800 flex items-center gap-2 group min-w-0 cursor-pointer ${currentConvId === c.id ? "" : ""}`}
                       style={
                         currentConvId === c.id
                           ? { backgroundColor: primaryColor + "40" }
@@ -2418,6 +2428,7 @@ const ClientChatPage = () => {
                         <input
                           type="text"
                           value={editingTitleText}
+                          onClick={(e) => e.stopPropagation()}
                           onChange={(e) => setEditingTitleText(e.target.value)}
                           onBlur={() => {
                             if (editingTitleText.trim()) {
@@ -2444,10 +2455,7 @@ const ClientChatPage = () => {
                         />
                       ) : (
                         <>
-                          <span
-                            onClick={() => loadConversation(c)}
-                            className="text-sm truncate flex-1 cursor-pointer"
-                          >
+                          <span className="text-sm truncate flex-1">
                             {c.title}
                           </span>
                           <button
