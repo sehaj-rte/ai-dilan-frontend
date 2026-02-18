@@ -2211,7 +2211,6 @@ const ClientChatPage = () => {
           style={{ touchAction: 'none' }}
           onClick={() => setIsSidebarOpen(false)}
           onTouchMove={(e) => e.preventDefault()}
-          onTouchStart={(e) => { if (e.target === e.currentTarget) e.preventDefault(); }}
         />
       )}
 
@@ -2276,11 +2275,18 @@ const ClientChatPage = () => {
                   {grouped.today.map((c) => (
                     <div
                       key={c.id}
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.preventDefault();
                         loadConversation(c);
                         setIsSidebarOpen(false);
                       }}
-                      className={`p-2 rounded sm:hover:bg-gray-800 flex items-center gap-2 group min-w-0 cursor-pointer ${currentConvId === c.id ? "" : ""}`}
+                      onTouchEnd={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        loadConversation(c);
+                        setIsSidebarOpen(false);
+                      }}
+                      className={`p-2 rounded active:bg-gray-800 sm:hover:bg-gray-800 flex items-center gap-2 group min-w-0 cursor-pointer ${currentConvId === c.id ? "" : ""}`}
                       style={
                         currentConvId === c.id
                           ? { backgroundColor: primaryColor + "40" }
@@ -2348,11 +2354,18 @@ const ClientChatPage = () => {
                   {grouped.yesterday.map((c) => (
                     <div
                       key={c.id}
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.preventDefault();
                         loadConversation(c);
                         setIsSidebarOpen(false);
                       }}
-                      className={`p-2 rounded sm:hover:bg-gray-800 flex items-center gap-2 group min-w-0 cursor-pointer ${currentConvId === c.id ? "" : ""}`}
+                      onTouchEnd={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        loadConversation(c);
+                        setIsSidebarOpen(false);
+                      }}
+                      className={`p-2 rounded active:bg-gray-800 sm:hover:bg-gray-800 flex items-center gap-2 group min-w-0 cursor-pointer ${currentConvId === c.id ? "" : ""}`}
                       style={
                         currentConvId === c.id
                           ? { backgroundColor: primaryColor + "40" }
@@ -2420,11 +2433,18 @@ const ClientChatPage = () => {
                   {grouped.last7days.map((c) => (
                     <div
                       key={c.id}
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.preventDefault();
                         loadConversation(c);
                         setIsSidebarOpen(false);
                       }}
-                      className={`p-2 rounded sm:hover:bg-gray-800 flex items-center gap-2 group min-w-0 cursor-pointer ${currentConvId === c.id ? "" : ""}`}
+                      onTouchEnd={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        loadConversation(c);
+                        setIsSidebarOpen(false);
+                      }}
+                      className={`p-2 rounded active:bg-gray-800 sm:hover:bg-gray-800 flex items-center gap-2 group min-w-0 cursor-pointer ${currentConvId === c.id ? "" : ""}`}
                       style={
                         currentConvId === c.id
                           ? { backgroundColor: primaryColor + "40" }
@@ -2492,11 +2512,18 @@ const ClientChatPage = () => {
                   {grouped.older.map((c) => (
                     <div
                       key={c.id}
-                      onClick={() => {
+                      onClick={(e) => {
+                        e.preventDefault();
                         loadConversation(c);
                         setIsSidebarOpen(false);
                       }}
-                      className={`p-2 rounded sm:hover:bg-gray-800 flex items-center gap-2 group min-w-0 cursor-pointer ${currentConvId === c.id ? "" : ""}`}
+                      onTouchEnd={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        loadConversation(c);
+                        setIsSidebarOpen(false);
+                      }}
+                      className={`p-2 rounded active:bg-gray-800 sm:hover:bg-gray-800 flex items-center gap-2 group min-w-0 cursor-pointer ${currentConvId === c.id ? "" : ""}`}
                       style={
                         currentConvId === c.id
                           ? { backgroundColor: primaryColor + "40" }
@@ -3526,8 +3553,8 @@ const ClientChatPage = () => {
                           ? "Uploading images..."
                           : "Type your message or paste images..."
                     }
-                    className="w-full border-0 bg-transparent focus:outline-none resize-none overflow-y-auto text-sm sm:text-[15px] leading-6 text-gray-900 placeholder:text-gray-400"
-                    style={{ height: "24px", maxHeight: "100px" }}
+                    className="w-full border-0 bg-transparent focus:outline-none resize-none overflow-y-auto text-base sm:text-[15px] leading-6 text-gray-900 placeholder:text-gray-400"
+                    style={{ height: "24px", maxHeight: "100px", fontSize: '16px' }}
                     rows={1}
                     disabled={
                       isWaitingForResponse || streamingMessageId !== null
