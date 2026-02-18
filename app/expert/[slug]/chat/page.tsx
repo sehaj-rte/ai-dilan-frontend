@@ -2487,7 +2487,7 @@ const ClientChatPage = () => {
       <div className="flex-1 flex flex-col min-w-0 relative z-10">
         {/* Header */}
         <div
-          className="px-3 sm:px-6 py-3 sm:py-4 flex items-center justify-between relative overflow-visible z-20"
+          className="px-3 sm:px-6 py-2 sm:py-4 flex items-center justify-between relative overflow-visible z-20"
           style={{
             background: publication?.banner_url
               ? "rgba(255, 255, 255, 0.95)"
@@ -2609,7 +2609,7 @@ const ClientChatPage = () => {
         {/* Usage Status Bar - only show for authenticated users with plan limitations */}
         {isAuthenticated && currentPlan && !limitStatus.isUnlimited && (
           <div
-            className="px-3 sm:px-6 py-2"
+            className="px-3 sm:px-6 py-1 sm:py-2"
             style={{
               background: publication?.banner_url
                 ? "rgba(249, 250, 251, 0.8)"
@@ -3107,7 +3107,7 @@ const ClientChatPage = () => {
 
         {/* Input */}
         <div
-          className="px-3 sm:px-6 py-3 sm:py-5"
+          className="px-3 sm:px-6 py-2 sm:py-4"
           style={{
             // background: publication?.banner_url
             //   ? "rgba(255, 255, 255, 0.98)"
@@ -3539,14 +3539,14 @@ const ClientChatPage = () => {
                 </div>
               </div>
 
-              <div className="mt-2 px-1 flex flex-col items-center sm:items-start sm:flex-row sm:items-center justify-between gap-2 text-gray-400 text-center sm:text-left">
-                <div className="flex flex-col sm:flex-row sm:items-center gap-1.5 font-medium">
-                  <span className="text-[10px] sm:text-[11px]">
-                    AI LLM’s can make mistakes. It’s important to check the answers presented.
+              <div className="mt-1 px-1 flex flex-col sm:flex-row items-center justify-between gap-1 text-gray-400">
+                <div className="flex flex-col sm:flex-row items-center gap-1 font-medium">
+                  <span className="text-[10px] leading-tight">
+                    AI LLM’s can make mistakes. Check important info.
                   </span>
                   <span className="hidden sm:inline opacity-30">|</span>
-                  <span className="text-[10px] sm:text-[11px] opacity-70">
-                    Best experience with Chrome or Safari
+                  <span className="text-[10px] opacity-70">
+                    Chrome or Safari recommended
                   </span>
                 </div>
                 {(isWaitingForResponse || streamingMessageId) && (
