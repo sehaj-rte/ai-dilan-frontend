@@ -28,8 +28,8 @@ export default function RootLayout({
           <ReduxProvider>
             <LegalProvider>
               <ExpertProvider>
-                <div className="h-screen flex flex-col">
-                  <main className="flex-1 overflow-y-auto" >
+                <div className="flex flex-col overflow-hidden" style={{ height: 'var(--app-height, 100dvh)', minHeight: 'var(--app-height, 100dvh)' }}>
+                  <main className="flex-1 overflow-y-auto min-h-0" >
                     {children}
                   </main>
                   <ConditionalFooter className="z-40" />

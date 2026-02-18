@@ -189,6 +189,7 @@ const ClientChatPage = () => {
   const [userImageLoading, setUserImageLoading] = useState(true);
   const [userImageError, setUserImageError] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [appHeight, setAppHeight] = useState('100dvh');
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [dropdownPosition, setDropdownPosition] = useState({
     top: 0,
@@ -253,6 +254,73 @@ const ClientChatPage = () => {
     expertId: expert?.id || "",
     enabled: isAuthenticated && !!expert?.id,
   });
+
+  // Calculate actual viewport height for mobile browsers
+  // window.innerHeight gives the true visible area excluding browser chrome
+  useEffect(() => {
+    const updateHeight = () => {
+      const vh = window.innerHeight;
+      setAppHeight(`${vh}px`);
+      document.documentElement.style.setProperty('--app-height', `${vh}px`);
+    };
+
+    updateHeight();
+
+    window.addEventListener('resize', updateHeight);
+    window.addEventListener('orientationchange', () => {
+      // Delay to let the browser settle after orientation change
+      setTimeout(updateHeight, 100);
+    });
+
+    // Also listen to visualViewport changes (handles keyboard, url bar)
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', updateHeight);
+    }
+
+    return () => {
+      window.removeEventListener('resize', updateHeight);
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener('resize', updateHeight);
+      }
+    };
+  }, []);
+
+  // Lock body scroll when sidebar is open (mobile)
+  useEffect(() => {
+    if (isSidebarOpen) {
+      // Save current scroll position
+      const scrollY = window.scrollY;
+      document.body.style.overflow = 'hidden';
+      document.body.style.touchAction = 'none';
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.left = '0';
+      document.body.style.right = '0';
+      document.documentElement.style.overflow = 'hidden';
+    } else {
+      // Restore scroll position
+      const scrollY = document.body.style.top;
+      document.body.style.overflow = '';
+      document.body.style.touchAction = '';
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.left = '';
+      document.body.style.right = '';
+      document.documentElement.style.overflow = '';
+      if (scrollY) {
+        window.scrollTo(0, parseInt(scrollY || '0') * -1);
+      }
+    }
+    return () => {
+      document.body.style.overflow = '';
+      document.body.style.touchAction = '';
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.left = '';
+      document.body.style.right = '';
+      document.documentElement.style.overflow = '';
+    };
+  }, [isSidebarOpen]);
 
   // Load user from storage on mount
   useEffect(() => {
@@ -2032,8 +2100,9 @@ const ClientChatPage = () => {
 
   return (
     <div
-      className="flex h-[100dvh] overflow-hidden relative"
+      className="flex overflow-hidden relative"
       style={{
+        height: appHeight,
         background: publication?.banner_url
           ? `linear-gradient(135deg, rgba(0,0,0,0.1), rgba(0,0,0,0.05)), url(${convertS3UrlToProxy(publication.banner_url, true, 1200)})`
           : `linear-gradient(135deg, ${primaryColor}15, ${secondaryColor}10), linear-gradient(45deg, #f8fafc, #e2e8f0)`,
@@ -2131,8 +2200,10 @@ const ClientChatPage = () => {
       {isSidebarOpen && (
         <div
           className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+          style={{ touchAction: 'none' }}
           onClick={() => setIsSidebarOpen(false)}
           onTouchMove={(e) => e.preventDefault()}
+          onTouchStart={(e) => { if (e.target === e.currentTarget) e.preventDefault(); }}
         />
       )}
 
@@ -2173,7 +2244,7 @@ const ClientChatPage = () => {
           </Button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-3 space-y-4 overscroll-contain">
+        <div className="flex-1 overflow-y-auto p-3 space-y-4 overscroll-contain" style={{ WebkitOverflowScrolling: 'touch', overscrollBehavior: 'contain' }}>
           {!isAuthenticated ? (
             <div className="text-center p-4 text-gray-400 text-sm">
               <LogIn className="h-8 w-8 mx-auto mb-2 opacity-50" />
@@ -2493,7 +2564,10 @@ const ClientChatPage = () => {
       </div>
 
       {/* Main Chat Area */}
-      <div className={`flex-1 flex flex-col min-w-0 relative z-10 ${isSidebarOpen ? 'overflow-hidden' : ''}`}>
+      <div
+        className={`flex-1 flex flex-col min-w-0 relative z-10 ${isSidebarOpen ? 'overflow-hidden' : ''}`}
+        style={isSidebarOpen ? { touchAction: 'none', pointerEvents: 'none' } : {}}
+      >
         {/* Header */}
         <div
           className="px-3 sm:px-6 py-2 sm:py-4 flex items-center justify-between relative overflow-visible z-20"
@@ -3116,7 +3190,7 @@ const ClientChatPage = () => {
 
         {/* Input */}
         <div
-          className="px-3 sm:px-6 pt-2 pb-1 sm:py-4"
+          className="px-3 sm:px-6 pt-2 pb-[env(safe-area-inset-bottom,0px)] sm:py-4"
           style={{
             // background: publication?.banner_url
             //   ? "rgba(255, 255, 255, 0.98)"
@@ -3548,13 +3622,13 @@ const ClientChatPage = () => {
                 </div>
               </div>
 
-              <div className="mt-0.5 sm:mt-1 px-1 flex flex-col sm:flex-row items-center justify-between gap-1 text-gray-400">
-                <div className="flex flex-col sm:flex-row items-center gap-1 font-medium">
-                  <span className="text-[10px] leading-tight">
-                    AI LLM’s can make mistakes. Check important info.
+              <div className="mt-0 sm:mt-1 px-1 flex flex-col sm:flex-row items-center justify-between gap-0 sm:gap-1 text-gray-400">
+                <div className="flex items-center gap-1 font-medium">
+                  <span className="text-[10px] leading-none">
+                    AI LLM's can make mistakes. Check important info.
                   </span>
                   <span className="hidden sm:inline opacity-30">|</span>
-                  <span className="text-[10px] opacity-70">
+                  <span className="hidden sm:inline text-[10px] opacity-70">
                     Chrome or Safari recommended
                   </span>
                 </div>
