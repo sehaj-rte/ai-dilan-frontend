@@ -107,6 +107,17 @@ a {
   background: #a8a8a8;
 }
 
+/* Hide scrollbar utility - keeps scroll functional */
+.hide-scrollbar::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+.hide-scrollbar {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+}
+
 /* Smooth animations */
 .animate-fade-in {
   animation: fadeIn 0.6s ease-in-out;

@@ -2638,7 +2638,7 @@ const ClientChatPage = () => {
 
         {/* Messages */}
         <div
-          className="flex-1 overflow-y-auto p-3 sm:p-6 relative"
+          className="flex-1 overflow-y-auto p-3 sm:p-6 relative hide-scrollbar"
           style={{
             background: publication?.banner_url
               ? "rgba(255, 255, 255, 0.85)"
