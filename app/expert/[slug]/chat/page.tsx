@@ -3115,7 +3115,7 @@ const ClientChatPage = () => {
 
         {/* Input */}
         <div
-          className="px-3 sm:px-6 py-2 sm:py-4"
+          className="px-3 sm:px-6 pt-2 pb-1 sm:py-4"
           style={{
             // background: publication?.banner_url
             //   ? "rgba(255, 255, 255, 0.98)"
@@ -3547,7 +3547,7 @@ const ClientChatPage = () => {
                 </div>
               </div>
 
-              <div className="mt-1 px-1 flex flex-col sm:flex-row items-center justify-between gap-1 text-gray-400">
+              <div className="mt-0.5 sm:mt-1 px-1 flex flex-col sm:flex-row items-center justify-between gap-1 text-gray-400">
                 <div className="flex flex-col sm:flex-row items-center gap-1 font-medium">
                   <span className="text-[10px] leading-tight">
                     AI LLM’s can make mistakes. Check important info.
