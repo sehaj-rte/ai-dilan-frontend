@@ -18,15 +18,11 @@ export default function ExpertLayout({
   return (
     <ClientAuthFlowProvider>
       <ExpertProvider>
-        <div className={`${isChatOrCall ? 'fixed inset-0 overflow-hidden' : 'min-h-screen flex flex-col'}`}>
-          <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
-            <div className={`flex-1 flex flex-col min-h-0 ${isChatOrCall ? 'overflow-hidden' : 'overflow-y-auto'}`}>
-              <div className="flex-1 flex flex-col min-h-0">
-                {children}
-              </div>
-              {!isChatOrCall && <ExpertFooter className="z-40" />}
-            </div>
-          </main>
+        <div className={isChatOrCall ? "h-[100dvh] flex flex-col overflow-hidden" : "min-h-screen flex flex-col"}>
+          <div className="flex-1 flex flex-col min-h-0">
+            {children}
+          </div>
+          {!isChatOrCall && <ExpertFooter className="z-40" />}
         </div>
       </ExpertProvider>
     </ClientAuthFlowProvider>
