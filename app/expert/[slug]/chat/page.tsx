@@ -2032,7 +2032,7 @@ const ClientChatPage = () => {
 
   return (
     <div
-      className="flex h-full overflow-hidden relative"
+      className="flex h-[100dvh] overflow-hidden relative"
       style={{
         background: publication?.banner_url
           ? `linear-gradient(135deg, rgba(0,0,0,0.1), rgba(0,0,0,0.05)), url(${convertS3UrlToProxy(publication.banner_url, true, 1200)})`
@@ -2132,6 +2132,7 @@ const ClientChatPage = () => {
         <div
           className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
           onClick={() => setIsSidebarOpen(false)}
+          onTouchMove={(e) => e.preventDefault()}
         />
       )}
 
@@ -2172,7 +2173,7 @@ const ClientChatPage = () => {
           </Button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-3 space-y-4">
+        <div className="flex-1 overflow-y-auto p-3 space-y-4 overscroll-contain">
           {!isAuthenticated ? (
             <div className="text-center p-4 text-gray-400 text-sm">
               <LogIn className="h-8 w-8 mx-auto mb-2 opacity-50" />
@@ -2492,7 +2493,7 @@ const ClientChatPage = () => {
       </div>
 
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col min-w-0 relative z-10">
+      <div className={`flex-1 flex flex-col min-w-0 relative z-10 ${isSidebarOpen ? 'overflow-hidden' : ''}`}>
         {/* Header */}
         <div
           className="px-3 sm:px-6 py-2 sm:py-4 flex items-center justify-between relative overflow-visible z-20"
