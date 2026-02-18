@@ -212,6 +212,7 @@ const ClientChatPage = () => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const shouldIgnoreRecognitionRef = useRef<boolean>(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
+  const touchStartYRef = useRef<number>(0);
   const [authLoaded, setAuthLoaded] = useState(false);
 
   // Monthly warning modal state
@@ -2275,16 +2276,20 @@ const ClientChatPage = () => {
                   {grouped.today.map((c) => (
                     <div
                       key={c.id}
-                      onClick={(e) => {
-                        e.preventDefault();
+                      onClick={() => {
                         loadConversation(c);
                         setIsSidebarOpen(false);
                       }}
+                      onTouchStart={(e) => {
+                        touchStartYRef.current = e.touches[0].clientY;
+                      }}
                       onTouchEnd={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        loadConversation(c);
-                        setIsSidebarOpen(false);
+                        const deltaY = Math.abs(e.changedTouches[0].clientY - touchStartYRef.current);
+                        if (deltaY < 10) {
+                          e.preventDefault();
+                          loadConversation(c);
+                          setIsSidebarOpen(false);
+                        }
                       }}
                       className={`p-2 rounded active:bg-gray-800 sm:hover:bg-gray-800 flex items-center gap-2 group min-w-0 cursor-pointer ${currentConvId === c.id ? "" : ""}`}
                       style={
@@ -2354,16 +2359,20 @@ const ClientChatPage = () => {
                   {grouped.yesterday.map((c) => (
                     <div
                       key={c.id}
-                      onClick={(e) => {
-                        e.preventDefault();
+                      onClick={() => {
                         loadConversation(c);
                         setIsSidebarOpen(false);
                       }}
+                      onTouchStart={(e) => {
+                        touchStartYRef.current = e.touches[0].clientY;
+                      }}
                       onTouchEnd={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        loadConversation(c);
-                        setIsSidebarOpen(false);
+                        const deltaY = Math.abs(e.changedTouches[0].clientY - touchStartYRef.current);
+                        if (deltaY < 10) {
+                          e.preventDefault();
+                          loadConversation(c);
+                          setIsSidebarOpen(false);
+                        }
                       }}
                       className={`p-2 rounded active:bg-gray-800 sm:hover:bg-gray-800 flex items-center gap-2 group min-w-0 cursor-pointer ${currentConvId === c.id ? "" : ""}`}
                       style={
@@ -2433,16 +2442,20 @@ const ClientChatPage = () => {
                   {grouped.last7days.map((c) => (
                     <div
                       key={c.id}
-                      onClick={(e) => {
-                        e.preventDefault();
+                      onClick={() => {
                         loadConversation(c);
                         setIsSidebarOpen(false);
                       }}
+                      onTouchStart={(e) => {
+                        touchStartYRef.current = e.touches[0].clientY;
+                      }}
                       onTouchEnd={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        loadConversation(c);
-                        setIsSidebarOpen(false);
+                        const deltaY = Math.abs(e.changedTouches[0].clientY - touchStartYRef.current);
+                        if (deltaY < 10) {
+                          e.preventDefault();
+                          loadConversation(c);
+                          setIsSidebarOpen(false);
+                        }
                       }}
                       className={`p-2 rounded active:bg-gray-800 sm:hover:bg-gray-800 flex items-center gap-2 group min-w-0 cursor-pointer ${currentConvId === c.id ? "" : ""}`}
                       style={
@@ -2512,16 +2525,20 @@ const ClientChatPage = () => {
                   {grouped.older.map((c) => (
                     <div
                       key={c.id}
-                      onClick={(e) => {
-                        e.preventDefault();
+                      onClick={() => {
                         loadConversation(c);
                         setIsSidebarOpen(false);
                       }}
+                      onTouchStart={(e) => {
+                        touchStartYRef.current = e.touches[0].clientY;
+                      }}
                       onTouchEnd={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        loadConversation(c);
-                        setIsSidebarOpen(false);
+                        const deltaY = Math.abs(e.changedTouches[0].clientY - touchStartYRef.current);
+                        if (deltaY < 10) {
+                          e.preventDefault();
+                          loadConversation(c);
+                          setIsSidebarOpen(false);
+                        }
                       }}
                       className={`p-2 rounded active:bg-gray-800 sm:hover:bg-gray-800 flex items-center gap-2 group min-w-0 cursor-pointer ${currentConvId === c.id ? "" : ""}`}
                       style={
