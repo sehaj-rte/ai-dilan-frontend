@@ -257,31 +257,39 @@ const ClientChatPage = () => {
 
   // Calculate actual viewport height for mobile browsers
   // window.innerHeight gives the true visible area excluding browser chrome
+  // IMPORTANT: We must NOT update height when the keyboard opens (which also
+  // triggers resize), only when the actual viewport changes (orientation change).
+  // We detect keyboard vs real resize by checking if the width changed.
   useEffect(() => {
+    let lastWidth = window.innerWidth;
+
     const updateHeight = () => {
       const vh = window.innerHeight;
       setAppHeight(`${vh}px`);
       document.documentElement.style.setProperty('--app-height', `${vh}px`);
+      lastWidth = window.innerWidth;
     };
 
+    // Set initial height
     updateHeight();
 
-    window.addEventListener('resize', updateHeight);
+    const handleResize = () => {
+      const currentWidth = window.innerWidth;
+      // Only update if the width changed — this means it's a real resize
+      // or orientation change, NOT the keyboard opening/closing
+      if (currentWidth !== lastWidth) {
+        updateHeight();
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
     window.addEventListener('orientationchange', () => {
       // Delay to let the browser settle after orientation change
-      setTimeout(updateHeight, 100);
+      setTimeout(updateHeight, 150);
     });
 
-    // Also listen to visualViewport changes (handles keyboard, url bar)
-    if (window.visualViewport) {
-      window.visualViewport.addEventListener('resize', updateHeight);
-    }
-
     return () => {
-      window.removeEventListener('resize', updateHeight);
-      if (window.visualViewport) {
-        window.visualViewport.removeEventListener('resize', updateHeight);
-      }
+      window.removeEventListener('resize', handleResize);
     };
   }, []);
 
