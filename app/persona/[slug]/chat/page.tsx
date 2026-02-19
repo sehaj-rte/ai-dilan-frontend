@@ -1253,6 +1253,8 @@ const ExpertChatPage = () => {
               message: messageText,
               model: "gpt-4o-mini",
               files: s3FileData, // Send S3 URLs, not files
+              user_id: user?.id || null,
+              conversation_id: currentConvId || null,
             }),
           },
         );
@@ -1268,6 +1270,8 @@ const ExpertChatPage = () => {
             session_id: sessionId,
             message: messageText,
             model: "gpt-4o-mini",
+            user_id: user?.id || null,
+            conversation_id: currentConvId || null,
           }),
         });
       }
