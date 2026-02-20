@@ -5,11 +5,13 @@ import DashboardLayout from '@/components/dashboard/DashboardLayout'
 import { useParams } from 'next/navigation'
 import ChatMetrics from '@/components/dashboard/ChatMetrics'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { TrendingUp, MessageSquare, Users, Clock, MessageCircle, AlertCircle } from 'lucide-react'
+import { TrendingUp, MessageSquare, Users, Clock, MessageCircle, AlertCircle, BookOpen } from 'lucide-react'
+import { useExpert } from '@/context/ExpertContext'
 
 export default function AnalyticsPage() {
   const params = useParams()
   const expertId = params.id as string
+  const { kbStats } = useExpert()
 
   return (
     <DashboardLayout>
@@ -21,10 +23,22 @@ export default function AnalyticsPage() {
               <TrendingUp className="h-5 w-5 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Analytics</h1>
+              <h1 className="text-2xl font-bold text-gray-900">Subscriber Chat Metrics</h1>
               <p className="text-gray-600">Chat metrics and performance insights</p>
             </div>
           </div>
+
+          {kbStats && (
+            <div className="hidden md:flex items-center px-4 py-2 bg-blue-50 border border-blue-100 rounded-lg">
+              <BookOpen className="h-4 w-4 text-blue-600 mr-2" />
+              <div className="text-sm">
+                <span className="text-blue-700 font-medium">Knowledge Base: </span>
+                <span className="text-blue-600 font-bold">{kbStats.total_word_count_formatted} Words</span>
+                <span className="mx-2 text-blue-300">|</span>
+                <span className="text-blue-600 font-bold">{kbStats.files_processed} Documents</span>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Chat Metrics */}
@@ -33,7 +47,7 @@ export default function AnalyticsPage() {
           <div className="lg:col-span-2">
             <ChatMetrics expertId={expertId} />
           </div>
-          
+
           {/* Additional insights sidebar */}
           <div className="space-y-6">
             <Card>

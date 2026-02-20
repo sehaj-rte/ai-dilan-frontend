@@ -281,7 +281,7 @@ export default function SubscriptionHistoryPage() {
             <div>
               <h1 className="text-3xl font-bold text-gray-900 flex items-center">
                 <History className="w-6 h-6 mr-3 text-blue-600" />
-                Subscription History
+                Subscriber records
               </h1>
               <p className="text-gray-600 mt-1">
                 View all subscription records for this expert.
@@ -407,8 +407,8 @@ export default function SubscriptionHistoryPage() {
                         <td className="p-3 capitalize">
                           <span
                             className={`px-2 py-1 rounded text-xs ${sub.status === "active"
-                                ? "bg-green-100 text-green-700"
-                                : "bg-gray-200 text-gray-600"
+                              ? "bg-green-100 text-green-700"
+                              : "bg-gray-200 text-gray-600"
                               }`}
                           >
                             {sub.status}

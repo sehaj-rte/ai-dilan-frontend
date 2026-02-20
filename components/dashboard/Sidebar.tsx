@@ -102,57 +102,71 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, projectId }) => {
               href: `/project/${projectId}/chat`,
               icon: MessageSquare,
             },
+          ],
+        },
+        {
+          title: "Market Intelligence",
+          items: [
             {
-              title: "Subscriber Conversations",
-              href: `/project/${projectId}/conversations`,
-              icon: MessageSquare,
-            },
-            {
-              title: "Chat Metrics",
-              href: `/project/${projectId}/analytics`,
-              icon: TrendingUp,
-            },
-            {
-              title: "Earnings from Subscriptions",
-              href: `/project/${projectId}/earnings`,
-              icon: BarChart3,
+              title: "Quick Look",
+              href: `/project/${projectId}/insights/dashboard`,
+              icon: PieChart,
             },
           ],
         },
         {
-          title: "Analytics",
+          title: "Engagement Metrics",
           items: [
             {
-              title: "Dashboard",
-              href: `/project/${projectId}/insights/dashboard`,
-              icon: PieChart,
+              title: "Subscriber Chat Metrics",
+              href: `/project/${projectId}/analytics`,
+              icon: TrendingUp,
             },
             {
-              title: "Audience Insights",
-              href: `/project/${projectId}/insights/audience-insights`,
-              icon: Users,
-            },
-            {
-              title: "Revenue",
-              href: `/project/${projectId}/insights/revenue`,
-              icon: DollarSign,
-            },
-            {
-              title: "Content Intelligence",
-              href: `/project/${projectId}/insights/content-intelligence`,
-              icon: Lightbulb,
+              title: "Top Subscribers & Targets",
+              href: `/project/${projectId}/insights/top-users`,
+              icon: Crown,
             },
             {
               title: "Usage & Retention",
               href: `/project/${projectId}/insights/usage-retention`,
               icon: Activity,
             },
+          ],
+        },
+        {
+          title: "Revenue Intelligence",
+          items: [
             {
-              title: "Top Users",
-              href: `/project/${projectId}/insights/top-users`,
-              icon: Crown,
+              title: "Revenue Dashboard",
+              href: `/project/${projectId}/insights/revenue`,
+              icon: DollarSign,
             },
-
+            {
+              title: "Subscriber records",
+              href: `/project/${projectId}/earnings`,
+              icon: BarChart3,
+            },
+          ],
+        },
+        {
+          title: "Subscriber Intelligence",
+          items: [
+            {
+              title: "Audience Insights",
+              href: `/project/${projectId}/insights/audience-insights`,
+              icon: Users,
+            },
+            {
+              title: "Content Analysis",
+              href: `/project/${projectId}/insights/content-intelligence`,
+              icon: Lightbulb,
+            },
+            {
+              title: "Subscriber Conversations",
+              href: `/project/${projectId}/conversations`,
+              icon: MessageSquare,
+            },
           ],
         },
         {
@@ -227,7 +241,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, projectId }) => {
   };
 
   return (
-    <div className="flex h-full w-64 flex-col bg-white border-r border-gray-200">
+    <div className="flex h-full w-[280px] flex-col bg-white border-r border-gray-200">
       {/* Logo */}
       <div className="flex h-16 items-center justify-between px-6 border-b border-gray-200">
         <Link
@@ -290,7 +304,7 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, projectId }) => {
               key={section.title}
               className={sectionIndex > 0 ? "mt-6" : ""}
             >
-              <h3 className="px-3 py-2 text-sm font-bold text-gray-700 uppercase tracking-wider">
+              <h3 className="px-3 py-2 text-[10px] font-extrabold text-slate-500 uppercase tracking-[0.15em] whitespace-nowrap overflow-hidden">
                 {section.title}
               </h3>
               <div className="mt-1 space-y-1">
@@ -310,8 +324,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, projectId }) => {
                           : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
                       )}
                     >
-                      <Icon className="mr-3 h-5 w-5" />
-                      {item.title}
+                      <Icon className="mr-3 h-5 w-5 shrink-0" />
+                      <span className="truncate">{item.title}</span>
                     </Link>
                   );
                 })}
@@ -336,8 +350,8 @@ const Sidebar: React.FC<SidebarProps> = ({ onClose, projectId }) => {
                     : "text-gray-600 hover:bg-gray-50 hover:text-gray-900",
                 )}
               >
-                <Icon className="mr-3 h-5 w-5" />
-                {item.title}
+                <Icon className="mr-3 h-5 w-5 shrink-0" />
+                <span className="truncate">{item.title}</span>
               </Link>
             );
           })}
