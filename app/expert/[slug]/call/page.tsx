@@ -101,6 +101,7 @@ const ClientCallPage = () => {
   // Plan limitations state
   const [showLimitReachedModal, setShowLimitReachedModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [appHeight, setAppHeight] = useState("100dvh");
 
   // Plan limitations hook
   const {
@@ -142,6 +143,36 @@ const ClientCallPage = () => {
       console.log("Voice status changed:", status);
     },
   });
+
+  // Calculate actual viewport height for mobile browsers
+  useEffect(() => {
+    let lastWidth = window.innerWidth;
+
+    const updateHeight = () => {
+      const vh = window.innerHeight;
+      setAppHeight(`${vh}px`);
+      document.documentElement.style.setProperty('--app-height', `${vh}px`);
+      lastWidth = window.innerWidth;
+    };
+
+    updateHeight();
+
+    const handleResize = () => {
+      const currentWidth = window.innerWidth;
+      if (currentWidth !== lastWidth) {
+        updateHeight();
+      }
+    };
+
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('orientationchange', () => {
+      setTimeout(updateHeight, 150);
+    });
+
+    return () => {
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
 
   // Load user from storage on mount
   useEffect(() => {
@@ -635,7 +666,10 @@ const ClientCallPage = () => {
 
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center bg-white">
+      <div
+        className="flex items-center justify-center bg-white"
+        style={{ height: appHeight }}
+      >
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
           <h2 className="text-xl font-semibold text-gray-900 mb-2">
@@ -651,7 +685,10 @@ const ClientCallPage = () => {
 
   if (error && !expert) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-white">
+      <div
+        className="flex items-center justify-center bg-white"
+        style={{ minHeight: appHeight }}
+      >
         <div className="text-center">
           <h1 className="text-2xl font-bold text-gray-900 mb-4">
             Expert Not Found
@@ -670,7 +707,10 @@ const ClientCallPage = () => {
   // Show loading screen while validating payment
   if (paymentSessionValid === null) {
     return (
-      <div className="flex h-screen items-center justify-center bg-white">
+      <div
+        className="flex items-center justify-center bg-white"
+        style={{ height: appHeight }}
+      >
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-900 mx-auto mb-4"></div>
           <p className="text-gray-600">Validating access...</p>
@@ -682,7 +722,10 @@ const ClientCallPage = () => {
   // Show payment required screen if payment session is invalid
   if (paymentSessionValid === false) {
     return (
-      <div className="flex h-screen items-center justify-center bg-white">
+      <div
+        className="flex items-center justify-center bg-white"
+        style={{ height: appHeight }}
+      >
         <div className="text-center">
           <h2 className="text-xl font-semibold text-gray-900 mb-2">
             Payment Required
@@ -704,8 +747,9 @@ const ClientCallPage = () => {
 
   return (
     <div
-      className="h-full bg-white overflow-y-auto"
+      className="bg-white overflow-y-auto"
       style={{
+        height: appHeight,
         backgroundImage: publication?.banner_url
           ? `url(${convertS3UrlToProxy(publication.banner_url)})`
           : undefined,

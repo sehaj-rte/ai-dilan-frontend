@@ -18,7 +18,7 @@ export default function ExpertLayout({
   return (
     <ClientAuthFlowProvider>
       <ExpertProvider>
-        <div className={isChatOrCall ? "flex flex-col overflow-hidden" : "h-screen flex flex-col overflow-hidden"}>
+        <div className={isChatOrCall ? "flex-1 flex flex-col overflow-hidden min-h-0 h-full" : "h-screen flex flex-col overflow-hidden"}>
           <div className={`flex-1 flex flex-col min-h-0 ${isChatOrCall ? '' : 'overflow-y-auto'}`}>
             {children}
           </div>
