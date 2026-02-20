@@ -1616,8 +1616,6 @@ const ClientChatPage = () => {
               model: "gpt-4o-mini",
               files: s3FileData, // Send S3 URLs, not files
               subscription_id: subscription?.subscription_id || null,
-              user_id: user?.id || null,
-              conversation_id: currentConvId || null,
             }),
           },
         );
@@ -1634,8 +1632,6 @@ const ClientChatPage = () => {
             message: messageText,
             model: "gpt-4o-mini",
             subscription_id: subscription?.subscription_id || null,
-            user_id: user?.id || null,
-            conversation_id: currentConvId || null,
           }),
         });
       }
