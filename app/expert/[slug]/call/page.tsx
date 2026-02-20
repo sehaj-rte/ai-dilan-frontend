@@ -101,7 +101,6 @@ const ClientCallPage = () => {
   // Plan limitations state
   const [showLimitReachedModal, setShowLimitReachedModal] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
-  const [appHeight, setAppHeight] = useState('100dvh');
 
   // Plan limitations hook
   const {
@@ -166,41 +165,6 @@ const ClientCallPage = () => {
   useEffect(() => {
     fetchExpertData();
   }, [slug]);
-
-  // Calculate actual viewport height for mobile browsers
-  // window.innerHeight gives the true visible area excluding browser chrome
-  useEffect(() => {
-    let lastWidth = window.innerWidth;
-
-    const updateHeight = () => {
-      const vh = window.innerHeight;
-      setAppHeight(`${vh}px`);
-      document.documentElement.style.setProperty('--app-height', `${vh}px`);
-      lastWidth = window.innerWidth;
-    };
-
-    // Set initial height
-    updateHeight();
-
-    const handleResize = () => {
-      const currentWidth = window.innerWidth;
-      // Only update if the width changed — this means it's a real resize
-      // or orientation change, NOT the keyboard opening/closing
-      if (currentWidth !== lastWidth) {
-        updateHeight();
-      }
-    };
-
-    window.addEventListener('resize', handleResize);
-    window.addEventListener('orientationchange', () => {
-      // Delay to let the browser settle after orientation change
-      setTimeout(updateHeight, 150);
-    });
-
-    return () => {
-      window.removeEventListener('resize', handleResize);
-    };
-  }, []);
 
   // Check for payment session ID and validate it
   useEffect(() => {
@@ -740,9 +704,8 @@ const ClientCallPage = () => {
 
   return (
     <div
-      className="flex-1 flex flex-col min-h-screen bg-white overflow-y-auto relative"
+      className="h-full bg-white overflow-y-auto"
       style={{
-        minHeight: appHeight,
         backgroundImage: publication?.banner_url
           ? `url(${convertS3UrlToProxy(publication.banner_url)})`
           : undefined,
